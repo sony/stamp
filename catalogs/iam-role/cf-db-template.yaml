@@ -1,0 +1,119 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  TableNamePrefix:
+    Type: String
+  CategoryName:
+    Description: "Resource category name"
+    Type: String
+    Default: "iam-role"
+  DynamoDBDeletionPolicy:
+    Description: "Deletion policy for the DynamoDB table"
+    Type: String
+    Default: Retain
+    AllowedValues:
+      - Delete
+      - Retain
+
+Resources:
+  AWSAccountResourceTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join
+        - "-"
+        - - !Ref TableNamePrefix
+          - !Ref CategoryName
+          - "AWSAccountResource"
+      AttributeDefinitions:
+        - AttributeName: accountId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: accountId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+    DeletionPolicy: !Ref DynamoDBDeletionPolicy
+  TargetIamRoleResourceTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join
+        - "-"
+        - - !Ref TableNamePrefix
+          - !Ref CategoryName
+          - "TargetRoleResource"
+      AttributeDefinitions:
+        - AttributeName: accountId
+          AttributeType: S
+        - AttributeName: iamRoleName
+          AttributeType: S
+      KeySchema:
+        - AttributeName: accountId
+          KeyType: HASH
+        - AttributeName: iamRoleName
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+    DeletionPolicy: !Ref DynamoDBDeletionPolicy
+  GitHubIamRoleResourceTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join
+        - "-"
+        - - !Ref TableNamePrefix
+          - !Ref CategoryName
+          - "GitHubIamRoleResource"
+      AttributeDefinitions:
+        - AttributeName: repositoryName
+          AttributeType: S
+        - AttributeName: iamRoleName
+          AttributeType: S
+      KeySchema:
+        - AttributeName: repositoryName
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: IamRoleNameIndex
+          KeySchema:
+            - AttributeName: iamRoleName
+              KeyType: HASH
+          Projection:
+            ProjectionType: KEYS_ONLY
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+    DeletionPolicy: !Ref DynamoDBDeletionPolicy
+  JumpIamRoleResourceTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join
+        - "-"
+        - - !Ref TableNamePrefix
+          - !Ref CategoryName
+          - "JumpIamRoleResource"
+      AttributeDefinitions:
+        - AttributeName: jumpIamRoleName
+          AttributeType: S
+        - AttributeName: iamRoleName
+          AttributeType: S
+      KeySchema:
+        - AttributeName: jumpIamRoleName
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: IamRoleNameIndex
+          KeySchema:
+            - AttributeName: iamRoleName
+              KeyType: HASH
+          Projection:
+            ProjectionType: KEYS_ONLY
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+    DeletionPolicy: !Ref DynamoDBDeletionPolicy

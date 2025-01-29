@@ -1,0 +1,35 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.tabSize": 2,
+  "files.associations": { "*.json": "jsonc" },
+  "[typescript]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": false
+  },
+  "[javascript]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": false
+  },
+  "[javascriptreact]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": false
+  },
+  "[typescriptreact]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": false
+  },
+  "[yaml]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": false
+  },
+  "[jsonc]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": false
+  },
+  "[markdown]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": false
+  },
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "cSpell.words": ["hono", "neverthrow"]
+}

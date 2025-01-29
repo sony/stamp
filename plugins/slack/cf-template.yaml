@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  TableNamePrefix:
+    Type: String
+  CategoryName:
+    Description: "Resource category name"
+    Type: String
+    Default: "slack"
+  DynamoDBDeletionPolicy:
+    Description: "Deletion policy for the DynamoDB table"
+    Type: String
+    Default: Retain
+    AllowedValues:
+      - Delete
+      - Retain
+
+Resources:
+  OauthStateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join
+        - "-"
+        - - !Ref TableNamePrefix
+          - !Ref CategoryName
+          - "OauthState"
+      AttributeDefinitions:
+        - AttributeName: state
+          AttributeType: S
+      KeySchema:
+        - AttributeName: state
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: expirationTime
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+    DeletionPolicy: !Ref DynamoDBDeletionPolicy

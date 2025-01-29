@@ -1,0 +1,35 @@
+{
+  "name": "@stamp-lib/stamp-slack-plugin",
+  "version": "0.6.0",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "test": "vitest"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.481.0",
+    "@aws-sdk/lib-dynamodb": "^3.481.0",
+    "@stamp-lib/stamp-hub": "^0.6.0",
+    "@stamp-lib/stamp-logger": "^0.6.0",
+    "hono": "^4.2.7",
+    "neverthrow": "^6.1.0",
+    "slack-edge": "^0.12.0",
+    "slack-web-api-client": "^0.11.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@trpc/client": "^10.45.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sony/stamp.git",
+    "directory": "plugins/slack"
+  },
+  "gitHead": "87360999f07721fc610b38c1ffca03dfd6f98525"
+}

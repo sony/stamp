@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Stamp web-ui Cognito template
+Parameters:
+  CognitoDomain:
+    Description: "Unique domain name of cognito"
+    Type: String
+  CallBackURLs:
+    Description: "List of call back URL."
+    Type: CommaDelimitedList
+    Default: "http://localhost:3000/api/auth/callback/cognito"
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName:
+        Fn::Join:
+          - ""
+          - - Ref: AWS::StackName
+            - Users
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: admin_only
+            Priority: 1
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      Schema:
+        - Name: name
+          AttributeDataType: String
+          Required: true
+        - Name: email
+          AttributeDataType: String
+          Required: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName:
+        Fn::Join:
+          - ""
+          - - Ref: AWS::StackName
+            - Users-client
+      GenerateSecret: true
+      AllowedOAuthFlowsUserPoolClient: true
+      CallbackURLs: !Ref CallBackURLs
+      AllowedOAuthFlows:
+        - code
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      UserPoolId:
+        Ref: UserPool
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      SupportedIdentityProviders:
+        - COGNITO
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Ref CognitoDomain
+      UserPoolId: !Ref UserPool

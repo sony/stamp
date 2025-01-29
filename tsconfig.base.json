@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "lib": ["es2023", "dom"],
+    "module": "Node16",
+    "target": "es2022",
+    "declaration": true,
+    "declarationMap": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node16",
+    "sourceMap": true,
+    "useUnknownInCatchVariables": false
+  },
+  "exclude": ["node_modules", "dist"]
+}

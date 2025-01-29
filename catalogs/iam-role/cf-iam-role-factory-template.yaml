@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  StampAWSAccountId:
+    Type: String
+
+Resources:
+  GitHubActionsOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # The certificate is automatically verified on the AWS side, so a random value is specified.
+  StampExecuteRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: stamp-execute-role
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action: "sts:AssumeRole"
+            Principal:
+              AWS: !Ref StampAWSAccountId
+      Policies:
+        - PolicyName: iam-ops-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - "iam:CreateRole"
+                  - "iam:DeleteRole"
+                  - "iam:CreatePolicy"
+                  - "iam:DeletePolicy"
+                  - "iam:AttachRolePolicy"
+                  - "iam:DetachRolePolicy"
+                  - "iam:ListEntitiesForPolicy"
+                  - "iam:ListAttachedRolePolicies"
+                  - "iam:GetPolicy"
+                  - "iam:GetPolicyVersion"
+                Effect: Allow
+                Resource:
+                  - "*"

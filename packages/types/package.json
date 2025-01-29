@@ -1,0 +1,37 @@
+{
+  "name": "@stamp-lib/stamp-types",
+  "version": "0.6.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./models": "./dist/models/index.js",
+    "./catalogInterface/handler": "./dist/catalogInterface/handler/index.js",
+    "./pluginInterface": "./dist/pluginInterface/index.js",
+    "./pluginInterface/database": "./dist/pluginInterface/database/index.js",
+    "./pluginInterface/front": "./dist/pluginInterface/front/index.js",
+    "./pluginInterface/identity": "./dist/pluginInterface/identity/index.js",
+    "./pluginInterface/scheduler": "./dist/pluginInterface/scheduler/index.js",
+    "./pluginInterface/notification": "./dist/pluginInterface/notification/index.js",
+    "./configInterface": "./dist/configInterface/index.js"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@stamp-lib/stamp-option": "^0.6.0",
+    "neverthrow": "^6.1.0",
+    "zod": "^3.22.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sony/stamp.git",
+    "directory": "packages/types"
+  },
+  "gitHead": "87360999f07721fc610b38c1ffca03dfd6f98525"
+}

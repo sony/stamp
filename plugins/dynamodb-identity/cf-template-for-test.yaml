@@ -1,0 +1,144 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  TableNamePrefix:
+    Type: String
+  CategoryName:
+    Description: "Resource category name"
+    Type: String
+    Default: "dynamodb-identity"
+  DynamoDBDeletionPolicy:
+    Description: "Deletion policy for the DynamoDB table"
+    Type: String
+    Default: Retain
+    AllowedValues:
+      - Delete
+      - Retain
+
+Resources:
+  AccountLinkTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join
+        - "-"
+        - - !Ref TableNamePrefix
+          - !Ref CategoryName
+          - "AccountLink"
+      AttributeDefinitions:
+        - AttributeName: accountProviderName
+          AttributeType: S
+        - AttributeName: accountId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: accountProviderName
+          KeyType: HASH
+        - AttributeName: accountId
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: userId_index
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+    DeletionPolicy: !Ref DynamoDBDeletionPolicy
+  AccountLinkSessionTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join
+        - "-"
+        - - !Ref TableNamePrefix
+          - !Ref CategoryName
+          - "AccountLinkSession"
+      AttributeDefinitions:
+        - AttributeName: sessionKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: sessionKey
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: expirationTime
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+    DeletionPolicy: !Ref DynamoDBDeletionPolicy
+  GroupTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join
+        - "-"
+        - - !Ref TableNamePrefix
+          - !Ref CategoryName
+          - "Group"
+      AttributeDefinitions:
+        - AttributeName: groupId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: groupId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+    DeletionPolicy: !Ref DynamoDBDeletionPolicy
+  GroupMemberShipTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join
+        - "-"
+        - - !Ref TableNamePrefix
+          - !Ref CategoryName
+          - "GroupMemberShip"
+      AttributeDefinitions:
+        - AttributeName: groupId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: groupId
+          KeyType: HASH
+        - AttributeName: userId
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: userId_index
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+    DeletionPolicy: !Ref DynamoDBDeletionPolicy
+  UserTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join
+        - "-"
+        - - !Ref TableNamePrefix
+          - !Ref CategoryName
+          - "User"
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+    DeletionPolicy: !Ref DynamoDBDeletionPolicy

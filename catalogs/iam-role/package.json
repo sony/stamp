@@ -1,0 +1,30 @@
+{
+  "name": "@stamp-lib/stamp-iam-role-catalog",
+  "version": "0.6.0",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "test": "vitest"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.474.0",
+    "@aws-sdk/client-iam": "^3.485.0",
+    "@aws-sdk/client-identitystore": "^3.465.0",
+    "@aws-sdk/client-sso-admin": "^3.453.0",
+    "@aws-sdk/client-sts": "^3.485.0",
+    "@aws-sdk/credential-providers": "^3.485.0",
+    "@aws-sdk/lib-dynamodb": "^3.474.0",
+    "@stamp-lib/stamp-logger": "^0.6.0",
+    "@stamp-lib/stamp-option": "^0.6.0",
+    "@stamp-lib/stamp-types": "^0.6.0",
+    "neverthrow": "^6.1.0",
+    "zod": "^3.22.4"
+  },
+  "gitHead": "87360999f07721fc610b38c1ffca03dfd6f98525"
+}

@@ -1,0 +1,42 @@
+{
+  "name": "root",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "description": "",
+  "scripts": {
+    "lint": "eslint . --ext .ts,.js --ignore-path .gitignore",
+    "versionup": "lerna version --force-publish --no-push --no-git-tag-version",
+    "versionup:patch": "lerna version patch --force-publish --no-push --no-git-tag-version",
+    "versionup:minor": "lerna version minor --force-publish --no-push --no-git-tag-version",
+    "versionup:major": "lerna version major --force-publish --no-push --no-git-tag-version",
+    "build": "lerna run build",
+    "publish-package": "lerna publish from-package --no-private"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "workspaces": [
+    "packages/*",
+    "catalogs/*",
+    "plugins/**"
+  ],
+  "dependencies": {
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.42.1",
+    "@types/node": "^20.11.30",
+    "@typescript-eslint/eslint-plugin": "^6.10.0",
+    "@typescript-eslint/parser": "^6.13.2",
+    "@vitest/coverage-v8": "^2.1.8",
+    "eslint": "^8.55.0",
+    "eslint-plugin-neverthrow": "^1.1.4",
+    "eslint-plugin-vitest": "^0.3.20",
+    "lerna": "^8.1.8",
+    "vitest": "^2.1.8"
+  }
+}

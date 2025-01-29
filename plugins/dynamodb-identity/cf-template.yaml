@@ -1,0 +1,197 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  TableNamePrefix:
+    Type: String
+  CategoryName:
+    Description: "Resource category name"
+    Type: String
+    Default: "dynamodb-identity"
+  DynamoDBDeletionPolicy:
+    Description: "Deletion policy for the DynamoDB table"
+    Type: String
+    Default: Retain
+    AllowedValues:
+      - Delete
+      - Retain
+
+Resources:
+  UserDataKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Key for User Data of DynamoDB Identity
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Statement:
+          - Sid: Allow all access for Root
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action:
+              - kms:*
+            Resource: "*"
+
+  SessionDataKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Key for Session Data of DynamoDB Identity
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Statement:
+          - Sid: Allow all access for Root
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action:
+              - kms:*
+            Resource: "*"
+
+  UserKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/stamp-dynamodb-identity-user-data-key
+      TargetKeyId: !Ref UserDataKey
+
+  SessionDataKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/stamp-dynamodb-identity-session-data-key
+      TargetKeyId: !Ref SessionDataKey
+
+  AccountLinkTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join
+        - "-"
+        - - !Ref TableNamePrefix
+          - !Ref CategoryName
+          - "AccountLink"
+      AttributeDefinitions:
+        - AttributeName: accountProviderName
+          AttributeType: S
+        - AttributeName: accountId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: accountProviderName
+          KeyType: HASH
+        - AttributeName: accountId
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: userId_index
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        KMSMasterKeyId: "alias/stamp-dynamodb-identity-user-data-key"
+        SSEType: KMS
+    DependsOn: UserKeyAlias
+    DeletionPolicy: !Ref DynamoDBDeletionPolicy
+  AccountLinkSessionTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join
+        - "-"
+        - - !Ref TableNamePrefix
+          - !Ref CategoryName
+          - "AccountLinkSession"
+      AttributeDefinitions:
+        - AttributeName: sessionKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: sessionKey
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: expirationTime
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+        KMSMasterKeyId: "alias/stamp-dynamodb-identity-session-data-key"
+        SSEType: KMS
+    DependsOn: SessionDataKeyAlias
+    DeletionPolicy: !Ref DynamoDBDeletionPolicy
+  GroupTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join
+        - "-"
+        - - !Ref TableNamePrefix
+          - !Ref CategoryName
+          - "Group"
+      AttributeDefinitions:
+        - AttributeName: groupId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: groupId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+    DeletionPolicy: !Ref DynamoDBDeletionPolicy
+  GroupMemberShipTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join
+        - "-"
+        - - !Ref TableNamePrefix
+          - !Ref CategoryName
+          - "GroupMemberShip"
+      AttributeDefinitions:
+        - AttributeName: groupId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: groupId
+          KeyType: HASH
+        - AttributeName: userId
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: userId_index
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+    DeletionPolicy: !Ref DynamoDBDeletionPolicy
+  UserTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join
+        - "-"
+        - - !Ref TableNamePrefix
+          - !Ref CategoryName
+          - "User"
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        KMSMasterKeyId: "alias/stamp-dynamodb-identity-user-data-key"
+        SSEType: KMS
+    DependsOn: UserKeyAlias
+    DeletionPolicy: !Ref DynamoDBDeletionPolicy

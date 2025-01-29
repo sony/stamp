@@ -1,0 +1,36 @@
+display_information:
+  name: Stamp
+features:
+  bot_user:
+    display_name: Stamp
+    always_online: true
+oauth_config:
+  redirect_urls:
+    - https://<Stamp domain>/plugin/slack/account-link/oatuh_redirect
+  scopes:
+    user:
+      - openid
+      - email
+      - profile
+    bot:
+      - channels:read
+      - groups:read
+      - usergroups:read
+      - im:write
+      - chat:write
+      - app_mentions:read
+      - im:history
+      - incoming-webhook
+      - commands
+settings:
+  event_subscriptions:
+    request_url: https://<Stamp domain>/plugin/slack/event
+    bot_events:
+      - app_mention
+      - message.im
+  interactivity:
+    is_enabled: true
+    request_url: https://<Stamp domain>/plugin/slack/event
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

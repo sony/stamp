@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  TableNamePrefix:
+    Type: String
+  SchedulerGroupName:
+    Type: String
+  ProtocolType:
+    Type: String
+    Default: https
+    AllowedValues:
+      - http
+      - https
+  EndpointUrl:
+    Type: String
+  CategoryName:
+    Description: "Resource category name"
+    Type: String
+    Default: "eventbridge-scheduler"
+  DynamoDBDeletionPolicy:
+    Description: "Deletion policy for the DynamoDB table"
+    Type: String
+    Default: Retain
+    AllowedValues:
+      - Delete
+      - Retain
+
+Resources:
+  schedulerEvent:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join
+        - "-"
+        - - !Ref TableNamePrefix
+          - !Ref CategoryName
+          - "SchedulerEvent"
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: eventType
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: eventType-index
+          KeySchema:
+            - AttributeName: eventType
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+    DeletionPolicy: !Ref DynamoDBDeletionPolicy
+
+  ScheduleGroup:
+    Type: AWS::Scheduler::ScheduleGroup
+    Properties:
+      Name: !Ref SchedulerGroupName
+
+  SchedulerTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub ${SchedulerGroupName}-notification
+      DisplayName: !Sub ${SchedulerGroupName}-notification
+
+  SchedulerSubscribe:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: !Ref ProtocolType
+      TopicArn: !Ref SchedulerTopic
+      Endpoint: !Sub ${ProtocolType}://${EndpointUrl}/plugin/event-bridge/sns-endpoint/
+
+  SchedulerTopicRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${SchedulerGroupName}-notification-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action:
+              - sts:AssumeRole
+            Condition:
+              StringEquals:
+                "aws:SourceAccount": !Ref AWS::AccountId
+      Policies:
+        - PolicyName: sns-publish
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource:
+                  - !Ref SchedulerTopic

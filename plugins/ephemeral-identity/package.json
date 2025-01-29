@@ -1,0 +1,29 @@
+{
+  "name": "@stamp-lib/stamp-ephemeral-identity-plugin",
+  "version": "0.6.0",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "@stamp-lib/stamp-types": "^0.6.0",
+    "neverthrow": "^6.1.0",
+    "zod": "^3.22.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sony/stamp.git",
+    "directory": "plugins/ephemeral-identity"
+  },
+  "gitHead": "87360999f07721fc610b38c1ffca03dfd6f98525"
+}
