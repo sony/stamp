@@ -92,8 +92,6 @@ describe("settingAutoRevoke", () => {
       requestId: REQUEST_UUID,
     };
 
-    const expectedTime = new Date("2023-01-06T12:00:00Z"); // Add 5 days
-
     const result = await settingAutoRevoke(mockCreateSchedulerEvent, logger)(input);
 
     expect(result.isOk()).toBeTruthy();
@@ -106,7 +104,7 @@ describe("settingAutoRevoke", () => {
       },
       schedulePattern: {
         type: "at",
-        time: expectedTime.toISOString(),
+        time: "2023-01-06T21:00:00", // Add 5 days
       },
     });
   });
@@ -121,19 +119,19 @@ describe("settingAutoRevoke", () => {
       requestId: REQUEST_UUID,
     };
 
-    const expectedTime = new Date("2023-01-01T20:00:00Z"); // Add 8 hours
-
     const result = await settingAutoRevoke(mockCreateSchedulerEvent, logger)(input);
 
     expect(result.isOk()).toBeTruthy();
     expect(mockCreateSchedulerEvent).toHaveBeenCalledWith({
       eventType: "ApprovalRequestAutoRevoke",
-      property: expect.objectContaining({
+      property: {
+        catalogId: "catalog-123",
+        approvalFlowId: "flow-123",
         requestId: REQUEST_UUID,
-      }),
+      },
       schedulePattern: {
         type: "at",
-        time: expectedTime.toISOString(),
+        time: "2023-01-02T05:00:00", // Add 8 hours
       },
     });
   });
@@ -148,19 +146,21 @@ describe("settingAutoRevoke", () => {
       requestId: REQUEST_UUID,
     };
 
-    const expectedTime = new Date("2023-01-05T00:00:00Z"); // Add 3 days and 12 hours
-
     const result = await settingAutoRevoke(mockCreateSchedulerEvent, logger)(input);
 
     expect(result.isOk()).toBeTruthy();
-    expect(mockCreateSchedulerEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        schedulePattern: {
-          type: "at",
-          time: expectedTime.toISOString(),
-        },
-      })
-    );
+    expect(mockCreateSchedulerEvent).toHaveBeenCalledWith({
+      eventType: "ApprovalRequestAutoRevoke",
+      property: {
+        catalogId: "catalog-123",
+        approvalFlowId: "flow-123",
+        requestId: REQUEST_UUID,
+      },
+      schedulePattern: {
+        type: "at",
+        time: "2023-01-05T09:00:00", // Add 3 days and 12 hours
+      },
+    });
   });
 
   it("fails when autoRevokeDuration is invalid", async () => {
