@@ -1,5 +1,4 @@
 import { DeleteSchedulerEvent } from "@stamp-lib/stamp-types/pluginInterface/scheduler";
-import { deleteItem } from "../database/schedulerEvent";
 import { SchedulerContext } from "../index";
 import { deleteSchedule } from "../eventbridge-scheduler-api/delete";
 import { createLogger } from "@stamp-lib/stamp-logger";
@@ -14,7 +13,5 @@ export const deleteSchedulerEvent =
       logger
     )({
       name: input.id,
-    }).andThen(() => {
-      return deleteItem({ logger, TableName: schedulerContext.tableName, config: { region: schedulerContext.region } })(input.id);
     });
   };

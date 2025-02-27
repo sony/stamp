@@ -59,6 +59,11 @@ export const createSNSEventBridgeSchedulerHandler = (snsEventBridgeSchedulerConf
       const schedulerEvent = SchedulerEvent.parse(JSON.parse(event.Message as string));
       const client = createStampHubHTTPServerClient(stampHubUrl);
       return await client.systemRequest.schedulerHandler.invoke.mutate({ schedulerEvent });
+    } else if (event.Type === "ApprovalRequestAutoRevoke") {
+      logger.info("Received ApprovalRequestAutoRevoke event", event);
+      const schedulerEvent = SchedulerEvent.parse(JSON.parse(event.Message as string));
+      const client = createStampHubHTTPServerClient(stampHubUrl);
+      return await client.systemRequest.schedulerHandler.invoke.mutate({ schedulerEvent });
     }
 
     logger.warn("Received unknown event", event);

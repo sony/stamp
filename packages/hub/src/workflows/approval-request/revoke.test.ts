@@ -182,13 +182,12 @@ describe("revokeWorkflow", () => {
     };
 
     const result = await revokeWorkflow(
-      input,
       getCatalogConfigProvider,
       approvalRequestDBProvider,
       approvalFlowDBProvider,
       resourceDBProvider,
       groupMemberShipProvider
-    );
+    )(input);
 
     if (result.isErr()) {
       throw result.error;
@@ -218,13 +217,12 @@ describe("revokeWorkflow", () => {
     };
 
     const result = await revokeWorkflow(
-      input,
       getCatalogConfigProvider,
       approvalRequestDBProvider,
       approvalFlowDBProvider,
       resourceDBProvider,
       groupMemberShipProvider
-    );
+    )(input);
 
     if (result.isOk()) {
       throw new Error("Successful completion is not the expected result");
@@ -255,13 +253,12 @@ describe("revokeWorkflow", () => {
     };
 
     const result = await revokeWorkflow(
-      input,
       getCatalogConfigProvider,
       approvalRequestDBProvider,
       approvalFlowDBProvider,
       resourceDBProvider,
       groupMemberShipProvider
-    );
+    )(input);
 
     if (result.isOk()) {
       throw new Error("Successful completion is not the expected result");

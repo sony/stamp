@@ -11,14 +11,6 @@ export type GetSchedulerEventInput = {
 export type GetSchedulerEventOutput = ResultAsync<Option<SchedulerEvent>, SchedulerError>;
 export type GetSchedulerEvent = (input: GetSchedulerEventInput, context?: SchedulerEventRequestContext) => GetSchedulerEventOutput;
 
-export type ListSchedulerEventInput = {
-  limit?: number;
-  paginationToken?: string;
-  eventType?: string;
-};
-export type ListSchedulerEventOutput = ResultAsync<{ items: Array<SchedulerEvent>; nextPaginationToken?: string }, SchedulerError>;
-export type ListSchedulerEvent = (input: ListSchedulerEventInput, context?: SchedulerEventRequestContext) => ListSchedulerEventOutput;
-
 export type CreateSchedulerEventInput = {
   eventType: SchedulerEvent["eventType"];
   property: SchedulerEvent["property"];
@@ -44,7 +36,6 @@ export type DeleteSchedulerEvent = (input: DeleteSchedulerEventInput, context?: 
 
 export type SchedulerProvider = {
   getSchedulerEvent: GetSchedulerEvent;
-  listSchedulerEvent: ListSchedulerEvent;
   createSchedulerEvent: CreateSchedulerEvent;
   updateSchedulerEvent: UpdateSchedulerEvent;
   deleteSchedulerEvent: DeleteSchedulerEvent;

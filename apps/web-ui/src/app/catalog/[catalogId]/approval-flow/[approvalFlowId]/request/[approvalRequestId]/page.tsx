@@ -10,11 +10,14 @@ import { RevokeForm } from "@/components/approval-request/revokeForm";
 import React from "react";
 import { createServerLogger } from "@/logger";
 import { StatusBadge } from "@/components/approval-request/statusBadge";
+import { Logger } from "@stamp-lib/stamp-logger";
 
 type ResourceInfos = { resourceId: string; resourceName: string; resourceTypeId: string; resourceTypeName: string }[];
 
 export default async function Page({ params }: { params: { approvalFlowId: string; catalogId: string; approvalRequestId: string } }) {
   const userSession = await getSessionUser();
+  const logger = createServerLogger();
+
   const catalogId = decodeURIComponent(params.catalogId);
   const approvalFlowId = decodeURIComponent(params.approvalFlowId);
   const catalog = await unwrapOr(stampHubClient.userRequest.catalog.get.query(catalogId), undefined);
@@ -51,7 +54,7 @@ export default async function Page({ params }: { params: { approvalFlowId: strin
           </Flex>
         </Container>
       </Box>
-      <Overview approvalRequest={approvalRequests} approvalFlow={approvalFlow} />
+      <Overview approvalRequest={approvalRequests} approvalFlow={approvalFlow} logger={logger} />
       <Timeline approvalRequest={approvalRequests} />
       {approvalRequests.status === "pending" && <ApprovalForm approvalRequest={approvalRequests} />}
       {(approvalRequests.status === "approved" || approvalRequests.status == "approvedActionSucceeded") && (
@@ -61,7 +64,7 @@ export default async function Page({ params }: { params: { approvalFlowId: strin
   );
 }
 
-async function Overview({ approvalRequest, approvalFlow }: { approvalRequest: ApprovalRequest; approvalFlow: ApprovalFlow }) {
+async function Overview({ approvalRequest, approvalFlow, logger }: { approvalRequest: ApprovalRequest; approvalFlow: ApprovalFlow; logger: Logger }) {
   return (
     <Container size="3" px="8">
       <Card variant="classic">
@@ -83,6 +86,31 @@ async function Overview({ approvalRequest, approvalFlow }: { approvalRequest: Ap
                 <Heading size="3">Approver</Heading>
                 <GroupLink groupId={approvalRequest.approverId} />
               </Flex>
+
+              {approvalRequest.autoRevokeDuration &&
+                approvalRequest.status === "pending" && ( // Display auto revoke duration only when the request is pending for usability
+                  <Flex direction="column" gap="2">
+                    <Flex align="center" gap="2">
+                      <Heading size="3">Duration Until Auto Revoke</Heading>
+                      <Badge color="amber" size="1">
+                        Preview
+                      </Badge>
+                    </Flex>
+                    <Text size="3">{formatDurationToReadable(approvalRequest.autoRevokeDuration)}</Text>
+                  </Flex>
+                )}
+              {approvalRequest.autoRevokeDuration &&
+                approvalRequest.status === "approvedActionSucceeded" && ( // Display auto revoke duration only when the request is approved because the date is determined only after approval
+                  <Flex direction="column" gap="2">
+                    <Flex align="center" gap="2">
+                      <Heading size="3">Scheduled Revoke Date</Heading>
+                      <Badge color="amber" size="1">
+                        Preview
+                      </Badge>
+                    </Flex>
+                    <Text size="3">{calculateAutoRevokeDate(logger)(approvalRequest.approvedDate, approvalRequest.autoRevokeDuration)}</Text>
+                  </Flex>
+                )}
             </Flex>
             <Flex>
               <Flex>
@@ -363,3 +391,48 @@ function TimelineContent(
     </Flex>
   );
 }
+
+// Function to convert ISO 8601 duration format to human-readable format
+const formatDurationToReadable = (duration: string): string => {
+  try {
+    // Parse ISO 8601 duration format like "P7D" (7 days) or "PT12H" (12 hours) or "P3DT3H" (3 days and 3 hours)
+    const durationMatch = duration.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?)?$/);
+    if (!durationMatch) return duration; // Return original if format doesn't match
+
+    const days = durationMatch[1] ? parseInt(durationMatch[1]) : 0;
+    const hours = durationMatch[2] ? parseInt(durationMatch[2]) : 0;
+
+    if (days === 0 && hours === 0) return "0 hours";
+    if (days === 0) return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+    if (hours === 0) return `${days} ${days === 1 ? "day" : "days"}`;
+    return `${days} ${days === 1 ? "day" : "days"} and ${hours} ${hours === 1 ? "hour" : "hours"}`;
+  } catch (error) {
+    return duration; // Return original if parsing fails
+  }
+};
+
+const calculateAutoRevokeDate = (logger: Logger) => (approvedDate: string, autoRevokeDuration: string) => {
+  try {
+    if (!approvedDate) return "Not available";
+
+    const approvedDateObj = new Date(approvedDate);
+    if (isNaN(approvedDateObj.getTime())) return "Not available";
+
+    // Parse ISO 8601 duration format like "P7D" (7 days) or "PT12H" (12 hours)
+    const durationMatch = autoRevokeDuration.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?)?$/);
+    if (!durationMatch) return "Not available";
+
+    const days = durationMatch[1] ? parseInt(durationMatch[1]) : 0;
+    const hours = durationMatch[2] ? parseInt(durationMatch[2]) : 0;
+
+    const revokeTime = new Date(approvedDateObj);
+    revokeTime.setDate(revokeTime.getDate() + days);
+    revokeTime.setHours(revokeTime.getHours() + hours);
+
+    // Format the date for display
+    return revokeTime.toLocaleString("en-US", { timeZoneName: "short" });
+  } catch (error) {
+    logger.error("Error calculating auto revoke date:", error);
+    return "Not available";
+  }
+};

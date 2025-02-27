@@ -37,6 +37,11 @@ export const checkCanRevokeRequestForFlow =
           );
         }
 
+        // Check if request user is system
+        if (parsedInput.userIdWhoRevoked === "system") {
+          return okAsync(input);
+        }
+
         // Check if user is the request user
         if (parsedInput.requestUserId === parsedInput.userIdWhoRevoked) {
           return okAsync(input);
@@ -70,6 +75,11 @@ export const checkCanRevokeRequestForResource =
               "INTERNAL_SERVER_ERROR"
             )
           );
+        }
+
+        // Check if request user is system
+        if (parsedInput.userIdWhoRevoked === "system") {
+          return okAsync(input);
         }
 
         // Check if user is the request user

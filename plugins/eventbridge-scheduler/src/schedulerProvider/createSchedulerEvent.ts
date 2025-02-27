@@ -1,6 +1,5 @@
 import { CreateSchedulerEvent, SchedulerError } from "@stamp-lib/stamp-types/pluginInterface/scheduler";
 import { okAsync, errAsync } from "neverthrow";
-import { createItem } from "../database/schedulerEvent";
 import { SchedulerContext } from "../index";
 import { createSchedule } from "../eventbridge-scheduler-api/create";
 import { createLogger } from "@stamp-lib/stamp-logger";
@@ -39,11 +38,7 @@ export const createSchedulerEvent =
       name: id,
       input: JSON.stringify(schedulerEvent.data),
       scheduleExpression,
-    })
-      .andThen(() => {
-        return createItem({ logger, TableName: schedulerContext.tableName, config: { region: schedulerContext.region } })(schedulerEvent.data);
-      })
-      .andThen(() => {
-        return okAsync(schedulerEvent.data);
-      });
+    }).andThen(() => {
+      return okAsync(schedulerEvent.data);
+    });
   };
