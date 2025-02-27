@@ -7,7 +7,6 @@ import { deleteSchedule } from "./delete";
 import { getSchedule } from "./get";
 
 const logger = createLogger("DEBUG", { moduleName: "eventbridge-scheduler" });
-const tableName = `${process.env!.TABLE_NAME_PREFIX!}-eventbridge-scheduler-SchedulerEvent`;
 const schedulerGroupName = process.env!.SCHEDULER_GROUP_NAME!;
 const targetSNSTopicArn = process.env!.SCHEDULER_SNS_TOPIC_ARN!;
 const roleArn = process.env!.SCHEDULER_ROLE_ARN!;
@@ -15,7 +14,6 @@ const roleArn = process.env!.SCHEDULER_ROLE_ARN!;
 const schedulerContext: SchedulerContext = {
   region: "us-west-2",
   logLevel: "DEBUG",
-  tableName,
   schedulerGroupName,
   targetSNSTopicArn,
   roleArn,

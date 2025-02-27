@@ -27,6 +27,9 @@ export async function approvalRequestSubmit(prevState: ApprovalRequestSubmitStat
   }
   const approvalFlowInfo = await getApprovalFlow(catalogId.toString(), approvalFlowId.toString());
 
+  const autoRevokeDuration = formData.get("autoRevokeDuration");
+  logger.info("approvalRequestSubmit:autoRevokeDuration", autoRevokeDuration);
+
   const { isSuccess: parseIsSuccess, parsedParams, errors: paramsErros } = parsedInputParams(formData, approvalFlowInfo);
   if (!parseIsSuccess) {
     return { errors: paramsErros, message: "Input param is invalid", isSuccess: false };
@@ -48,6 +51,7 @@ export async function approvalRequestSubmit(prevState: ApprovalRequestSubmitStat
       inputResources: parsedResources,
       requestUserId: sessionUser.stampUserId,
       requestComment: comment.toString(),
+      autoRevokeDuration: autoRevokeDuration?.toString(),
     });
     logger.info("approvalRequestSubmit:result", result);
     if (!result || !result.requestId) {

@@ -25,6 +25,17 @@ export const InputResource = z.object({
 });
 export type InputResource = z.infer<typeof InputResource>;
 
+export const AutoRevoke = z.object({
+  enabled: z.boolean().default(false),
+  defaultSettings: z.object({
+    required: z.boolean().default(false),
+    maxDuration: z.optional(z.string().regex(/^P(?:(?:\d+D(?:T\d+H)?)|(?:T\d+H))$/, "Invalid ISO 8601 duration format. Expected format: PnDTnH")),
+  }),
+  // Field for allowing overriding settings on target resources in the future
+  // overrideSettingsResourceTypeId: z.string().max(128).optional(),
+});
+export type AutoRevoke = z.infer<typeof AutoRevoke>;
+
 export const ApprovalFlowConfig = z.object({
   id: ApprovalFlowId,
   name: z.string().max(128),
@@ -34,6 +45,7 @@ export const ApprovalFlowConfig = z.object({
   inputResources: z.array(InputResource).optional(),
   approver: Approver,
   enableRevoke: z.boolean().optional(),
+  autoRevoke: AutoRevoke.optional(),
 });
 export type ApprovalFlowConfig = z.infer<typeof ApprovalFlowConfig>;
 

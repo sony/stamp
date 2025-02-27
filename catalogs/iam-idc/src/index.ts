@@ -30,6 +30,7 @@ export function createIamIdcCatalog(iamIdcCatalogConfigInput: IamIdcCatalogConfi
     approver: { approverType: "resource", resourceTypeId: "iam-idc-aws-account" },
     handlers: createIamIdcApplicationHandler(iamIdcCatalogConfig),
     enableRevoke: true,
+    autoRevoke: { enabled: true, defaultSettings: { required: false } },
   };
 
   // ResourceTypeConfig to manage "Resource (1) AWS Account"

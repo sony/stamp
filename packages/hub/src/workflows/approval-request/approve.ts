@@ -12,20 +12,27 @@ import { ApprovalFlowDBProvider } from "@stamp-lib/stamp-types/pluginInterface/d
 import { executeApprovedAction } from "../../events/approval-request/actions/approve";
 import { getApprovalFlowConfig } from "../../events/approval-flow/approvalFlowConfig";
 import { checkCanApproveRequestForFlow, checkCanApproveRequestForResource } from "../../events/approval-request/authz/approve";
+import { CreateSchedulerEvent } from "@stamp-lib/stamp-types/pluginInterface/scheduler";
+import { settingAutoRevoke } from "../../events/approval-request/actions/autoRevoke";
+import { Logger } from "@stamp-lib/stamp-logger";
 
 export const ApproveWorkflowInput = z.object({ approvalRequestId: z.string(), approvedComment: z.string().max(1024), userIdWhoApproved: UserId });
 export type ApproveWorkflowInput = z.infer<typeof ApproveWorkflowInput>;
 
 export const approveWorkflow =
-  (providers: {
-    getCatalogConfigProvider: CatalogConfigProvider["get"];
-    getApprovalRequestById: ApprovalRequestDBProvider["getById"];
-    updateApprovalRequestStatusToApproved: ApprovalRequestDBProvider["updateStatusToApproved"];
-    setApprovalRequest: ApprovalRequestDBProvider["set"];
-    getApprovalFlowById: ApprovalFlowDBProvider["getById"];
-    getResourceById: ResourceDBProvider["getById"];
-    getGroupMemberShip: GroupMemberShipProvider["get"];
-  }) =>
+  (
+    providers: {
+      getCatalogConfigProvider: CatalogConfigProvider["get"];
+      getApprovalRequestById: ApprovalRequestDBProvider["getById"];
+      updateApprovalRequestStatusToApproved: ApprovalRequestDBProvider["updateStatusToApproved"];
+      setApprovalRequest: ApprovalRequestDBProvider["set"];
+      getApprovalFlowById: ApprovalFlowDBProvider["getById"];
+      getResourceById: ResourceDBProvider["getById"];
+      getGroupMemberShip: GroupMemberShipProvider["get"];
+      createSchedulerEvent?: CreateSchedulerEvent;
+    },
+    logger: Logger
+  ) =>
   (input: ApproveWorkflowInput) => {
     const {
       getCatalogConfigProvider,
@@ -35,6 +42,7 @@ export const approveWorkflow =
       getApprovalFlowById,
       getResourceById,
       getGroupMemberShip,
+      createSchedulerEvent,
     } = providers;
     const getCatalogConfig = createGetCatalogConfig(getCatalogConfigProvider);
 
@@ -98,6 +106,34 @@ export const approveWorkflow =
         } else {
           // Return Internal server error because approverType is only approvalFlow or resource.
           return errAsync(new StampHubError("Approver type not found", "Approver Type Not Found", "INTERNAL_SERVER_ERROR"));
+        }
+      })
+      .andThen((extendApprovedRequest) => {
+        // If autoRevokeDuration is set, create a scheduler event to revoke the request.
+        if (extendApprovedRequest.autoRevokeDuration) {
+          if (!createSchedulerEvent) {
+            logger.error(`Approval request ${extendApprovedRequest.requestId} has autoRevokeDuration but scheduler service is not available`);
+            return errAsync(
+              new StampHubError(
+                "Request has autoRevokeDuration property but scheduler service is not available",
+                "Stamp cannot set auto revoke. Please contact administrator.",
+                "BAD_REQUEST"
+              )
+            );
+          }
+          return settingAutoRevoke(
+            createSchedulerEvent,
+            logger
+          )({
+            catalogId: extendApprovedRequest.catalogId,
+            approvalFlowId: extendApprovedRequest.approvalFlowId,
+            requestId: extendApprovedRequest.requestId,
+            autoRevokeDuration: extendApprovedRequest.autoRevokeDuration,
+          }).map(() => {
+            return extendApprovedRequest;
+          });
+        } else {
+          return okAsync(extendApprovedRequest);
         }
       })
       .andThen((extendApprovalRequest) => {

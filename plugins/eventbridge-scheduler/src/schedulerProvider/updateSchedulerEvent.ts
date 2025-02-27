@@ -2,7 +2,6 @@ import { createLogger } from "@stamp-lib/stamp-logger";
 import { SchedulerEvent } from "@stamp-lib/stamp-types/models";
 import { SchedulerError, UpdateSchedulerEvent } from "@stamp-lib/stamp-types/pluginInterface/scheduler";
 import { errAsync, okAsync } from "neverthrow";
-import { updateItem } from "../database/schedulerEvent";
 import { updateSchedule } from "../eventbridge-scheduler-api/update";
 import { SchedulerContext } from "../index";
 
@@ -37,12 +36,7 @@ export const updateSchedulerEvent =
       name: input.id,
       input: JSON.stringify(schedulerEvent.data),
       scheduleExpression,
-    })
-      .andThen(() => {
-        // update record in DynamoDB
-        return updateItem({ logger, TableName: schedulerContext.tableName, config: { region: schedulerContext.region } })(schedulerEvent.data);
-      })
-      .andThen(() => {
-        return okAsync(schedulerEvent.data);
-      });
+    }).andThen(() => {
+      return okAsync(schedulerEvent.data);
+    });
   };

@@ -14,6 +14,8 @@ import { getApprovalFlowConfig } from "../../events/approval-flow/approvalFlowCo
 import { createValidateApprovalRequest } from "../../events/approval-request/actions/validate";
 import { GetGroup } from "@stamp-lib/stamp-types/pluginInterface/identity";
 import { Logger } from "@stamp-lib/stamp-logger";
+import { validateAutoRevokeDurationTime } from "../../events/approval-request/actions/autoRevoke";
+import { CreateSchedulerEvent } from "@stamp-lib/stamp-types/pluginInterface/scheduler";
 
 export const SubmitWorkflowInput = SubmittedRequest.omit({ requestId: true, status: true, requestDate: true, approverType: true, approverId: true });
 export type SubmitWorkflowInput = z.infer<typeof SubmitWorkflowInput>;
@@ -27,11 +29,20 @@ export const submitWorkflow =
       getResourceById: ResourceDBProvider["getById"];
       getGroup: GetGroup;
       getNotificationPluginConfig: GetNotificationPluginConfig;
+      createSchedulerEvent?: CreateSchedulerEvent;
     },
     logger: Logger
   ) =>
   (input: SubmitWorkflowInput): ResultAsync<PendingRequest | ValidationFailedRequest, StampHubError> => {
-    const { getCatalogConfigProvider, setApprovalRequestDBProvider, getApprovalFlowById, getResourceById, getGroup, getNotificationPluginConfig } = providers;
+    const {
+      getCatalogConfigProvider,
+      setApprovalRequestDBProvider,
+      getApprovalFlowById,
+      getResourceById,
+      getGroup,
+      getNotificationPluginConfig,
+      createSchedulerEvent,
+    } = providers;
 
     const getCatalogConfig = createGetCatalogConfig(getCatalogConfigProvider);
     const submitApprovalRequest = createSubmitApprovalRequest(setApprovalRequestDBProvider);
@@ -39,6 +50,48 @@ export const submitWorkflow =
     return parseZodObjectAsync(input, SubmitWorkflowInput)
       .andThen(getCatalogConfig)
       .andThen(getApprovalFlowConfig)
+      .andThen((parsedInput) => {
+        if (parsedInput.autoRevokeDuration) {
+          // Check autoRevokeDuration is set but autoRevoke is not enabled
+          if (parsedInput.approvalFlowConfig.autoRevoke === undefined) {
+            return errAsync(
+              new StampHubError(
+                "autoRevokeDuration is set but autoRevoke is not enabled",
+                "autoRevokeDuration is set but autoRevoke is not enabled",
+                "BAD_REQUEST"
+              )
+            );
+          }
+          // Check autoRevokeDuration.enabled is true.
+          if (!parsedInput.approvalFlowConfig.autoRevoke.enabled) {
+            return errAsync(
+              new StampHubError(
+                "autoRevokeDuration is set but autoRevoke is not enabled",
+                "autoRevokeDuration is set but autoRevoke is not enabled",
+                "BAD_REQUEST"
+              )
+            );
+          }
+
+          // Check autoRevokeDuration is set but createSchedulerEvent is not enabled
+          if (createSchedulerEvent === undefined) {
+            return errAsync(
+              new StampHubError(
+                "AutoRevokeDuration is set but createSchedulerEvent is not enabled.",
+                "AutoRevokeDuration is set but createSchedulerEvent is not enabled. Please contact stamp administrator.",
+                "INTERNAL_SERVER_ERROR"
+              )
+            );
+          }
+          const maxDuration = parsedInput.approvalFlowConfig.autoRevoke.defaultSettings.maxDuration ?? "P30D24H"; // Currently, maxDuration is 30 days and 24 hours.
+          const validateResult = validateAutoRevokeDurationTime(logger)(parsedInput.autoRevokeDuration, maxDuration);
+          if (validateResult.isErr()) {
+            return errAsync(validateResult.error);
+          }
+          return okAsync(parsedInput);
+        }
+        return okAsync(parsedInput);
+      })
       .andThen((parsedInput) => {
         // get approval flow info
         return getApprovalFlowById(parsedInput.catalogId, parsedInput.approvalFlowId).andThen((approvalFlow) => {

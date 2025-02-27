@@ -23,8 +23,10 @@ export const createSchedule =
         RoleArn: schedulerContext.roleArn,
       },
       FlexibleTimeWindow: {
-        Mode: "OFF",
+        Mode: "FLEXIBLE",
+        MaximumWindowInMinutes: 10,
       },
+      ActionAfterCompletion: "DELETE",
     });
     const scheduleResult = ResultAsync.fromPromise(client.send(scheduleCommand), (err) => {
       logger.error(err);

@@ -22,6 +22,7 @@ export function createIamRoleCatalog(iamRoleCatalogConfigInput: IamRoleCatalogCo
     approver: { approverType: "resource", resourceTypeId: "aws-account" },
     handlers: createIamRolePromoteRequestHandler(iamRoleCatalogConfig),
     enableRevoke: true,
+    autoRevoke: { enabled: true, defaultSettings: { required: false } },
   };
 
   const jumpIamRolePromoteRequestConfig: ApprovalFlowConfig = {
@@ -37,6 +38,7 @@ export function createIamRoleCatalog(iamRoleCatalogConfigInput: IamRoleCatalogCo
     approver: { approverType: "resource", resourceTypeId: "aws-account" },
     handlers: createJumpIamRolePromoteRequestHandler(iamRoleCatalogConfig),
     enableRevoke: true,
+    autoRevoke: { enabled: true, defaultSettings: { required: false } },
   };
 
   const gitHubIamRoleResourceTypeConfig: ResourceTypeConfig = {

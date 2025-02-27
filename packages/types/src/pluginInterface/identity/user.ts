@@ -3,7 +3,7 @@ import { ResultAsync } from "neverthrow";
 import { z } from "zod";
 import { IdentityPluginError } from "./error";
 
-export const UserId = z.string().uuid();
+export const UserId = z.union([z.literal("system"), z.string().uuid()]);
 export type UserId = z.infer<typeof UserId>;
 
 export const User = z.object({

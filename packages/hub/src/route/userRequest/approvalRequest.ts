@@ -28,6 +28,7 @@ export const approvalRequestRouter = router({
         getResourceById: ctx.db.resourceDB.getById,
         getGroup: ctx.identity.group.get,
         getNotificationPluginConfig: ctx.config.notificationPlugin.get,
+        createSchedulerEvent: ctx.scheduler?.createSchedulerEvent,
       },
       logger
     )(input).mapErr(convertTRPCError(logger));
@@ -35,15 +36,19 @@ export const approvalRequestRouter = router({
   }),
   approve: publicProcedure.input(ApproveWorkflowInput).mutation(async ({ input, ctx }) => {
     const logger = createStampHubLogger();
-    const approveApprovalRequestResult = await approveWorkflow({
-      getCatalogConfigProvider: ctx.config.catalogConfig.get,
-      getApprovalRequestById: ctx.db.approvalRequestDB.getById,
-      updateApprovalRequestStatusToApproved: ctx.db.approvalRequestDB.updateStatusToApproved,
-      setApprovalRequest: ctx.db.approvalRequestDB.set,
-      getApprovalFlowById: ctx.db.approvalFlowDB.getById,
-      getResourceById: ctx.db.resourceDB.getById,
-      getGroupMemberShip: ctx.identity.groupMemberShip.get,
-    })(input).mapErr(convertTRPCError(logger));
+    const approveApprovalRequestResult = await approveWorkflow(
+      {
+        getCatalogConfigProvider: ctx.config.catalogConfig.get,
+        getApprovalRequestById: ctx.db.approvalRequestDB.getById,
+        updateApprovalRequestStatusToApproved: ctx.db.approvalRequestDB.updateStatusToApproved,
+        setApprovalRequest: ctx.db.approvalRequestDB.set,
+        getApprovalFlowById: ctx.db.approvalFlowDB.getById,
+        getResourceById: ctx.db.resourceDB.getById,
+        getGroupMemberShip: ctx.identity.groupMemberShip.get,
+        createSchedulerEvent: ctx.scheduler?.createSchedulerEvent,
+      },
+      logger
+    )(input).mapErr(convertTRPCError(logger));
     return unwrapOrthrowTRPCError(approveApprovalRequestResult);
   }),
   reject: publicProcedure.input(RejectWorkflowInput).mutation(async ({ input, ctx }) => {
@@ -61,13 +66,12 @@ export const approvalRequestRouter = router({
   revoke: publicProcedure.input(RevokeWorkflowInput).mutation(async ({ input, ctx }) => {
     const logger = createStampHubLogger();
     const revokeApprovalRequestResult = await revokeWorkflow(
-      input,
       ctx.config.catalogConfig.get,
       ctx.db.approvalRequestDB,
       ctx.db.approvalFlowDB,
       ctx.db.resourceDB,
       ctx.identity.groupMemberShip
-    ).mapErr(convertTRPCError(logger));
+    )(input).mapErr(convertTRPCError(logger));
     return unwrapOrthrowTRPCError(revokeApprovalRequestResult);
   }),
   listByApprovalFlowId: publicProcedure.input(ListByApprovalFlowId).query(async ({ input, ctx }) => {

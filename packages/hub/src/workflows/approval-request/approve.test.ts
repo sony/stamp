@@ -7,6 +7,9 @@ import { GroupMemberShipProvider } from "@stamp-lib/stamp-types/pluginInterface/
 import { ok, okAsync } from "neverthrow";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { approveWorkflow, ApproveWorkflowInput } from "./approve";
+import { createLogger } from "@stamp-lib/stamp-logger";
+
+const logger = createLogger("DEBUG", { moduleName: "unit-test" });
 
 describe("approveWorkflow", () => {
   beforeEach(() => {
@@ -128,15 +131,18 @@ describe("approveWorkflow", () => {
         )
       );
 
-      const workflow = approveWorkflow({
-        getCatalogConfigProvider,
-        getApprovalRequestById,
-        updateApprovalRequestStatusToApproved,
-        setApprovalRequest,
-        getApprovalFlowById,
-        getResourceById,
-        getGroupMemberShip,
-      });
+      const workflow = approveWorkflow(
+        {
+          getCatalogConfigProvider,
+          getApprovalRequestById,
+          updateApprovalRequestStatusToApproved,
+          setApprovalRequest,
+          getApprovalFlowById,
+          getResourceById,
+          getGroupMemberShip,
+        },
+        logger
+      );
 
       const input: ApproveWorkflowInput = {
         approvalRequestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
@@ -258,15 +264,18 @@ describe("approveWorkflow", () => {
 
       const getGroupMemberShip: GroupMemberShipProvider["get"] = vi.fn().mockReturnValue(okAsync(none));
 
-      const workflow = approveWorkflow({
-        getCatalogConfigProvider,
-        getApprovalRequestById,
-        updateApprovalRequestStatusToApproved,
-        setApprovalRequest,
-        getApprovalFlowById,
-        getResourceById,
-        getGroupMemberShip,
-      });
+      const workflow = approveWorkflow(
+        {
+          getCatalogConfigProvider,
+          getApprovalRequestById,
+          updateApprovalRequestStatusToApproved,
+          setApprovalRequest,
+          getApprovalFlowById,
+          getResourceById,
+          getGroupMemberShip,
+        },
+        logger
+      );
 
       const input: ApproveWorkflowInput = {
         approvalRequestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
@@ -407,15 +416,18 @@ describe("approveWorkflow", () => {
         )
       );
 
-      const workflow = approveWorkflow({
-        getCatalogConfigProvider,
-        getApprovalRequestById,
-        updateApprovalRequestStatusToApproved,
-        setApprovalRequest,
-        getApprovalFlowById,
-        getResourceById,
-        getGroupMemberShip,
-      });
+      const workflow = approveWorkflow(
+        {
+          getCatalogConfigProvider,
+          getApprovalRequestById,
+          updateApprovalRequestStatusToApproved,
+          setApprovalRequest,
+          getApprovalFlowById,
+          getResourceById,
+          getGroupMemberShip,
+        },
+        logger
+      );
 
       const input: ApproveWorkflowInput = {
         approvalRequestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
@@ -546,15 +558,18 @@ describe("approveWorkflow", () => {
 
       const getGroupMemberShip: GroupMemberShipProvider["get"] = vi.fn().mockReturnValue(okAsync(none));
 
-      const workflow = approveWorkflow({
-        getCatalogConfigProvider,
-        getApprovalRequestById,
-        updateApprovalRequestStatusToApproved,
-        setApprovalRequest,
-        getApprovalFlowById,
-        getResourceById,
-        getGroupMemberShip,
-      });
+      const workflow = approveWorkflow(
+        {
+          getCatalogConfigProvider,
+          getApprovalRequestById,
+          updateApprovalRequestStatusToApproved,
+          setApprovalRequest,
+          getApprovalFlowById,
+          getResourceById,
+          getGroupMemberShip,
+        },
+        logger
+      );
 
       const input: ApproveWorkflowInput = {
         approvalRequestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
@@ -686,15 +701,18 @@ describe("approveWorkflow", () => {
         )
       );
 
-      const workflow = approveWorkflow({
-        getCatalogConfigProvider,
-        getApprovalRequestById,
-        updateApprovalRequestStatusToApproved,
-        setApprovalRequest,
-        getApprovalFlowById,
-        getResourceById,
-        getGroupMemberShip,
-      });
+      const workflow = approveWorkflow(
+        {
+          getCatalogConfigProvider,
+          getApprovalRequestById,
+          updateApprovalRequestStatusToApproved,
+          setApprovalRequest,
+          getApprovalFlowById,
+          getResourceById,
+          getGroupMemberShip,
+        },
+        logger
+      );
 
       const input: ApproveWorkflowInput = {
         approvalRequestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
@@ -766,15 +784,18 @@ describe("approveWorkflow", () => {
 
       const getGroupMemberShip: GroupMemberShipProvider["get"] = vi.fn();
 
-      const workflow = approveWorkflow({
-        getCatalogConfigProvider,
-        getApprovalRequestById,
-        updateApprovalRequestStatusToApproved,
-        setApprovalRequest,
-        getApprovalFlowById,
-        getResourceById,
-        getGroupMemberShip,
-      });
+      const workflow = approveWorkflow(
+        {
+          getCatalogConfigProvider,
+          getApprovalRequestById,
+          updateApprovalRequestStatusToApproved,
+          setApprovalRequest,
+          getApprovalFlowById,
+          getResourceById,
+          getGroupMemberShip,
+        },
+        logger
+      );
 
       const input: ApproveWorkflowInput = {
         approvalRequestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
@@ -870,15 +891,18 @@ describe("approveWorkflow", () => {
 
       const getGroupMemberShip: GroupMemberShipProvider["get"] = vi.fn();
 
-      const workflow = approveWorkflow({
-        getCatalogConfigProvider,
-        getApprovalRequestById,
-        updateApprovalRequestStatusToApproved,
-        setApprovalRequest,
-        getApprovalFlowById,
-        getResourceById,
-        getGroupMemberShip,
-      });
+      const workflow = approveWorkflow(
+        {
+          getCatalogConfigProvider,
+          getApprovalRequestById,
+          updateApprovalRequestStatusToApproved,
+          setApprovalRequest,
+          getApprovalFlowById,
+          getResourceById,
+          getGroupMemberShip,
+        },
+        logger
+      );
 
       const input: ApproveWorkflowInput = {
         approvalRequestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
@@ -889,6 +913,207 @@ describe("approveWorkflow", () => {
       const result = await workflow(input);
       expect(result.isOk()).toBe(false);
       expect(result._unsafeUnwrapErr().message).toBe("Approval request is not pending. Current status is approved");
+    });
+
+    it("should create scheduler event when autoRevokeDuration is set", async () => {
+      const testApprovalFlowHandler = {
+        approvalRequestValidation: vi.fn(),
+        approved: vi.fn().mockResolvedValue(ok({ isSuccess: true, message: "approved Actions Succeeded" })),
+        revoked: vi.fn(),
+      };
+      const getCatalogConfigProvider = vi.fn().mockReturnValue(
+        okAsync(
+          some({
+            id: "test-catalog-id",
+            name: "test-catalog",
+            description: "catalogDescription",
+            approvalFlows: [
+              {
+                id: "test-approval-flow-id",
+                name: "testApprovalFlowName",
+                description: "testApprovalFlowDescription",
+                inputParams: [],
+                handlers: testApprovalFlowHandler,
+                inputResources: [],
+                approver: { approverType: "approvalFlow" },
+              },
+            ],
+            resourceTypes: [],
+          })
+        )
+      );
+      // Updated approvalRequest using consistent uuid values.
+      const approvalRequest = {
+        userIdWhoApproved: "13f6d758-cea9-bfab-ffaf-9e012ddacf47",
+        requestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
+        requestDate: new Date().toISOString(),
+        approvalFlowId: "test-approval-flow-id",
+        requestUserId: "dbf33b00-8a5f-e045-4aa1-2d943cb659b6",
+        approverId: "e96e40e8-af02-7643-82a5-9eb4a31737ec",
+        inputParams: [{ id: "test-id", value: "test-value" }],
+        inputResources: [],
+        status: "pending",
+        catalogId: "test-catalog-id",
+        approverType: "group",
+        requestComment: "test request comment",
+        validatedDate: new Date().toISOString(),
+        validationHandlerResult: { isSuccess: true, message: "test validation success message" },
+        approvedDate: "",
+        approvedComment: "",
+        autoRevokeDuration: "PT1H",
+      };
+      const getApprovalRequestById = vi.fn().mockReturnValue(okAsync(some(approvalRequest)));
+      const updateApprovalRequestStatusToApproved = vi.fn().mockReturnValue(
+        okAsync({
+          ...approvalRequest,
+          status: "approved",
+          approvedDate: new Date().toISOString(),
+          approvedComment: "approved",
+          autoRevokeDuration: "PT1H",
+        })
+      );
+      const setApprovalRequest = vi.fn().mockImplementation((input) => okAsync(input));
+      const getApprovalFlowById = vi
+        .fn()
+        .mockReturnValue(okAsync(some({ id: "test-approval-flow-id", catalogId: "test-catalog-id", approverGroupId: "18578bed-c45d-4f67-b9f7-10daf4c85f3f" })));
+      const getResourceById = vi.fn();
+      const getGroupMemberShip = vi.fn().mockReturnValue(
+        okAsync(
+          some({
+            userId: "13f6d758-cea9-bfab-ffaf-9e012ddacf47",
+            groupId: "18578bed-c45d-4f67-b9f7-10daf4c85f3f",
+            role: "owner",
+            createdAt: "2021-09-01T00:00:00Z",
+            updatedAt: "2021-09-01T00:00:00Z",
+          })
+        )
+      );
+      const createSchedulerEvent = vi.fn().mockReturnValue(okAsync({ id: "scheduler-event-id" }));
+
+      const workflow = approveWorkflow(
+        {
+          getCatalogConfigProvider,
+          getApprovalRequestById,
+          updateApprovalRequestStatusToApproved,
+          setApprovalRequest,
+          getApprovalFlowById,
+          getResourceById,
+          getGroupMemberShip,
+          createSchedulerEvent,
+        },
+        logger
+      );
+
+      const input = {
+        approvalRequestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
+        approvedComment: "approved",
+        userIdWhoApproved: "13f6d758-cea9-bfab-ffaf-9e012ddacf47",
+      };
+
+      const result = await workflow(input);
+      console.log(result);
+      expect(result.isOk()).toBe(true);
+
+      expect(createSchedulerEvent).toHaveBeenCalled();
+      expect(result._unsafeUnwrap().status).toBe("approvedActionSucceeded");
+    });
+
+    it("should return error if autoRevokeDuration is set but scheduler service is not available", async () => {
+      const testApprovalFlowHandler = {
+        approvalRequestValidation: vi.fn(),
+        approved: vi.fn().mockResolvedValue(ok({ isSuccess: true, message: "approved Actions Succeeded" })),
+        revoked: vi.fn(),
+      };
+      const getCatalogConfigProvider = vi.fn().mockReturnValue(
+        okAsync(
+          some({
+            id: "test-catalog-id",
+            name: "test-catalog",
+            description: "catalogDescription",
+            approvalFlows: [
+              {
+                id: "test-approval-flow-id",
+                name: "testApprovalFlowName",
+                description: "testApprovalFlowDescription",
+                inputParams: [],
+                handlers: testApprovalFlowHandler,
+                inputResources: [],
+                approver: { approverType: "approvalFlow" },
+              },
+            ],
+            resourceTypes: [],
+          })
+        )
+      );
+      const approvalRequest = {
+        userIdWhoApproved: "13f6d758-cea9-bfab-ffaf-9e012ddacf47",
+        requestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
+        requestDate: new Date().toISOString(),
+        approvalFlowId: "test-approval-flow-id",
+        requestUserId: "dbf33b00-8a5f-e045-4aa1-2d943cb659b6",
+        approverId: "e96e40e8-af02-7643-82a5-9eb4a31737ec",
+        inputParams: [{ id: "test-id", value: "test-value" }],
+        inputResources: [],
+        status: "pending",
+        catalogId: "test-catalog-id",
+        approverType: "approvalFlow",
+        requestComment: "test request comment",
+        validatedDate: new Date().toISOString(),
+        validationHandlerResult: { isSuccess: true, message: "test validation success message" },
+        approvedDate: "",
+        approvedComment: "",
+        autoRevokeDuration: "PT1H",
+      };
+      const getApprovalRequestById = vi.fn().mockReturnValue(okAsync(some(approvalRequest)));
+      const updateApprovalRequestStatusToApproved = vi.fn().mockReturnValue(
+        okAsync({
+          ...approvalRequest,
+          status: "approved",
+          approvedDate: new Date().toISOString(),
+          approvedComment: "approved",
+          autoRevokeDuration: "PT1H",
+        })
+      );
+      const setApprovalRequest = vi.fn().mockImplementation((input) => okAsync(input));
+      const getApprovalFlowById = vi
+        .fn()
+        .mockReturnValue(okAsync(some({ id: "test-approval-flow-id", catalogId: "test-catalog-id", approverGroupId: "18578bed-c45d-4f67-b9f7-10daf4c85f3f" })));
+      const getResourceById = vi.fn();
+      const getGroupMemberShip = vi.fn().mockReturnValue(
+        okAsync(
+          some({
+            userId: "13f6d758-cea9-bfab-ffaf-9e012ddacf47",
+            groupId: "18578bed-c45d-4f67-b9f7-10daf4c85f3f",
+            role: "owner",
+            createdAt: "2021-09-01T00:00:00Z",
+            updatedAt: "2021-09-01T00:00:00Z",
+          })
+        )
+      );
+      // Omit createSchedulerEvent to simulate the scheduler service not being available.
+      const workflow = approveWorkflow(
+        {
+          getCatalogConfigProvider,
+          getApprovalRequestById,
+          updateApprovalRequestStatusToApproved,
+          setApprovalRequest,
+          getApprovalFlowById,
+          getResourceById,
+          getGroupMemberShip,
+          // createSchedulerEvent is missing
+        },
+        logger
+      );
+
+      const input = {
+        approvalRequestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
+        approvedComment: "approved",
+        userIdWhoApproved: "13f6d758-cea9-bfab-ffaf-9e012ddacf47",
+      };
+
+      const result = await workflow(input);
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe("Request has autoRevokeDuration property but scheduler service is not available");
     });
   });
 });

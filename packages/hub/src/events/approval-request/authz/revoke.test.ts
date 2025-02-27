@@ -72,6 +72,32 @@ describe("revoke", () => {
     expect(getGroupMemberShipProvider).not.toHaveBeenCalled();
   });
 
+  it("should return okAsync if requestUserId is system", async () => {
+    const input: CheckCanRevokeRequestForFlowInput = {
+      userIdWhoRevoked: "system",
+      approvalFlowInfo: {
+        approver: {
+          approverType: "approvalFlow",
+        },
+        approverGroupId: "8204a484-c5da-4648-810a-c095e2d473a3", // random uuid
+        description: "test-flow",
+        id: "test-flow-id",
+        name: "test-flow",
+        catalogId: "test-catalog-id",
+        inputParams: [],
+      },
+      catalogId: "test-catalog-id",
+      approvalFlowId: "test-flow-id",
+      requestUserId: "05bf84b9-f92b-4312-a1e4-9557ad854054", // random uuid
+    };
+
+    const getGroupMemberShipProvider: GroupMemberShipProvider["get"] = vi.fn().mockReturnValue(okAsync(none));
+
+    const result = await checkCanRevokeRequestForFlow(getGroupMemberShipProvider)(input);
+    expect(result).toEqual(ok(input));
+    expect(getGroupMemberShipProvider).not.toHaveBeenCalled();
+  });
+
   it("should return errAsync if user is neither requestUser nor in the approver group", async () => {
     const input: CheckCanRevokeRequestForFlowInput = {
       userIdWhoRevoked: "05bf84b9-f92b-4312-a1e4-9557ad854054", // random uuid
@@ -226,6 +252,39 @@ describe("revoke", () => {
       expect(result).toEqual(ok(input));
       expect(getGroupMemberShipProvider).not.toHaveBeenCalled();
     });
+
+    it("should return okAsync if requestUserId is system", async () => {
+      const input: CheckCanRevokeRequestForResourceInput = {
+        userIdWhoRevoked: "system",
+        approvalFlowInfo: {
+          approver: {
+            approverType: "resource",
+            resourceTypeId: "test-resource-type",
+          },
+          description: "test-flow",
+          id: "test-flow-id",
+          name: "test-flow",
+          catalogId: "test-catalog-id",
+          inputParams: [],
+        },
+        catalogId: "test-catalog-id",
+        approvalFlowId: "test-flow-id",
+        requestUserId: "05bf84b9-f92b-4312-a1e4-9557ad854054", // random uuid
+        resourceOnDB: {
+          id: "test-resource-id",
+          catalogId: "test-catalog-id",
+          resourceTypeId: "test-resource-type",
+          approverGroupId: "8204a484-c5da-4648-810a-c095e2d473a3", // random uuid
+        },
+      };
+
+      const getGroupMemberShipProvider: GroupMemberShipProvider["get"] = vi.fn().mockReturnValue(okAsync(none));
+
+      const result = await checkCanRevokeRequestForResource(getGroupMemberShipProvider)(input);
+      expect(result).toEqual(ok(input));
+      expect(getGroupMemberShipProvider).not.toHaveBeenCalled();
+    });
+
     it("should return errAsync if user is neither requestUser nor in the approver group", async () => {
       const input: CheckCanRevokeRequestForResourceInput = {
         userIdWhoRevoked: "05bf84b9-f92b-4312-a1e4-9557ad854054", // random uuid

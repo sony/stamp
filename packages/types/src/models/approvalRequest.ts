@@ -17,6 +17,9 @@ export type ApprovalRequestInputResource = z.infer<typeof ApprovalRequestInputRe
 export const ApproverType = z.enum(["group"]);
 export type ApproverType = z.infer<typeof ApproverType>;
 
+export const AutoRevokeDuration = z.string().regex(/^P(?:(?:\d+D(?:T\d+H)?)|(?:T\d+H))$/, "Invalid ISO 8601 duration format. Expected format: PnDTnH");
+export type AutoRevokeDuration = z.infer<typeof AutoRevokeDuration>;
+
 export const SubmittedRequest = z.object({
   requestId: z.string().uuid(),
   status: z.enum(["submitted"]),
@@ -29,6 +32,7 @@ export const SubmittedRequest = z.object({
   approverId: z.string().uuid(),
   requestDate: z.string().datetime(),
   requestComment: z.string().max(1024),
+  autoRevokeDuration: AutoRevokeDuration.optional(),
 });
 export type SubmittedRequest = z.infer<typeof SubmittedRequest>;
 

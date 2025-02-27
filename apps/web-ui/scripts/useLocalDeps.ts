@@ -15,14 +15,23 @@ const packages: { [pkgName: string]: string } = {
   "@stamp-lib/stamp-types": "../../packages/types",
 };
 
-// Link local packages
+// Link local packages individually
 Object.entries(packages).forEach(([pkgName, pkgPath]) => {
   try {
     console.log(`Linking ${pkgName} from ${pkgPath}`);
     execSync(`cd ${pkgPath} && npm link`, { stdio: "inherit" });
-    execSync(`npm link ${pkgName}`, { stdio: "inherit" });
   } catch (error) {
     console.error(`Failed to link package ${pkgName} from ${pkgPath}:`, error);
     process.exit(1);
   }
 });
+
+// Link all packages at once to the current project
+try {
+  const allPackageNames = Object.keys(packages).join(" ");
+  console.log(`Linking all packages to current project: ${allPackageNames}`);
+  execSync(`npm link ${allPackageNames}`, { stdio: "inherit" });
+} catch (error) {
+  console.error("Failed to link all packages to current project:", error);
+  process.exit(1);
+}

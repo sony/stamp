@@ -208,6 +208,13 @@ const unicornRentalApplicationByStableApproverConfig: ApprovalFlowConfig = {
   approver: { approverType: "resource", resourceTypeId: "unicorn-stable" },
   handlers: unicornRentalApplicationHandler,
   enableRevoke: true,
+  autoRevoke: {
+    enabled: true,
+    defaultSettings: {
+      required: true,
+      maxDuration: "PT2H",
+    },
+  },
 };
 
 export const unicornRentalCatalog: CatalogConfig = {

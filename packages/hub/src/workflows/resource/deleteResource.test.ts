@@ -90,7 +90,6 @@ describe("deleteResource", () => {
   const mockDeleteSchedulerProvider = vi.fn();
   const schedulerProvider: SchedulerProvider = {
     getSchedulerEvent: mockGetSchedulerProvider,
-    listSchedulerEvent: vi.fn(),
     createSchedulerEvent: vi.fn(),
     updateSchedulerEvent: vi.fn(),
     deleteSchedulerEvent: mockDeleteSchedulerProvider,
