@@ -1,6 +1,6 @@
 {
   "name": "@stamp-lib/stamp-config",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,7 +13,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "@stamp-lib/stamp-types": "^0.6.0",
+    "@stamp-lib/stamp-types": "^0.6.1",
     "neverthrow": "^6.1.0",
     "zod": "^3.22.4"
   },
