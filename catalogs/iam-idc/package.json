@@ -1,6 +1,6 @@
 {
   "name": "@stamp-lib/stamp-iam-idc-catalog",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -17,8 +17,8 @@
     "@aws-sdk/client-identitystore": "^3.465.0",
     "@aws-sdk/client-sso-admin": "^3.453.0",
     "@aws-sdk/lib-dynamodb": "^3.474.0",
-    "@stamp-lib/stamp-logger": "^0.6.1",
-    "@stamp-lib/stamp-types": "^0.6.1",
+    "@stamp-lib/stamp-logger": "^0.6.2",
+    "@stamp-lib/stamp-types": "^0.6.2",
     "neverthrow": "^6.1.0",
     "zod": "^3.22.4"
   },
