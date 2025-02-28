@@ -83,13 +83,18 @@ export const submitWorkflow =
               )
             );
           }
-          const maxDuration = parsedInput.approvalFlowConfig.autoRevoke.defaultSettings.maxDuration ?? "P30D24H"; // Currently, maxDuration is 30 days and 24 hours.
+          const maxDuration = parsedInput.approvalFlowConfig.autoRevoke.defaultSettings.maxDuration ?? "P30DT24H"; // Currently, maxDuration is 30 days and 24 hours.
           const validateResult = validateAutoRevokeDurationTime(logger)(parsedInput.autoRevokeDuration, maxDuration);
           if (validateResult.isErr()) {
             return errAsync(validateResult.error);
           }
           return okAsync(parsedInput);
         }
+        // Check autoRevokeDuration is required but not set
+        if (parsedInput.approvalFlowConfig.autoRevoke?.defaultSettings.required === true) {
+          return errAsync(new StampHubError("autoRevokeDuration is required but not set", "autoRevokeDuration is required but not set", "BAD_REQUEST"));
+        }
+
         return okAsync(parsedInput);
       })
       .andThen((parsedInput) => {

@@ -225,7 +225,6 @@ async function main() {
   });
 
   const schedulerProvider = createSchedulerProvider({
-    tableNamePrefix: tableNamePrefix,
     targetSNSTopicArn: process.env.SCHEDULER_TARGET_SNS_ARN!,
     roleArn: process.env.SCHEDULER_GROUP_ROLE_ARN!,
     schedulerGroupName: process.env.SCHEDULER_GROUP_NAME!,

@@ -1,6 +1,23 @@
 "use client";
 import { approvalRequestSubmit } from "@/server-actions/approval-flow/approvalRequestSubmit";
-import { Flex, Text, Button, Grid, Box, Card, Container, Link, Heading, Separator, Table, TextField, TextArea, Select, Badge } from "@radix-ui/themes";
+import {
+  Flex,
+  Text,
+  Button,
+  Grid,
+  Box,
+  Card,
+  Container,
+  Link,
+  Heading,
+  Separator,
+  Table,
+  TextField,
+  TextArea,
+  Select,
+  Badge,
+  Checkbox,
+} from "@radix-ui/themes";
 import { useFormState, useFormStatus } from "react-dom";
 import { ApprovalFlow } from "@/type";
 import { InputParamsFormInput } from "./inputParam";
@@ -21,8 +38,8 @@ const parseDuration = (duration: string): { days: number; hours: number } | null
 };
 
 // Helper to format days and hours into ISO 8601 duration
-const formatDuration = (days: number, hours: number): string => {
-  if (days === 0 && hours === 0) return "";
+const formatDuration = (days: number, hours: number): string | undefined => {
+  if (days === 0 && hours === 0) return undefined;
   if (days === 0) return `PT${hours}H`;
   if (hours === 0) return `P${days}D`;
   return `P${days}DT${hours}H`;
@@ -31,7 +48,7 @@ const formatDuration = (days: number, hours: number): string => {
 function AutoRevokeDurationInput({
   autoRevoke,
 }: {
-  autoRevoke?: {
+  autoRevoke: {
     enabled: boolean;
     required: boolean;
     maxDuration?: string;
@@ -40,15 +57,21 @@ function AutoRevokeDurationInput({
   const [days, setDays] = useState<number>(0);
   const [hours, setHours] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
+  const [enableAutoRevoke, setEnableAutoRevoke] = useState<boolean>(autoRevoke.required);
 
   // Use useMemo to prevent recalculation on every render
-  const defaultMaxDuration = useMemo(() => {
-    return autoRevoke?.maxDuration ? parseDuration(autoRevoke.maxDuration) : { days: 30, hours: 23 };
+  const maxDuration = useMemo(() => {
+    return autoRevoke?.maxDuration ? parseDuration(autoRevoke.maxDuration) : { days: 30, hours: 24 };
   }, [autoRevoke?.maxDuration]);
 
   // Validate and update the hidden input value when days or hours change
   useEffect(() => {
     const validateDuration = () => {
+      if (!enableAutoRevoke) {
+        setError(null);
+        return true;
+      }
+
       if (days === 0 && hours === 0) {
         if (autoRevoke?.required) {
           setError("Duration is required");
@@ -56,22 +79,14 @@ function AutoRevokeDurationInput({
         }
       }
 
-      if (days > 30) {
-        setError("Days cannot exceed 30");
-        return false;
-      }
+      if (maxDuration) {
+        if (days > maxDuration.days) {
+          setError(`Days cannot exceed ${maxDuration.days}`);
+          return false;
+        }
 
-      if (hours > 24) {
-        setError("Hours cannot exceed 24");
-        return false;
-      }
-
-      if (defaultMaxDuration) {
-        const totalHours = days * 24 + hours;
-        const maxTotalHours = defaultMaxDuration.days * 24 + defaultMaxDuration.hours;
-
-        if (totalHours > maxTotalHours) {
-          setError(`Duration cannot exceed ${defaultMaxDuration.days} days and ${defaultMaxDuration.hours} hours`);
+        if (hours > maxDuration.hours) {
+          setError(`Hours cannot exceed ${maxDuration.hours}`);
           return false;
         }
       }
@@ -81,51 +96,72 @@ function AutoRevokeDurationInput({
     };
 
     validateDuration();
-  }, [days, hours, autoRevoke, defaultMaxDuration]);
+  }, [days, hours, autoRevoke, maxDuration, enableAutoRevoke]);
 
   if (!autoRevoke?.enabled) return null;
+
+  // Only set the duration value if auto-revoke is enabled
+  const durationValue = enableAutoRevoke ? formatDuration(days, hours) : undefined;
 
   return (
     <Flex direction="column" gap="2">
       <Flex align="center" gap="2">
-        <Heading size="3">Duration Until Auto Revoke</Heading>
+        <Heading size="3">Auto Revoke</Heading>
         <Badge color="amber" size="1">
           Preview
         </Badge>
       </Flex>
-      <Text size="2" color="gray">
-        Specify how long this access should be granted (maximum: {defaultMaxDuration?.days} days and {defaultMaxDuration?.hours} hours)
-      </Text>
-      <Flex gap="2" align="center">
-        <TextField.Root
-          type="number"
-          min="0"
-          max="30"
-          value={days.toString()}
-          onChange={(e) => setDays(parseInt(e.target.value) || 0)}
-          placeholder="Days"
-          aria-label="Days"
-          style={{ width: "30px" }}
-        />
-        <Text>days</Text>
-        <TextField.Root
-          type="number"
-          min="0"
-          max="23"
-          value={hours.toString()}
-          onChange={(e) => setHours(parseInt(e.target.value) || 0)}
-          placeholder="Hours"
-          aria-label="Hours"
-          style={{ width: "30px" }}
-        />
-        <Text>hours</Text>
-      </Flex>
-      {error && (
-        <Text size="2" color="red">
-          {error}
-        </Text>
+
+      {!autoRevoke.required && (
+        <Flex gap="2" align="center">
+          <Checkbox id="enable-auto-revoke" checked={enableAutoRevoke} onCheckedChange={(checked) => setEnableAutoRevoke(checked === true)} />
+          <Text as="label" size="2" htmlFor="enable-auto-revoke">
+            Enable automatic revocation after specified duration
+          </Text>
+        </Flex>
       )}
-      <input type="hidden" name="autoRevokeDuration" value={formatDuration(days, hours)} required={autoRevoke?.required} />
+
+      {(autoRevoke.required || enableAutoRevoke) && (
+        <>
+          <Text size="2" color="gray">
+            Specify how long this access should be granted (maximum: {maxDuration?.days} days and {maxDuration?.hours} hours)
+          </Text>
+          <Flex gap="2" align="center">
+            <TextField.Root
+              type="number"
+              min="0"
+              max={maxDuration?.days.toString()}
+              value={days.toString()}
+              onChange={(e) => setDays(parseInt(e.target.value) || 0)}
+              placeholder="Days"
+              aria-label="Days"
+              style={{ width: "80px" }}
+            />
+            <Text>days</Text>
+            <TextField.Root
+              type="number"
+              min="0"
+              max={maxDuration?.hours.toString()}
+              value={hours.toString()}
+              onChange={(e) => setHours(parseInt(e.target.value) || 0)}
+              placeholder="Hours"
+              aria-label="Hours"
+              style={{ width: "80px" }}
+            />
+            <Text>hours</Text>
+          </Flex>
+          {error && (
+            <Text size="2" color="red">
+              {error}
+            </Text>
+          )}
+        </>
+      )}
+
+      {/* Only include the hidden input when auto-revoke is enabled */}
+      {durationValue !== undefined && enableAutoRevoke && (
+        <input type="hidden" name="autoRevokeDuration" value={durationValue} required={autoRevoke?.required} />
+      )}
     </Flex>
   );
 }

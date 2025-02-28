@@ -355,4 +355,159 @@ describe("submitWorkflow", () => {
     expect(mockProviders.getNotificationPluginConfig).toHaveBeenCalledWith("notification-type-id");
     expect(sendNotificationMock).toHaveBeenCalled();
   });
+
+  it("should use default maxDuration when autoRevoke.defaultSettings.maxDuration is not specified", async () => {
+    const mockProviders = {
+      ...defaultMockProviders,
+      getCatalogConfigProvider: vi.fn().mockReturnValue(
+        okAsync(
+          some({
+            id: "test-catalog-id",
+            name: "test-catalog",
+            description: "catalogDescription",
+            approvalFlows: [
+              {
+                id: "test-approval-flow-id",
+                name: "testApprovalFlowName",
+                description: "testApprovalFlowDescription",
+                inputParams: [],
+                handlers: testApprovalFlowHandler,
+                inputResources: [],
+                approver: { approverType: "approvalFlow" },
+                autoRevoke: {
+                  enabled: true,
+                  defaultSettings: {
+                    required: false,
+                    // maxDuration not specified, should default to P30DT24H
+                  },
+                },
+              },
+            ],
+            resourceTypes: [],
+          })
+        )
+      ),
+    };
+
+    const workflow = submitWorkflow(mockProviders, logger);
+
+    // Use a duration that exceeds the default maxDuration of P30DT24H (30 days + 24 hours)
+    const input: SubmitWorkflowInput = {
+      approvalFlowId: "test-approval-flow-id",
+      requestUserId: "dbf33b00-8a5f-e045-4aa1-2d943cb659b6",
+      requestComment: "test request comment",
+      inputParams: [],
+      inputResources: [],
+      catalogId: "test-catalog-id",
+      autoRevokeDuration: "P31D", // Longer than default maxDuration
+    };
+
+    const result = await workflow(input);
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr().message).toBe("autoRevokeDuration exceeds maxDuration limits");
+    expect(mockProviders.setApprovalRequestDBProvider).not.toHaveBeenCalled();
+  });
+
+  it("should accept autoRevokeDuration that is within default maxDuration when not specified", async () => {
+    const mockProviders = {
+      ...defaultMockProviders,
+      getCatalogConfigProvider: vi.fn().mockReturnValue(
+        okAsync(
+          some({
+            id: "test-catalog-id",
+            name: "test-catalog",
+            description: "catalogDescription",
+            approvalFlows: [
+              {
+                id: "test-approval-flow-id",
+                name: "testApprovalFlowName",
+                description: "testApprovalFlowDescription",
+                inputParams: [],
+                handlers: testApprovalFlowHandler,
+                inputResources: [],
+                approver: { approverType: "approvalFlow" },
+                autoRevoke: {
+                  enabled: true,
+                  defaultSettings: {
+                    required: false,
+                    // maxDuration not specified, should default to P30DT24H
+                  },
+                },
+              },
+            ],
+            resourceTypes: [],
+          })
+        )
+      ),
+    };
+
+    const workflow = submitWorkflow(mockProviders, logger);
+
+    // Use a duration that is less than the default maxDuration of P30DT24H
+    const input: SubmitWorkflowInput = {
+      approvalFlowId: "test-approval-flow-id",
+      requestUserId: "dbf33b00-8a5f-e045-4aa1-2d943cb659b6",
+      requestComment: "test request comment",
+      inputParams: [],
+      inputResources: [],
+      catalogId: "test-catalog-id",
+      autoRevokeDuration: "P30D", // Within default maxDuration
+    };
+
+    const result = await workflow(input);
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap().status).toBe("pending");
+    expect(mockProviders.setApprovalRequestDBProvider).toHaveBeenCalled();
+  });
+
+  it("errors when autoRevokeDuration is required but not provided", async () => {
+    const mockProviders = {
+      ...defaultMockProviders,
+      getCatalogConfigProvider: vi.fn().mockReturnValue(
+        okAsync(
+          some({
+            id: "test-catalog-id",
+            name: "test-catalog",
+            description: "catalogDescription",
+            approvalFlows: [
+              {
+                id: "test-approval-flow-id",
+                name: "testApprovalFlowName",
+                description: "testApprovalFlowDescription",
+                inputParams: [],
+                handlers: testApprovalFlowHandler,
+                inputResources: [],
+                approver: { approverType: "approvalFlow" },
+                autoRevoke: {
+                  enabled: true,
+                  defaultSettings: {
+                    required: true, // autoRevokeDuration is required
+                    maxDuration: "PT20H",
+                  },
+                },
+              },
+            ],
+            resourceTypes: [],
+          })
+        )
+      ),
+    };
+
+    const workflow = submitWorkflow(mockProviders, logger);
+
+    const input: SubmitWorkflowInput = {
+      approvalFlowId: "test-approval-flow-id",
+      requestUserId: "dbf33b00-8a5f-e045-4aa1-2d943cb659b6",
+      requestComment: "test request comment",
+      inputParams: [],
+      inputResources: [],
+      catalogId: "test-catalog-id",
+      // autoRevokeDuration is not provided but required
+    };
+
+    const result = await workflow(input);
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr().message).toBe("autoRevokeDuration is required but not set");
+    expect(mockProviders.setApprovalRequestDBProvider).not.toHaveBeenCalled();
+  });
 });

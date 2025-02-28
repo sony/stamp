@@ -25,19 +25,10 @@ async function main() {
     logLevel: logLevel,
   });
 
-  const schedulerProvider = createSchedulerProvider({
-    tableNamePrefix: process.env.DYNAMO_TABLE_PREFIX!,
-    region: "us-west-2",
-    logLevel: logLevel,
-    targetSNSTopicArn: process.env.SCHEDULER_TARGET_SNS_ARN!,
-    roleArn: process.env.SCHEDULER_GROUP_ROLE_ARN!,
-    schedulerGroupName: process.env.SCHEDULER_GROUP_NAME!,
-  });
-
   const config = await createConfigProvider({
     catalogs: [unicornRentalCatalog],
   });
-  createStampHubHTTPServer({ db: dynamodbDB, config: config, identity: dynamodBIdentity, scheduler: schedulerProvider }, 4000);
+  createStampHubHTTPServer({ db: dynamodbDB, config: config, identity: dynamodBIdentity }, 4000);
 
   const pluginRouter = createPluginRouter({ basePath: "/plugin", plugins: {} });
 
