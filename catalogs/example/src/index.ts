@@ -193,6 +193,12 @@ const unicornRentalApplicationConfig: ApprovalFlowConfig = {
   approver: { approverType: "approvalFlow" },
   handlers: unicornRentalApplicationHandler,
   enableRevoke: true,
+  autoRevoke: {
+    enabled: true,
+    defaultSettings: {
+      required: false,
+    },
+  },
 };
 
 const unicornRentalApplicationByStableApproverConfig: ApprovalFlowConfig = {
