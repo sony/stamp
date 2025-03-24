@@ -1,6 +1,6 @@
 {
   "name": "@stamp-lib/stamp-eventbridge-scheduler-plugin",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "license": "MIT",
   "engines": {
     "node": ">=20.0.0"
@@ -23,10 +23,10 @@
     "@aws-sdk/client-dynamodb": "^3.474.0",
     "@aws-sdk/client-scheduler": "^3.556.0",
     "@aws-sdk/lib-dynamodb": "^3.474.0",
-    "@stamp-lib/stamp-hub": "^0.6.3",
-    "@stamp-lib/stamp-logger": "^0.6.3",
-    "@stamp-lib/stamp-option": "^0.6.3",
-    "@stamp-lib/stamp-types": "^0.6.3",
+    "@stamp-lib/stamp-hub": "^0.6.4",
+    "@stamp-lib/stamp-logger": "^0.6.4",
+    "@stamp-lib/stamp-option": "^0.6.4",
+    "@stamp-lib/stamp-types": "^0.6.4",
     "neverthrow": "^6.1.0",
     "sns-validator": "0.3.5",
     "zod": "^3.22.4"

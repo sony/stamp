@@ -1,6 +1,6 @@
 {
   "name": "@stamp-lib/stamp-iam-role-catalog",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,9 +20,9 @@
     "@aws-sdk/client-sts": "^3.485.0",
     "@aws-sdk/credential-providers": "^3.485.0",
     "@aws-sdk/lib-dynamodb": "^3.474.0",
-    "@stamp-lib/stamp-logger": "^0.6.3",
-    "@stamp-lib/stamp-option": "^0.6.3",
-    "@stamp-lib/stamp-types": "^0.6.3",
+    "@stamp-lib/stamp-logger": "^0.6.4",
+    "@stamp-lib/stamp-option": "^0.6.4",
+    "@stamp-lib/stamp-types": "^0.6.4",
     "neverthrow": "^6.1.0",
     "zod": "^3.22.4"
   },
