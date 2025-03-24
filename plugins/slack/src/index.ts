@@ -35,6 +35,8 @@ export function createSlackPlugin(config: SlackPluginConfigInput) {
   const parsedConfig = SlackPluginConfig.parse(config);
   const logger = createLogger(parsedConfig.logLevel, { moduleName: "slack" });
   const slackEventPath = parsedConfig.basePath + "/event";
+  const pluginId = parsedConfig.workspaceId ? `slack-${parsedConfig.workspaceId}` : "slack";
+  const pluginName = parsedConfig.workspaceName ? `Slack (${parsedConfig.workspaceName})` : "Slack";
   const slackApp = new SlackApp({
     env: {
       SLACK_SIGNING_SECRET: parsedConfig.slackSigningSecret,
@@ -47,7 +49,7 @@ export function createSlackPlugin(config: SlackPluginConfigInput) {
     },
   });
   const stampHubClient = createStampHubHTTPServerClient(parsedConfig.stampHubUrl);
-  const getAccountLinkWithLogger = getAccountLink(logger, stampHubClient.systemRequest.accountLink.get);
+  const getAccountLinkWithLogger = getAccountLink(logger, stampHubClient.systemRequest.accountLink.get, pluginId);
   const getRequestInfoWithLogger = getRequestInfo(logger, stampHubClient.userRequest.approvalRequest.get);
 
   slackApp.event("message", async (req) => {
@@ -86,7 +88,7 @@ export function createSlackPlugin(config: SlackPluginConfigInput) {
     return await slackApp.run(rawReq);
   };
 
-  const accountLinkRouter = createAccountLinkRouter(logger, parsedConfig);
+  const accountLinkRouter = createAccountLinkRouter(logger, parsedConfig, pluginId);
 
   const router = new Hono();
   router.all("/event/*", (c) => {
@@ -94,7 +96,13 @@ export function createSlackPlugin(config: SlackPluginConfigInput) {
   });
   router.route("/account-link", accountLinkRouter);
 
-  const notificationPluginConfig: NotificationPluginConfig = createStampNotificationPlugin(parsedConfig.slackBotToken, parsedConfig.logLevel, stampHubClient);
+  const notificationPluginConfig: NotificationPluginConfig = createStampNotificationPlugin({
+    slackBotToken: parsedConfig.slackBotToken,
+    logLevel: parsedConfig.logLevel,
+    stampHubRouterClient: stampHubClient,
+    pluginId: pluginId,
+    pluginName: pluginName,
+  });
 
   return { router, notificationPluginConfig };
 }

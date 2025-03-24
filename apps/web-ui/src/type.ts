@@ -15,5 +15,4 @@ export type ResourceOutline = StampHubRouterOutput["userRequest"]["resource"]["l
 export type ResourceAuditItems = StampHubRouterOutput["userRequest"]["resource"]["listAuditItem"]["auditItems"][0];
 
 export type ApprovalFlow = StampHubRouterOutput["userRequest"]["approvalFlow"]["get"];
-
 export type ApprovalRequest = StampHubRouterOutput["userRequest"]["approvalRequest"]["listByApprovalFlowId"]["items"][0];

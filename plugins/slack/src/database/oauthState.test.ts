@@ -33,6 +33,7 @@ describe("Testing oauthState", () => {
         sessionKey: "",
         stampUserId: stampUserId,
         expirationTime: expirationTime,
+        pluginId: "slack",
       };
       const resultAsync = setOauthState(logger, tableName, config)(input);
       const result = await resultAsync;
@@ -45,6 +46,7 @@ describe("Testing oauthState", () => {
         sessionKey: sessionKey,
         stampUserId: stampUserId,
         expirationTime: expirationTime,
+        pluginId: "slack",
       };
       const expected = structuredClone(input);
       const resultAsync = setOauthState(logger, tableName, config)(input);
@@ -63,6 +65,7 @@ describe("Testing oauthState", () => {
           sessionKey: sessionKey,
           stampUserId: "",
           expirationTime: expirationTime,
+          pluginId: "slack",
         },
       ],
       [
@@ -72,6 +75,7 @@ describe("Testing oauthState", () => {
           sessionKey: sessionKey,
           stampUserId: stampUserId,
           expirationTime: expirationTime,
+          pluginId: "slack",
         },
       ],
     ])("returns failure result", async (key, input) => {
@@ -91,6 +95,7 @@ describe("Testing oauthState", () => {
         sessionKey: sessionKey,
         stampUserId: stampUserId,
         expirationTime: expirationTime,
+        pluginId: "slack",
       };
       const resultAsync = getOauthState(logger, tableName, config)(input);
       const result = await resultAsync;

@@ -12,6 +12,7 @@ export const OauthState = z.object({
   sessionKey: z.string(),
   stampUserId: UserId,
   expirationTime: z.number(),
+  pluginId: z.string(),
 });
 export type OauthState = z.infer<typeof OauthState>;
 

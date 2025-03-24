@@ -12,12 +12,14 @@ export type GetAccountLinkInput = { slackUserId: string };
 export type GetAccountLink = (getAccountLinkInput: GetAccountLinkInput) => ResultAsync<Option<AccountLink>, NotificationError>;
 
 export const getAccountLink =
-  (logger: Logger, getAccountLink: StampHubRouterClient["systemRequest"]["accountLink"]["get"]): GetAccountLink =>
+  (logger: Logger, getAccountLink: StampHubRouterClient["systemRequest"]["accountLink"]["get"], notificationPluginId: string): GetAccountLink =>
   (input: GetAccountLinkInput) => {
+    // accountProviderName is the same as the notificationPluginConfig ID.
+    const accountProviderName = notificationPluginId;
     const requestStampHub = async () => {
       const accountLink = await unwrapOr(
         getAccountLink.query({
-          accountProviderName: "slack",
+          accountProviderName,
           accountId: input.slackUserId,
         }),
         undefined

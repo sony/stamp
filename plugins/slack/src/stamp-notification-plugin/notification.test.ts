@@ -25,11 +25,12 @@ describe("sendNotification", () => {
   it("should route to sendResourceAudit", async () => {
     const sendResourceAudit = vi.fn().mockReturnValue(okAsync(undefined));
     const sendGroupMemberAddedEvent = vi.fn().mockReturnValue(okAsync(undefined));
-
+    const sendApprovalRequestNotification = vi.fn().mockReturnValue(okAsync(undefined));
     const result = await sendNotification({
       logLevel: "DEBUG",
       sendResourceAudit: sendResourceAudit,
       sendGroupMemberAddedEvent: sendGroupMemberAddedEvent,
+      sendApprovalRequestNotification: sendApprovalRequestNotification,
     })({
       message: {
         type: "ResourceAudit",
@@ -61,11 +62,12 @@ describe("sendNotification", () => {
   it("should route to sendGroupMemberAddedEvent", async () => {
     const sendResourceAudit = vi.fn().mockReturnValue(okAsync(undefined));
     const sendGroupMemberAddedEvent = vi.fn().mockReturnValue(okAsync(undefined));
-
+    const sendApprovalRequestNotification = vi.fn().mockReturnValue(okAsync(undefined));
     const result = await sendNotification({
       logLevel: "DEBUG",
       sendResourceAudit: sendResourceAudit,
       sendGroupMemberAddedEvent: sendGroupMemberAddedEvent,
+      sendApprovalRequestNotification: sendApprovalRequestNotification,
     })({
       message: {
         type: "GroupMemberAddedEvent",

@@ -8,7 +8,7 @@ import { updateGroupMemberNotificationSubmit } from "@/server-actions/group/upda
 import { Group } from "@/type";
 import { StampHubRouterOutput } from "@stamp-lib/stamp-hub";
 import { InfoCircledIcon } from "@radix-ui/react-icons";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 async function listNotificationTypes() {
   const result = await fetch("/api/notification/list");
@@ -111,7 +111,10 @@ export function NotificationPropertyForm({
   group: Group;
   notificationTypes: StampHubRouterOutput["systemRequest"]["notification"]["listNotificationTypes"];
 }) {
-  const [selectedNotificationTypeId, setSelectedNotificationTypeId] = useState(notificationTypes[0].id);
+  const [selectedNotificationTypeId, setSelectedNotificationTypeId] = useState(
+    // if groupMemberNotifications already exists, use the first one.
+    group.groupMemberNotifications?.[0]?.notificationChannel.typeId || notificationTypes[0].id
+  );
   const [selectedNotificationType, setSelectedNotificationType] = useState<
     StampHubRouterOutput["systemRequest"]["notification"]["listNotificationTypes"][0] | undefined
   >(notificationTypes.find((notificationType) => notificationType.id === selectedNotificationTypeId));
@@ -150,74 +153,75 @@ export function NotificationPropertyForm({
         </Select.Root>
       </Flex>
       <input type="hidden" name="groupMemberNotificationId" value={targetNotificationProperty?.id} />
+      <Fragment key={selectedNotificationTypeId}>
+        {selectedNotificationType?.channelConfigProperties.map((channelConfigProperty) => {
+          const textFiledId = `channelConfigProperty.${channelConfigProperty.id}`;
+          const inputFieldComponent = (() => {
+            switch (channelConfigProperty.type) {
+              case "string":
+                return (
+                  <TextField.Root
+                    name={textFiledId}
+                    id={textFiledId}
+                    // Use 'as' because the case statement is checking whether it is a string type property.
+                    defaultValue={targetNotificationProperty?.notificationChannel.properties[channelConfigProperty.id] as "string" | "undefined"}
+                  />
+                );
+              case "number":
+                return (
+                  <TextField.Root
+                    name={textFiledId}
+                    id={textFiledId}
+                    type="number"
+                    // Use 'as' because the case statement is checking whether it is a number type property.
+                    defaultValue={targetNotificationProperty?.notificationChannel.properties[channelConfigProperty.id] as "number" | "undefined"}
+                  />
+                );
+              case "boolean":
+                return (
+                  <RadioGroup.Root
+                    name={textFiledId}
+                    id={textFiledId}
+                    // Use 'as' because the case statement is checking whether it is a number type property.
+                    defaultValue={(targetNotificationProperty?.notificationChannel.properties[channelConfigProperty.id] as "boolean" | "undefined")?.toString()}
+                  >
+                    <Flex gap="2" direction="column">
+                      <Text size="2">
+                        <Flex gap="2">
+                          <RadioGroup.Item value="true" /> true
+                        </Flex>
+                      </Text>
+                      <Text size="2">
+                        <Flex gap="2">
+                          <RadioGroup.Item value="false" /> false
+                        </Flex>
+                      </Text>
+                    </Flex>
+                  </RadioGroup.Root>
+                );
+            }
+          })();
 
-      {selectedNotificationType?.channelConfigProperties.map((channelConfigProperty) => {
-        const textFiledId = `channelConfigProperty.${channelConfigProperty.id}`;
-        const inputFieldComponent = (() => {
-          switch (channelConfigProperty.type) {
-            case "string":
-              return (
-                <TextField.Root
-                  name={textFiledId}
-                  id={textFiledId}
-                  // Use 'as' because the case statement is checking whether it is a string type property.
-                  defaultValue={targetNotificationProperty?.notificationChannel.properties[channelConfigProperty.id] as "string" | "undefined"}
-                />
-              );
-            case "number":
-              return (
-                <TextField.Root
-                  name={textFiledId}
-                  id={textFiledId}
-                  type="number"
-                  // Use 'as' because the case statement is checking whether it is a number type property.
-                  defaultValue={targetNotificationProperty?.notificationChannel.properties[channelConfigProperty.id] as "number" | "undefined"}
-                />
-              );
-            case "boolean":
-              return (
-                <RadioGroup.Root
-                  name={textFiledId}
-                  id={textFiledId}
-                  // Use 'as' because the case statement is checking whether it is a number type property.
-                  defaultValue={(targetNotificationProperty?.notificationChannel.properties[channelConfigProperty.id] as "boolean" | "undefined")?.toString()}
-                >
-                  <Flex gap="2" direction="column">
-                    <Text size="2">
-                      <Flex gap="2">
-                        <RadioGroup.Item value="true" /> true
-                      </Flex>
-                    </Text>
-                    <Text size="2">
-                      <Flex gap="2">
-                        <RadioGroup.Item value="false" /> false
-                      </Flex>
-                    </Text>
-                  </Flex>
-                </RadioGroup.Root>
-              );
-          }
-        })();
-
-        return (
-          <Flex direction="column" gap="1" key={channelConfigProperty.id}>
-            <label htmlFor={textFiledId}>
-              <Text as="div" size="3" mb="1" weight="bold">
-                {channelConfigProperty.name}
-              </Text>
-            </label>
-            <Flex p="1" align="center" gap="1">
-              <Text size="2" color={currentAccentColor}>
-                <InfoCircledIcon />
-              </Text>
-              <Text size="2" color={currentAccentColor}>
-                {channelConfigProperty.description}
-              </Text>
+          return (
+            <Flex direction="column" gap="1" key={channelConfigProperty.id}>
+              <label htmlFor={textFiledId}>
+                <Text as="div" size="3" mb="1" weight="bold">
+                  {channelConfigProperty.name}
+                </Text>
+              </label>
+              <Flex p="1" align="center" gap="1">
+                <Text size="2" color={currentAccentColor}>
+                  <InfoCircledIcon />
+                </Text>
+                <Text size="2" color={currentAccentColor}>
+                  {channelConfigProperty.description}
+                </Text>
+              </Flex>
+              {inputFieldComponent}
             </Flex>
-            {inputFieldComponent}
-          </Flex>
-        );
-      })}
+          );
+        })}
+      </Fragment>
     </Flex>
   );
 }
