@@ -1,6 +1,6 @@
 {
   "name": "@stamp-lib/stamp-ephemeral-identity-plugin",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "license": "MIT",
   "engines": {
     "node": ">=20.0.0"
@@ -16,7 +16,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "@stamp-lib/stamp-types": "^0.6.3",
+    "@stamp-lib/stamp-types": "^0.6.4",
     "neverthrow": "^6.1.0",
     "zod": "^3.22.4"
   },

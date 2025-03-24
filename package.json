@@ -7,10 +7,10 @@
   "description": "",
   "scripts": {
     "lint": "eslint . --ext .ts,.js --ignore-path .gitignore",
-    "versionup": "lerna version --force-publish --no-push --no-git-tag-version",
-    "versionup:patch": "lerna version patch --force-publish --no-push --no-git-tag-version",
-    "versionup:minor": "lerna version minor --force-publish --no-push --no-git-tag-version",
-    "versionup:major": "lerna version major --force-publish --no-push --no-git-tag-version",
+    "versionup": "lerna version --force-publish --no-push",
+    "versionup:patch": "lerna version patch --force-publish --no-push",
+    "versionup:minor": "lerna version minor --force-publish --no-push",
+    "versionup:major": "lerna version major --force-publish --no-push",
     "build": "lerna run build",
     "publish-package": "lerna publish from-package --no-private"
   },
