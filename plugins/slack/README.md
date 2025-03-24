@@ -10,7 +10,7 @@
 
 If you want to use multiple workspaces, you can create multiple instances of the Slack plugin.
 
-- Each instance should have a different `basePath`, `workSpaceId` and `workSpaceName` in the configuration.
+- Each instance should have a different `basePath`, `workspaceId` and `workspaceName` in the configuration.
 - `dynamoDBTableNamePrefix` should be the same for all instances.
 - You need create a Slack App for each workspace and set the `slackSigningSecret`, `slackBotToken`, `slackVerificationToken`, `slackClientId`, `slackClientSecret` for each workspace.
 
@@ -27,8 +27,8 @@ const slackPluginForWorkspaceA = await createSlackPlugin({
   region: "us-west-2",
   logLevel: "INFO",
   basePath: "/plugin/slack-workspace-a", // Set For each workspace
-  workSpaceId: "XXXXX", // Set For each workspace
-  workSpaceName: "Workspace A", // Set For each workspace
+  workspaceId: "XXXXX", // Set For each workspace
+  workspaceName: "Workspace A", // Set For each workspace
 });
 
 const slackPluginForWorkspaceB = await createSlackPlugin({
@@ -43,8 +43,8 @@ const slackPluginForWorkspaceB = await createSlackPlugin({
   region: "us-west-2",
   logLevel: "INFO",
   basePath: "/plugin/slack-workspace-b", // Set For each workspace
-  workSpaceId: "XXXXX", // Set For each workspace
-  workSpaceName: "Workspace B", // Set For each workspace
+  workspaceId: "XXXXX", // Set For each workspace
+  workspaceName: "Workspace B", // Set For each workspace
 });
 
 const config = await createConfigProvider({

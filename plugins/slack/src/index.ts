@@ -35,8 +35,8 @@ export function createSlackPlugin(config: SlackPluginConfigInput) {
   const parsedConfig = SlackPluginConfig.parse(config);
   const logger = createLogger(parsedConfig.logLevel, { moduleName: "slack" });
   const slackEventPath = parsedConfig.basePath + "/event";
-  const pluginId = parsedConfig.workSpaceId ? `slack-${parsedConfig.workSpaceId}` : "slack";
-  const pluginName = parsedConfig.workSpaceName ? `Slack (${parsedConfig.workSpaceName})` : "Slack";
+  const pluginId = parsedConfig.workspaceId ? `slack-${parsedConfig.workspaceId}` : "slack";
+  const pluginName = parsedConfig.workspaceName ? `Slack (${parsedConfig.workspaceName})` : "Slack";
   const slackApp = new SlackApp({
     env: {
       SLACK_SIGNING_SECRET: parsedConfig.slackSigningSecret,
