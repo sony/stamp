@@ -21,6 +21,8 @@ export default async function Page({ params }: { params: { groupId: string } }) 
 }
 
 async function AccountLink() {
+  const notificationTypes = await stampHubClient.systemRequest.notification.listNotificationTypes.query();
+
   return (
     <Container size="3" px="8">
       <Card>
@@ -29,14 +31,16 @@ async function AccountLink() {
             <Heading as="h2">Account Link</Heading>
           </Grid>
           <Box>
-            <Flex direction="column" gap="1">
-              <Heading size="3">Slack</Heading>
-              <Container px="2">
-                <Text size="2">
-                  <Link href="/account-link/start/slack"> Start Account Link</Link>
-                </Text>
-              </Container>
-            </Flex>
+            {notificationTypes.map((notificationType) => (
+              <Flex direction="column" gap="1" p="2" key={notificationType.id}>
+                <Heading size="3">{notificationType.name}</Heading>
+                <Container px="2">
+                  <Text size="2">
+                    <Link href={`/account-link/start/${notificationType.id}`}> Start Account Link</Link>
+                  </Text>
+                </Container>
+              </Flex>
+            ))}
           </Box>
         </Flex>
       </Card>

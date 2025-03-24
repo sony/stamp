@@ -4,15 +4,19 @@ import { sendChannelMessage, setChannel, unsetChannel } from "./channel";
 import { sendApprovalRequestNotification, sendGroupMemberAddedEvent, sendNotification, sendResourceAudit } from "./notification";
 import { StampHubRouterClient } from "@stamp-lib/stamp-hub";
 
-export const createStampNotificationPlugin = (
-  slackBotToken: string,
-  logLevel: LogLevel = "INFO",
-  stampHubRouterClient: StampHubRouterClient
-): NotificationPluginConfig => {
+export const createStampNotificationPlugin = (input: {
+  slackBotToken: string;
+  logLevel: LogLevel;
+  stampHubRouterClient: StampHubRouterClient;
+  pluginId: string;
+  pluginName: string;
+}): NotificationPluginConfig => {
+  const { slackBotToken, logLevel, stampHubRouterClient, pluginId, pluginName } = input;
+  const pluginDescription = `Notification plugin for ${pluginName}`;
   const notificationPluginConfig: NotificationPluginConfig = {
-    id: "slack",
-    name: "slack",
-    description: "Slack notification plugin",
+    id: pluginId,
+    name: pluginName,
+    description: pluginDescription,
     handlers: {
       setChannel: setChannel(logLevel, sendChannelMessage({ slackBotToken })),
       unsetChannel: unsetChannel(logLevel, sendChannelMessage({ slackBotToken })),

@@ -6,6 +6,67 @@
 2. Create a Slack App using the [manifest](./manifest.yml) and install it to your workspace: [Slack Manifest Documentation](https://api.slack.com/reference/manifests)
 3. Deploy [cf-template.yaml (slack)](./cf-template.yaml) to CloudFormation
 
+### How to use multiple workspaces
+
+If you want to use multiple workspaces, you can create multiple instances of the Slack plugin.
+
+- Each instance should have a different `basePath`, `workSpaceId` and `workSpaceName` in the configuration.
+- `dynamoDBTableNamePrefix` should be the same for all instances.
+- You need create a Slack App for each workspace and set the `slackSigningSecret`, `slackBotToken`, `slackVerificationToken`, `slackClientId`, `slackClientSecret` for each workspace.
+
+```ts
+const slackPluginForWorkspaceA = await createSlackPlugin({
+  slackSigningSecret: "XXXXX",
+  slackBotToken: "XXXXX",
+  slackVerificationToken: "XXXXX",
+  slackClientId: "XXXXX",
+  slackClientSecret: "XXXXX",
+  hostDomain: "example.com",
+  stampHubUrl: "http://localhost:4000",
+  dynamoDBTableNamePrefix: "XXXXX",
+  region: "us-west-2",
+  logLevel: "INFO",
+  basePath: "/plugin/slack-workspace-a", // Set For each workspace
+  workSpaceId: "XXXXX", // Set For each workspace
+  workSpaceName: "Workspace A", // Set For each workspace
+});
+
+const slackPluginForWorkspaceB = await createSlackPlugin({
+  slackSigningSecret: "XXXXX",
+  slackBotToken: "XXXXX",
+  slackVerificationToken: "XXXXX",
+  slackClientId: "XXXXX",
+  slackClientSecret: "XXXXX",
+  hostDomain: "example.com",
+  stampHubUrl: "http://localhost:4000",
+  dynamoDBTableNamePrefix: "XXXXX",
+  region: "us-west-2",
+  logLevel: "INFO",
+  basePath: "/plugin/slack-workspace-b", // Set For each workspace
+  workSpaceId: "XXXXX", // Set For each workspace
+  workSpaceName: "Workspace B", // Set For each workspace
+});
+
+const config = await createConfigProvider({
+  catalogs: [
+    // Add your catalog config here
+  ],
+  notificationPlugins: [slackPluginForWorkspaceA.notificationPluginConfig
+      , slackPluginForWorkspaceB.notificationPluginConfig],
+  ],
+});
+
+const pluginRouter = createPluginRouter({
+  basePath: "/plugin",
+  plugins: {
+    // For each workspace, the plugin ID should be the same as the last segment of the basePath
+    "slack-workspace-a": slackPluginForWorkspaceA.router,
+    "slack-workspace-b": slackPluginForWorkspaceB.router,
+    // Add other plugins here
+  },
+});
+```
+
 ### How to execute test
 
 1. Set environment variables
