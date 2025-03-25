@@ -26,8 +26,8 @@ const slackPluginForWorkspaceA = await createSlackPlugin({
   dynamoDBTableNamePrefix: "XXXXX",
   region: "us-west-2",
   logLevel: "INFO",
-  basePath: "/plugin/slack-workspace-a", // Set For each workspace
-  workspaceId: "XXXXX", // Set For each workspace
+  basePath: "/plugin/slack-workspace-a", // Set For each workspace. Format is `/plugin/slack-<workspaceId>`.
+  workspaceId: "workspace-a", // Set For each workspace
   workspaceName: "Workspace A", // Set For each workspace
 });
 
@@ -42,8 +42,8 @@ const slackPluginForWorkspaceB = await createSlackPlugin({
   dynamoDBTableNamePrefix: "XXXXX",
   region: "us-west-2",
   logLevel: "INFO",
-  basePath: "/plugin/slack-workspace-b", // Set For each workspace
-  workspaceId: "XXXXX", // Set For each workspace
+  basePath: "/plugin/slack-workspace-b", // Set For each workspace. Format is `/plugin/slack-<workspaceId>`
+  workspaceId: "workspace-b", // Set For each workspace
   workspaceName: "Workspace B", // Set For each workspace
 });
 
@@ -59,7 +59,7 @@ const config = await createConfigProvider({
 const pluginRouter = createPluginRouter({
   basePath: "/plugin",
   plugins: {
-    // For each workspace, the plugin ID should be the same as the last segment of the basePath
+    // For each workspace, the plugin key should be `slack-<workspaceId>`
     "slack-workspace-a": slackPluginForWorkspaceA.router,
     "slack-workspace-b": slackPluginForWorkspaceB.router,
     // Add other plugins here
