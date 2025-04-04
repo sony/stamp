@@ -56,6 +56,10 @@ Please submit bug reports through [GitHub Issues](https://github.com/sony/stamp/
 
 For inquiries, use [GitHub Discussions](https://github.com/sony/stamp/discussions/categories/q-a).
 
+### Feature Request
+
+If you have a feature request, please let us know at [here](https://github.com/sony/stamp/discussions/new?category=feature-request)
+
 ### Pull Requests
 
 Please submit pull requests to the main branch. Maintainers will review your contributions.
