@@ -1,0 +1,43 @@
+labels: [Feature Request]
+body:
+  - type: markdown
+    attributes:
+      value: "Thank you for making a feature request!"
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the feature
+      description: Please concisely describe the feature you are requesting.
+    validations:
+      required: true
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: |
+        Why is this feature necessary? Example: "I always get frustrated when..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: |
+        If you have any suggestions on how to implement the addition or change, please propose them.
+    validations:
+      required: false
+  - type: textarea
+    id: other
+    attributes:
+      label: Other Information
+      description: |
+        Please provide more detailed explanations, links to related issues, or context if available.
+    validations:
+      required: false
+  - type: checkboxes
+    id: ack
+    attributes:
+      label: Acknowledgements
+      options:
+        - label: I can help implement this feature request
+          required: false
