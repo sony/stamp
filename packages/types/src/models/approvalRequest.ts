@@ -25,7 +25,7 @@ export const SubmittedRequest = z.object({
   status: z.enum(["submitted"]),
   catalogId: CatalogId,
   approvalFlowId: ApprovalFlowId,
-  inputParams: z.array(ApprovalRequestInputParam).max(5),
+  inputParams: z.array(ApprovalRequestInputParam).max(12),
   inputResources: z.array(ApprovalRequestInputResource).max(5),
   requestUserId: UserId,
   approverType: ApproverType,

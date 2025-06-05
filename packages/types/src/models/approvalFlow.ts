@@ -41,7 +41,7 @@ export const ApprovalFlowConfig = z.object({
   id: ApprovalFlowId,
   name: z.string().max(128),
   description: z.string().max(256),
-  inputParams: z.array(ApprovalFlowInputParam).max(5),
+  inputParams: z.array(ApprovalFlowInputParam).max(12),
   handlers: z.any().transform((v) => v as ApprovalFlowHandler),
   inputResources: z.array(InputResource).optional(),
   approver: Approver,
