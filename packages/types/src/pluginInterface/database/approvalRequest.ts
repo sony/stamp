@@ -5,6 +5,7 @@ import {
   PendingRequest,
   ApprovedRequest,
   RejectedRequest,
+  CanceledRequest,
   RevokedRequest,
   CatalogId,
   ApprovalFlowId,
@@ -30,6 +31,7 @@ export type ApprovalRequestDBSetResult<
     | ApprovedActionSucceededRequest
     | ApprovedActionFailedRequest
     | RejectedRequest
+    | CanceledRequest
     | RevokedRequest
     | RevokedActionSucceededRequest
     | RevokedActionFailedRequest
@@ -68,6 +70,17 @@ export const UpdateStatusToRevokedInput = z.object({
 export type UpdateStatusToRevokedInput = z.infer<typeof UpdateStatusToRevokedInput>;
 export type UpdateStatusToRevokedResult = ResultAsync<RevokedRequest, DBError>;
 
+export const UpdateStatusToCanceledInput = z.object({
+  catalogId: CatalogId,
+  approvalFlowId: ApprovalFlowId,
+  requestId: z.string(),
+  canceledDate: z.string().datetime(),
+  userIdWhoCanceled: UserId,
+  cancelComment: z.string().max(1024),
+});
+export type UpdateStatusToCanceledInput = z.infer<typeof UpdateStatusToCanceledInput>;
+export type UpdateStatusToCanceledResult = ResultAsync<CanceledRequest, DBError>;
+
 export const RequestDateQuery = z.object({
   start: z.string().datetime(),
   end: z.string().datetime(),
@@ -97,6 +110,7 @@ export type ApprovalRequestDBProvider = {
       | ApprovedActionSucceededRequest
       | ApprovedActionFailedRequest
       | RejectedRequest
+      | CanceledRequest
       | RevokedRequest
       | RevokedActionSucceededRequest
       | RevokedActionFailedRequest
@@ -106,4 +120,5 @@ export type ApprovalRequestDBProvider = {
   updateStatusToApproved(input: UpdateStatusToApprovedInput): UpdateStatusToApprovedResult;
   updateStatusToRejected(input: UpdateStatusToRejectedInput): UpdateStatusToRejectedResult;
   updateStatusToRevoked(input: UpdateStatusToRevokedInput): UpdateStatusToRevokedResult;
+  updateStatusToCanceled(input: UpdateStatusToCanceledInput): UpdateStatusToCanceledResult;
 };

@@ -56,6 +56,14 @@ export const PendingRequest = SubmittedRequest.extend({
 });
 export type PendingRequest = z.infer<typeof PendingRequest>;
 
+export const CanceledRequest = PendingRequest.extend({
+  status: z.enum(["canceled"]),
+  canceledDate: z.string().datetime(),
+  userIdWhoCanceled: UserId,
+  cancelComment: z.string().max(1024),
+});
+export type CanceledRequest = z.infer<typeof CanceledRequest>;
+
 export const ApprovedRequest = PendingRequest.extend({
   status: z.enum(["approved"]),
   approvedDate: z.string().datetime(),
@@ -140,6 +148,7 @@ export const ApprovalRequest = z.union([
   ApprovedActionSucceededRequest,
   ApprovedActionFailedRequest,
   RejectedRequest,
+  CanceledRequest,
   RevokedRequest,
   RevokedActionSucceededRequest,
   RevokedActionFailedRequest,

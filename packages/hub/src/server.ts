@@ -2,8 +2,15 @@ import { createStampHubLogger } from "./logger";
 import { stampHubRouter } from "./router";
 import { StampHubContext, t } from "./trpc";
 import { createHTTPServer } from "@trpc/server/adapters/standalone";
+import { createStampSystemCatalog } from "./system-catalog";
 
 export function createStampHubHTTPServer(context: StampHubContext, port: number) {
+  const stampSystemCatalog = createStampSystemCatalog({
+    resourceDBProvider: context.db.resourceDB,
+    catalogConfigProvider: context.config.catalogConfig,
+  });
+  context.config.registerCatalogConfig.register(stampSystemCatalog);
+
   createHTTPServer({
     router: stampHubRouter,
     createContext: (prop) => {
@@ -22,6 +29,12 @@ export function createStampHubHTTPServer(context: StampHubContext, port: number)
 }
 
 export function createStampHubStandAloneCallerFactory(context: StampHubContext) {
+  const stampSystemCatalog = createStampSystemCatalog({
+    resourceDBProvider: context.db.resourceDB,
+    catalogConfigProvider: context.config.catalogConfig,
+  });
+  context.config.registerCatalogConfig.register(stampSystemCatalog);
+
   const createCaller = t.createCallerFactory(stampHubRouter);
   return (requestContext?: Record<string, string>) => createCaller({ ...context, requestContext });
 }

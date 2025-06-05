@@ -11,7 +11,11 @@ import { createGetCatalogConfig } from "../../events/catalog/catalogConfig";
 import { ApprovalFlowDBProvider } from "@stamp-lib/stamp-types/pluginInterface/database";
 import { executeApprovedAction } from "../../events/approval-request/actions/approve";
 import { getApprovalFlowConfig } from "../../events/approval-flow/approvalFlowConfig";
-import { checkCanApproveRequestForFlow, checkCanApproveRequestForResource } from "../../events/approval-request/authz/approve";
+import {
+  checkCanApproveRequestForFlow,
+  checkCanApproveRequestForResource,
+  checkCanApproveRequestForRequestSpecified,
+} from "../../events/approval-request/authz/approve";
 import { CreateSchedulerEvent } from "@stamp-lib/stamp-types/pluginInterface/scheduler";
 import { settingAutoRevoke } from "../../events/approval-request/actions/autoRevoke";
 import { Logger } from "@stamp-lib/stamp-logger";
@@ -102,6 +106,11 @@ export const approveWorkflow =
             } else {
               return checkCanApproveRequestForResource(getGroupMemberShip)({ ...extendApprovalRequest, resourceOnDB: resource.value });
             }
+          });
+        } else if (approvalFlowConfig.approver.approverType === "requestSpecified") {
+          return checkCanApproveRequestForRequestSpecified(getGroupMemberShip)({
+            ...extendApprovalRequest,
+            request: extendApprovalRequest,
           });
         } else {
           // Return Internal server error because approverType is only approvalFlow or resource.

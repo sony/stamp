@@ -1,0 +1,102 @@
+import { CancelUpdateResourceParamsWithApprovalInput } from "./input";
+
+import { ResourceDBProvider, ApprovalRequestDBProvider } from "@stamp-lib/stamp-types/pluginInterface/database";
+import { cancelApprovalRequest } from "../../events/approval-request/actions/cancel";
+import { Logger } from "@stamp-lib/stamp-logger";
+import { errAsync, ResultAsync } from "neverthrow";
+import { convertStampHubError, StampHubError } from "../../error";
+import { parseZodObject } from "../../utils/neverthrow";
+
+import { CheckCanEditResource } from "../../events/resource/authz/canEditResource";
+
+export const cancelUpdateResourceParamsWithApproval =
+  (providers: {
+    resourceDBProvider: ResourceDBProvider;
+    approvalRequestDBProvider: ApprovalRequestDBProvider;
+    logger: Logger;
+    checkCanEditResource: CheckCanEditResource;
+  }) =>
+  (input: CancelUpdateResourceParamsWithApprovalInput): ResultAsync<undefined, StampHubError> => {
+    const { resourceDBProvider, approvalRequestDBProvider, checkCanEditResource, logger } = providers;
+
+    const parsedInput = parseZodObject(input, CancelUpdateResourceParamsWithApprovalInput);
+
+    logger.info("Canceling update resource with approval");
+    if (parsedInput.isErr()) {
+      return errAsync(new StampHubError("Invalid input", "Invalid Input", "BAD_REQUEST"));
+    }
+    logger.info("Parsed input for cancel update resource with approval", parsedInput.value);
+    input = parsedInput.value;
+
+    return checkCanEditResource(input)
+      .andThen(() => {
+        logger.info("Fetching resource to cancel update with approval", {
+          catalogId: input.catalogId,
+          resourceTypeId: input.resourceTypeId,
+          resourceId: input.resourceId,
+          requestUserId: input.requestUserId,
+          approvalRequestId: input.approvalRequestId,
+        });
+        return resourceDBProvider.getById({
+          id: input.resourceId,
+          catalogId: input.catalogId,
+          resourceTypeId: input.resourceTypeId,
+        });
+      })
+      .andThen((resourceOpt) => {
+        logger.info("Canceling update resource with approval");
+        if (resourceOpt.isNone()) {
+          return errAsync(new StampHubError("Resource not found", "Resource Not Found", "NOT_FOUND"));
+        }
+        const resource = resourceOpt.value;
+        if (!resource.pendingUpdateParams) {
+          return errAsync(new StampHubError("No matching pending update for this resource", "No Matching Pending Update", "BAD_REQUEST"));
+        }
+        const pendingUpdateParams = resource.pendingUpdateParams; // Store for type safety
+        // 2. Fetch approval request and validate it exists and is pending first
+        return approvalRequestDBProvider.getById(input.approvalRequestId).andThen((approvalOpt) => {
+          if (approvalOpt.isNone()) {
+            return errAsync(new StampHubError("Approval request not found", "Approval Request Not Found", "NOT_FOUND"));
+          }
+          const approval = approvalOpt.value;
+          if (approval.status !== "pending") {
+            return errAsync(new StampHubError("Approval request is not pending", "Approval Request Not Pending", "BAD_REQUEST"));
+          }
+          // 3. Check if the approval request matches the pending update
+          if (pendingUpdateParams.approvalRequestId !== input.approvalRequestId) {
+            return errAsync(new StampHubError("No matching pending update for this resource", "No Matching Pending Update", "BAD_REQUEST"));
+          }
+          // 4. Mark approval request as canceled (using events layer)
+          return cancelApprovalRequest(approvalRequestDBProvider.updateStatusToCanceled)({
+            catalogId: input.catalogId,
+            approvalFlowId: approval.approvalFlowId,
+            requestId: input.approvalRequestId,
+            canceledDate: new Date().toISOString(),
+            userIdWhoCanceled: "system",
+            cancelComment: "Cancelled by requester",
+          }).andThen(() => {
+            logger.info("Approval request canceled successfully");
+            return resourceDBProvider.updatePendingUpdateParams({
+              catalogId: input.catalogId,
+              resourceTypeId: input.resourceTypeId,
+              id: input.resourceId,
+              pendingUpdateParams: undefined, // Clear pending update params
+            });
+          });
+        });
+      })
+      .map(() => {
+        logger.info("Successfully canceled update resource with approval", {
+          catalogId: input.catalogId,
+          resourceTypeId: input.resourceTypeId,
+          resourceId: input.resourceId,
+          requestUserId: input.requestUserId,
+          approvalRequestId: input.approvalRequestId,
+        });
+        return undefined;
+      })
+      .mapErr((e) => {
+        logger.error("Error canceling update resource with approval", e);
+        return convertStampHubError(e);
+      });
+  };

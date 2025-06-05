@@ -10,6 +10,7 @@ import { deleteAuditNotification } from "../../workflows/resource/deleteAuditNot
 import { deleteResource } from "../../workflows/resource/deleteResource";
 import { getResourceInfo } from "../../workflows/resource/getResourceInfo";
 import {
+  CancelUpdateResourceParamsWithApprovalInput,
   CreateAuditNotificationInput,
   CreateResourceInput,
   DeleteAuditNotificationInput,
@@ -20,12 +21,19 @@ import {
   UpdateAuditNotificationInput,
   UpdateResourceApproverInput,
   UpdateResourceOwnerInput,
+  UpdateResourceParamsWithApprovalInput,
+  UpdateResourceParamsInput,
 } from "../../workflows/resource/input";
 import { listResourceAuditItem } from "../../workflows/resource/listResourceAuditItem";
 import { listResourceOutlines } from "../../workflows/resource/listResourceOutlines";
 import { updateAuditNotification } from "../../workflows/resource/updateAuditNotification";
 import { updateResourceApprover } from "../../workflows/resource/updateResourceApprover";
 import { updateResourceOwner } from "../../workflows/resource/updateResourceOwner";
+import { updateResourceParamsWithApproval } from "../../workflows/resource/updateResourceParamsWithApproval";
+import { cancelUpdateResourceParamsWithApproval } from "../../workflows/resource/cancelUpdateResourceParamsWithApproval";
+import { submitWorkflow } from "../../workflows/approval-request/submit";
+import { createCheckCanEditResource } from "../../events/resource/authz/canEditResource";
+import { updateResourceParams } from "../../workflows/resource/updateResourceParams";
 
 export const resourceRouter = router({
   get: publicProcedure.input(GetResourceInfoInput).query(async ({ input, ctx }) => {
@@ -60,6 +68,62 @@ export const resourceRouter = router({
       ctx.scheduler
     )(input).mapErr(convertTRPCError(logger));
     return unwrapOrthrowTRPCError(createResourceResult);
+  }),
+
+  updateWithApprovalParams: publicProcedure.input(UpdateResourceParamsWithApprovalInput).mutation(async ({ input, ctx }) => {
+    const logger = createStampHubLogger();
+    const submitWorkflowFn = submitWorkflow(
+      {
+        getCatalogConfigProvider: ctx.config.catalogConfig.get,
+        setApprovalRequestDBProvider: ctx.db.approvalRequestDB.set,
+        getApprovalFlowById: ctx.db.approvalFlowDB.getById,
+        getResourceById: ctx.db.resourceDB.getById,
+        getNotificationPluginConfig: ctx.config.notificationPlugin.get,
+        createSchedulerEvent: ctx.scheduler?.createSchedulerEvent,
+        getGroup: ctx.identity.group.get,
+      },
+      logger
+    );
+    const result = await updateResourceParamsWithApproval({
+      catalogConfigProvider: ctx.config.catalogConfig,
+      resourceDBProvider: ctx.db.resourceDB,
+      approvalRequestDBProvider: ctx.db.approvalRequestDB,
+      logger,
+      submitWorkflow: submitWorkflowFn,
+    })(input).mapErr(convertTRPCError(logger));
+    return unwrapOrthrowTRPCError(result);
+  }),
+
+  cancelUpdateParamsWithApproval: publicProcedure.input(CancelUpdateResourceParamsWithApprovalInput).mutation(async ({ input, ctx }) => {
+    const logger = createStampHubLogger();
+    const checkCanEditResourceFn = createCheckCanEditResource(
+      ctx.db.catalogDB.getById,
+      ctx.config.catalogConfig.get,
+      ctx.db.resourceDB.getById,
+      ctx.identity.groupMemberShip.get
+    );
+    const result = await cancelUpdateResourceParamsWithApproval({
+      resourceDBProvider: ctx.db.resourceDB,
+      approvalRequestDBProvider: ctx.db.approvalRequestDB,
+      checkCanEditResource: checkCanEditResourceFn,
+      logger,
+    })(input).mapErr(convertTRPCError(logger));
+    return unwrapOrthrowTRPCError(result);
+  }),
+
+  updateParams: publicProcedure.input(UpdateResourceParamsInput).mutation(async ({ input, ctx }) => {
+    const logger = createStampHubLogger();
+
+    const updateResourceParamsResult = await updateResourceParams({
+      catalogConfigProvider: ctx.config.catalogConfig,
+      checkCanEditResource: createCheckCanEditResource(
+        ctx.db.catalogDB.getById,
+        ctx.config.catalogConfig.get,
+        ctx.db.resourceDB.getById,
+        ctx.identity.groupMemberShip.get
+      ),
+    })(input).mapErr(convertTRPCError(logger));
+    return unwrapOrthrowTRPCError(updateResourceParamsResult);
   }),
   listOutlines: publicProcedure.input(ListResourceOutlinesInput).query(async ({ input, ctx }) => {
     const logger = createStampHubLogger();

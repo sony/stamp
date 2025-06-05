@@ -16,6 +16,7 @@ export type ApprovalFlowInputParam = z.infer<typeof ApprovalFlowInputParam>;
 const Approver = z.discriminatedUnion("approverType", [
   z.object({ approverType: z.literal("approvalFlow") }),
   z.object({ approverType: z.literal("resource"), resourceTypeId: ResourceTypeId }),
+  z.object({ approverType: z.literal("requestSpecified") }), // Approver is specified by the request
 ]);
 
 export const InputResource = z.object({

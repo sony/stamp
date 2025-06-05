@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { CatalogId } from "./id";
 import { ResourceTypeId } from "./resourceType";
-import { GroupId } from "../pluginInterface/identity";
+import { GroupId, UserId } from "../pluginInterface/identity";
 import { NotificationChannel } from "./notificationChannel";
 
 export const ResourceParams = z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]));
@@ -20,6 +20,19 @@ export const AuditNotification = z.object({
   cronExpression: z.string(),
 });
 
+/**
+ * If present, this resource has a pending update params request that must be approved before update is applied.
+ */
+export const PendingUpdateParams = z
+  .object({
+    approvalRequestId: z.string(),
+    updateParams: ResourceParams,
+    requestUserId: UserId,
+    requestedAt: z.string(), // ISO date
+  })
+  .optional();
+export type PendingUpdateParams = z.infer<typeof PendingUpdateParams>;
+
 export const ResourceInfo = z.object({
   id: ResourceId,
   name: ResourceName,
@@ -31,6 +44,7 @@ export const ResourceInfo = z.object({
   parentResourceId: ResourceId.optional(),
   parentResourceTypeId: ResourceTypeId.optional(),
   auditNotifications: z.array(AuditNotification).max(1).optional(),
+  pendingUpdateParams: PendingUpdateParams,
 });
 export type ResourceInfo = z.infer<typeof ResourceInfo>;
 
@@ -51,6 +65,7 @@ export const ResourceOnDB = z.object({
   approverGroupId: GroupId.optional(),
   ownerGroupId: GroupId.optional(),
   auditNotifications: z.array(AuditNotification).max(1).optional(),
+  pendingUpdateParams: PendingUpdateParams,
 });
 export type ResourceOnDB = z.infer<typeof ResourceOnDB>;
 

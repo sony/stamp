@@ -510,4 +510,144 @@ describe("submitWorkflow", () => {
     expect(result._unsafeUnwrapErr().message).toBe("autoRevokeDuration is required but not set");
     expect(mockProviders.setApprovalRequestDBProvider).not.toHaveBeenCalled();
   });
+
+  it("should successfully submit approval request with requestSpecified approver", async () => {
+    const mockProviders = {
+      ...defaultMockProviders,
+      getCatalogConfigProvider: vi.fn().mockReturnValue(
+        okAsync(
+          some({
+            id: "test-catalog-id",
+            name: "test-catalog",
+            description: "catalogDescription",
+            approvalFlows: [
+              {
+                id: "test-approval-flow-id",
+                name: "testApprovalFlowName",
+                description: "testApprovalFlowDescription",
+                inputParams: [],
+                handlers: testApprovalFlowHandler,
+                inputResources: [],
+                approver: { approverType: "requestSpecified" },
+              },
+            ],
+            resourceTypes: [],
+          })
+        )
+      ),
+      getApprovalFlowById: vi.fn().mockReturnValue(okAsync(none)), // No approvalFlowInfo in DB
+    };
+
+    const workflow = submitWorkflow(mockProviders, logger);
+
+    const input: SubmitWorkflowInput = {
+      approvalFlowId: "test-approval-flow-id",
+      requestUserId: "dbf33b00-8a5f-e045-4aa1-2d943cb659b6",
+      requestComment: "test request comment",
+      inputParams: [],
+      inputResources: [],
+      catalogId: "test-catalog-id",
+      approverType: "group",
+      approverId: "18578bed-c45d-4f67-b9f7-10daf4c85f3f",
+    };
+
+    const result = await workflow(input);
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap().status).toBe("pending");
+    expect(result._unsafeUnwrap().approverType).toBe("group");
+    expect(result._unsafeUnwrap().approverId).toBe("18578bed-c45d-4f67-b9f7-10daf4c85f3f");
+    expect(mockProviders.setApprovalRequestDBProvider).toHaveBeenCalled();
+    expect(testApprovalFlowHandler.approvalRequestValidation).toHaveBeenCalled();
+  });
+
+  it("errors when requestSpecified approver but approverType is not provided", async () => {
+    const mockProviders = {
+      ...defaultMockProviders,
+      getCatalogConfigProvider: vi.fn().mockReturnValue(
+        okAsync(
+          some({
+            id: "test-catalog-id",
+            name: "test-catalog",
+            description: "catalogDescription",
+            approvalFlows: [
+              {
+                id: "test-approval-flow-id",
+                name: "testApprovalFlowName",
+                description: "testApprovalFlowDescription",
+                inputParams: [],
+                handlers: testApprovalFlowHandler,
+                inputResources: [],
+                approver: { approverType: "requestSpecified" },
+              },
+            ],
+            resourceTypes: [],
+          })
+        )
+      ),
+      getApprovalFlowById: vi.fn().mockReturnValue(okAsync(none)),
+    };
+
+    const workflow = submitWorkflow(mockProviders, logger);
+
+    const input: SubmitWorkflowInput = {
+      approvalFlowId: "test-approval-flow-id",
+      requestUserId: "dbf33b00-8a5f-e045-4aa1-2d943cb659b6",
+      requestComment: "test request comment",
+      inputParams: [],
+      inputResources: [],
+      catalogId: "test-catalog-id",
+      // approverType and approverId are not provided
+    };
+
+    const result = await workflow(input);
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr().message).toBe("ApproverType and ApproverId must be set");
+    expect(mockProviders.setApprovalRequestDBProvider).not.toHaveBeenCalled();
+  });
+
+  it("errors when requestSpecified approver but approverId is not provided", async () => {
+    const mockProviders = {
+      ...defaultMockProviders,
+      getCatalogConfigProvider: vi.fn().mockReturnValue(
+        okAsync(
+          some({
+            id: "test-catalog-id",
+            name: "test-catalog",
+            description: "catalogDescription",
+            approvalFlows: [
+              {
+                id: "test-approval-flow-id",
+                name: "testApprovalFlowName",
+                description: "testApprovalFlowDescription",
+                inputParams: [],
+                handlers: testApprovalFlowHandler,
+                inputResources: [],
+                approver: { approverType: "requestSpecified" },
+              },
+            ],
+            resourceTypes: [],
+          })
+        )
+      ),
+      getApprovalFlowById: vi.fn().mockReturnValue(okAsync(none)),
+    };
+
+    const workflow = submitWorkflow(mockProviders, logger);
+
+    const input: SubmitWorkflowInput = {
+      approvalFlowId: "test-approval-flow-id",
+      requestUserId: "dbf33b00-8a5f-e045-4aa1-2d943cb659b6",
+      requestComment: "test request comment",
+      inputParams: [],
+      inputResources: [],
+      catalogId: "test-catalog-id",
+      approverType: "group",
+      // approverId is not provided
+    };
+
+    const result = await workflow(input);
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr().message).toBe("ApproverType and ApproverId must be set");
+    expect(mockProviders.setApprovalRequestDBProvider).not.toHaveBeenCalled();
+  });
 });

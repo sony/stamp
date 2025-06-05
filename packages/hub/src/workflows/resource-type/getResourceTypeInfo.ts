@@ -35,6 +35,7 @@ export function getResourceTypeInfo(
         isDeletable: resourceType.isDeletable,
         ownerManagement: resourceType.ownerManagement,
         approverManagement: resourceType.approverManagement,
+        updateApprover: resourceType.updateApprover,
       };
       return okAsync(resourceTypeInfo);
     });

@@ -1,5 +1,5 @@
 import { GroupMemberShipProvider } from "@stamp-lib/stamp-types/pluginInterface/identity";
-import { ApprovalFlowInfo, ResourceOnDB } from "@stamp-lib/stamp-types/models";
+import { ApprovalFlowInfo, ResourceOnDB, PendingRequest } from "@stamp-lib/stamp-types/models";
 import { convertStampHubError, StampHubError } from "../../../error";
 import { parseZodObjectAsync } from "../../../utils/neverthrow";
 import { ResultAsync, okAsync, errAsync } from "neverthrow";
@@ -17,6 +17,15 @@ export const CheckCanRejectRequestForResourceInput = RejectApprovalRequestInput.
 export type CheckCanRejectRequestForResourceInput = z.infer<typeof CheckCanRejectRequestForResourceInput>;
 
 export type CheckCanRejectRequestForResource = <T extends CheckCanRejectRequestForResourceInput>(input: T) => ResultAsync<T, StampHubError>;
+
+// Check if user can reject the approval request that's approverType is requestSpecified
+export const CheckCanRejectRequestForRequestSpecifiedInput = RejectApprovalRequestInput.extend({
+  approvalFlowInfo: ApprovalFlowInfo,
+  request: PendingRequest,
+});
+export type CheckCanRejectRequestForRequestSpecifiedInput = z.infer<typeof CheckCanRejectRequestForRequestSpecifiedInput>;
+
+export type CheckCanRejectRequestForRequestSpecified = <T extends CheckCanRejectRequestForRequestSpecifiedInput>(input: T) => ResultAsync<T, StampHubError>;
 
 export const checkCanRejectRequestForFlow =
   (getGroupMemberShip: GroupMemberShipProvider["get"]): CheckCanRejectRequestForFlow =>
@@ -66,6 +75,36 @@ export const checkCanRejectRequestForResource =
           return errAsync(new StampHubError("ApproverGroup is not set", "ApproverGroup is not set", "FORBIDDEN"));
         }
         const approverGroup = parsedInput.resourceOnDB.approverGroupId;
+        // Check if user is in the approver group
+        return getGroupMemberShip({ groupId: approverGroup, userId: parsedInput.userIdWhoRejected }).andThen((groupMemberShip) => {
+          if (groupMemberShip.isSome()) {
+            return okAsync(input);
+          }
+          return errAsync(new StampHubError("Permission denied", "Permission denied", "FORBIDDEN"));
+        });
+      })
+      .mapErr(convertStampHubError);
+  };
+
+export const checkCanRejectRequestForRequestSpecified =
+  (getGroupMemberShip: GroupMemberShipProvider["get"]): CheckCanRejectRequestForRequestSpecified =>
+  <T extends CheckCanRejectRequestForRequestSpecifiedInput>(input: T): ResultAsync<T, StampHubError> => {
+    return parseZodObjectAsync(input, CheckCanRejectRequestForRequestSpecifiedInput)
+      .andThen((parsedInput) => {
+        if (parsedInput.approvalFlowInfo.approver.approverType !== "requestSpecified") {
+          return errAsync(
+            new StampHubError(
+              "ApproverType is not a requestSpecified. May have been called in the wrong code path",
+              "Unexpected error occurred",
+              "INTERNAL_SERVER_ERROR"
+            )
+          );
+        }
+        // For now, we assume that the request is always specified by group
+        if (parsedInput.request.approverType !== "group") {
+          return errAsync(new StampHubError("ApproverType is not a group", "ApproverType is not a group", "FORBIDDEN"));
+        }
+        const approverGroup = parsedInput.request.approverId;
         // Check if user is in the approver group
         return getGroupMemberShip({ groupId: approverGroup, userId: parsedInput.userIdWhoRejected }).andThen((groupMemberShip) => {
           if (groupMemberShip.isSome()) {

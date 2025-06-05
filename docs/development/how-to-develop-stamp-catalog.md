@@ -250,6 +250,7 @@ flowchart TD
     pending --> ApproverAction{Approver executes action}
     ApproverAction -->|Approve| approved
     ApproverAction -->|Reject| rejected
+    pending --> |Cancel| canceled
 
     approved --> approvedHandler{Execute approved handler}
     approvedHandler -->|Success| approvedActionSucceeded
@@ -267,10 +268,13 @@ flowchart TD
 - **validation**: The system executes the approvalRequestValidation handler to verify the request details.
   - **Success**: If validation passes, the request moves to the **pending** state.
   - **Failure**: If validation fails, the request transitions to **validationFailed**.
-- **pending**: The request awaits action from an approver.
+- **pending**: The request awaits action from an approver, or can be canceled by the submitter (before approval/rejection).
 - **ApproverAction**: The approver reviews the request and decides to approve or reject.
+
   - **Approve**: Moves the request to the **approved** state.
   - **Reject**: Moves the request to the **rejected** state.
+
+- **canceled**: The submitter cancels the request before it is approved or rejected. The approval request was canceled and will not be processed further.
 - **approved**: The request has been approved and awaits execution.
 - **approvedHandler**: The system executes the approved handler.
   - **Success**: Transition to **approvedActionSucceeded**.
