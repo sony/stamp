@@ -87,7 +87,6 @@ export const resourceRouter = router({
     const result = await updateResourceParamsWithApproval({
       catalogConfigProvider: ctx.config.catalogConfig,
       resourceDBProvider: ctx.db.resourceDB,
-      approvalRequestDBProvider: ctx.db.approvalRequestDB,
       logger,
       submitWorkflow: submitWorkflowFn,
     })(input).mapErr(convertTRPCError(logger));

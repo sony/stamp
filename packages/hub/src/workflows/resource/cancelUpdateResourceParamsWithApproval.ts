@@ -35,7 +35,6 @@ export const cancelUpdateResourceParamsWithApproval =
           resourceTypeId: input.resourceTypeId,
           resourceId: input.resourceId,
           requestUserId: input.requestUserId,
-          approvalRequestId: input.approvalRequestId,
         });
         return resourceDBProvider.getById({
           id: input.resourceId,
@@ -44,7 +43,7 @@ export const cancelUpdateResourceParamsWithApproval =
         });
       })
       .andThen((resourceOpt) => {
-        logger.info("Canceling update resource with approval");
+        logger.info("Fetched resource for cancel update with approval", JSON.stringify(resourceOpt));
         if (resourceOpt.isNone()) {
           return errAsync(new StampHubError("Resource not found", "Resource Not Found", "NOT_FOUND"));
         }
@@ -54,7 +53,7 @@ export const cancelUpdateResourceParamsWithApproval =
         }
         const pendingUpdateParams = resource.pendingUpdateParams; // Store for type safety
         // 2. Fetch approval request and validate it exists and is pending first
-        return approvalRequestDBProvider.getById(input.approvalRequestId).andThen((approvalOpt) => {
+        return approvalRequestDBProvider.getById(pendingUpdateParams.approvalRequestId).andThen((approvalOpt) => {
           if (approvalOpt.isNone()) {
             return errAsync(new StampHubError("Approval request not found", "Approval Request Not Found", "NOT_FOUND"));
           }
@@ -63,14 +62,14 @@ export const cancelUpdateResourceParamsWithApproval =
             return errAsync(new StampHubError("Approval request is not pending", "Approval Request Not Pending", "BAD_REQUEST"));
           }
           // 3. Check if the approval request matches the pending update
-          if (pendingUpdateParams.approvalRequestId !== input.approvalRequestId) {
+          if (pendingUpdateParams.approvalRequestId !== pendingUpdateParams.approvalRequestId) {
             return errAsync(new StampHubError("No matching pending update for this resource", "No Matching Pending Update", "BAD_REQUEST"));
           }
           // 4. Mark approval request as canceled (using events layer)
           return cancelApprovalRequest(approvalRequestDBProvider.updateStatusToCanceled)({
             catalogId: input.catalogId,
             approvalFlowId: approval.approvalFlowId,
-            requestId: input.approvalRequestId,
+            requestId: pendingUpdateParams.approvalRequestId,
             canceledDate: new Date().toISOString(),
             userIdWhoCanceled: "system",
             cancelComment: "Cancelled by requester",
@@ -91,7 +90,6 @@ export const cancelUpdateResourceParamsWithApproval =
           resourceTypeId: input.resourceTypeId,
           resourceId: input.resourceId,
           requestUserId: input.requestUserId,
-          approvalRequestId: input.approvalRequestId,
         });
         return undefined;
       })

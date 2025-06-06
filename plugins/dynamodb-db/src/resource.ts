@@ -91,7 +91,7 @@ export function updatePendingUpdateParamsImpl(logger: Logger) {
     const ddbDocClient = DynamoDBDocumentClient.from(client, { marshallOptions: { removeUndefinedValues: true } });
     return parseDBInputAsync(input, UpdatePendingUpdateParamsInput).andThen((resourceKey) => {
       const compositeKey = `${resourceKey.catalogId}#${resourceKey.resourceTypeId}`;
-      const pendingUpdate = resourceKey.pendingUpdateParams;
+      const pendingUpdateParams = resourceKey.pendingUpdateParams;
       const updateResult = ResultAsync.fromPromise(
         ddbDocClient.send(
           new UpdateCommand({
@@ -101,18 +101,18 @@ export function updatePendingUpdateParamsImpl(logger: Logger) {
               "catalogId#resourceTypeId": compositeKey,
             },
             // If pendingUpdate is undefined, remove the attribute; otherwise, set it
-            ...(pendingUpdate === undefined
+            ...(pendingUpdateParams === undefined
               ? {
-                  UpdateExpression: "REMOVE pendingUpdate",
+                  UpdateExpression: "REMOVE pendingUpdateParams",
                   ConditionExpression: "attribute_exists(id) and attribute_exists(#catalogIdResourceTypeId)",
                   ExpressionAttributeNames: {
                     "#catalogIdResourceTypeId": "catalogId#resourceTypeId",
                   },
                 }
               : {
-                  UpdateExpression: "set pendingUpdate = :pendingUpdate",
+                  UpdateExpression: "set pendingUpdateParams = :pendingUpdateParams",
                   ExpressionAttributeValues: {
-                    ":pendingUpdate": pendingUpdate,
+                    ":pendingUpdateParams": pendingUpdateParams,
                   },
                   ConditionExpression: "attribute_exists(id) and attribute_exists(#catalogIdResourceTypeId)",
                   ExpressionAttributeNames: {

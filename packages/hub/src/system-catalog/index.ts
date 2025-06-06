@@ -28,31 +28,10 @@ export function createStampSystemCatalog(deps: StampSystemCatalogDependencies): 
           },
           {
             type: "string",
-            id: "catalogName",
-            name: "Catalog Name",
-            required: true,
-            description: "Name of the catalog to update",
-          },
-          {
-            type: "string",
             id: "resourceTypeId",
             name: "Resource Type ID",
             required: true,
             description: "Type ID of the resource",
-          },
-          {
-            type: "string",
-            id: "resourceTypeName",
-            name: "Resource Type Name",
-            required: true,
-            description: "Name of the resource type",
-          },
-          {
-            type: "string",
-            id: "resourceName",
-            name: "Resource Name",
-            required: true,
-            description: "Name of the resource to update",
           },
           {
             type: "string",
@@ -63,24 +42,10 @@ export function createStampSystemCatalog(deps: StampSystemCatalogDependencies): 
           },
           {
             type: "string",
-            id: "resourceName",
-            name: "Resource Name",
-            required: true,
-            description: "Name of the resource to update",
-          },
-          {
-            type: "string",
             id: "updateParams",
             name: "Update Parameters",
             required: true,
             description: "Parameters for the resource update (JSON format)",
-          },
-          {
-            type: "string",
-            id: "comment",
-            name: "Comment",
-            required: false,
-            description: "Comment for the approval request",
           },
         ],
         handlers: {

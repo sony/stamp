@@ -45,7 +45,6 @@ export const CancelUpdateResourceParamsWithApprovalInput = z.object({
   resourceTypeId: z.string(),
   resourceId: z.string(),
   requestUserId: z.string(),
-  approvalRequestId: z.string(),
 });
 export type CancelUpdateResourceParamsWithApprovalInput = z.infer<typeof CancelUpdateResourceParamsWithApprovalInput>;
 

@@ -1,11 +1,10 @@
 import { CatalogConfigProvider } from "@stamp-lib/stamp-types/configInterface";
-import { ResourceDBProvider, ApprovalRequestDBProvider } from "@stamp-lib/stamp-types/pluginInterface/database";
+import { ResourceDBProvider } from "@stamp-lib/stamp-types/pluginInterface/database";
 import { Logger } from "@stamp-lib/stamp-logger";
 import { UpdateResourceParamsWithApprovalInput } from "./input";
-import { PendingRequest } from "@stamp-lib/stamp-types/models";
-import { randomUUID } from "crypto";
+
 import { errAsync, okAsync, ResultAsync } from "neverthrow";
-import { TRPCError } from "@trpc/server";
+
 import { convertStampHubError, StampHubError } from "../../error";
 
 import { getResourceInfo } from "./getResourceInfo";
@@ -13,15 +12,9 @@ import { getResourceTypeInfo } from "../resource-type/getResourceTypeInfo";
 import { SubmitWorkflow } from "../approval-request/submit";
 
 export const updateResourceParamsWithApproval =
-  (providers: {
-    catalogConfigProvider: CatalogConfigProvider;
-    resourceDBProvider: ResourceDBProvider;
-    approvalRequestDBProvider: ApprovalRequestDBProvider;
-    submitWorkflow: SubmitWorkflow;
-    logger: Logger;
-  }) =>
+  (providers: { catalogConfigProvider: CatalogConfigProvider; resourceDBProvider: ResourceDBProvider; submitWorkflow: SubmitWorkflow; logger: Logger }) =>
   (input: UpdateResourceParamsWithApprovalInput): ResultAsync<{ approvalRequestId: string }, StampHubError> => {
-    const { resourceDBProvider, approvalRequestDBProvider, logger, catalogConfigProvider, submitWorkflow } = providers;
+    const { resourceDBProvider, logger, catalogConfigProvider, submitWorkflow } = providers;
 
     const getResourceInfoFunc = getResourceInfo({
       getCatalogConfigProvider: catalogConfigProvider["get"],
@@ -42,18 +35,37 @@ export const updateResourceParamsWithApproval =
       return okAsync(resourceTypeInfo);
     });
 
+    const getResourceDBResult = resourceDBProvider.getById({
+      id: input.resourceId,
+      catalogId: input.catalogId,
+      resourceTypeId: input.resourceTypeId,
+    });
+
     const getResourceInfoResult = getResourceInfo({
       getCatalogConfigProvider: catalogConfigProvider["get"],
       getResourceDBProvider: resourceDBProvider["getById"],
-    })(input).andThen((resourceOpt) => {
-      if (resourceOpt.isNone()) {
+    })(input);
+
+    const getResourceResult = ResultAsync.combine([getResourceDBResult, getResourceInfoResult]).andThen(([resourceDBOpt, resourceInfoOpt]) => {
+      if (resourceInfoOpt.isNone()) {
         return errAsync(new StampHubError("Resource not found", "Resource Not Found", "NOT_FOUND"));
       }
-      return okAsync(resourceOpt.value);
+      if (resourceDBOpt.isNone()) {
+        // Create a new resource if it does not exist for call resourceDBProvider.updatePendingUpdateParams
+        const newResource = {
+          id: input.resourceId,
+          catalogId: input.catalogId,
+          resourceTypeId: input.resourceTypeId,
+        };
+        return resourceDBProvider.set(newResource).andThen(() => {
+          return okAsync(resourceInfoOpt.value);
+        });
+      }
+      return okAsync(resourceInfoOpt.value);
     });
 
     // Check if the resource exists and resourceType has is not already pending an update
-    const approverGroupIdResult = ResultAsync.combine([getResourceTypeInfoResult, getResourceInfoResult]).andThen(([resourceTypeInfo, resource]) => {
+    const approverGroupIdResult = ResultAsync.combine([getResourceTypeInfoResult, getResourceResult]).andThen(([resourceTypeInfo, resource]) => {
       if (resource.pendingUpdateParams) {
         return errAsync(new StampHubError("Resource already has a pending update params request", "Resource Pending Update", "CONFLICT"));
       }
@@ -64,16 +76,17 @@ export const updateResourceParamsWithApproval =
       if (resourceTypeInfo.updateApprover?.approverType === "this") {
         return errAsync(new StampHubError("Approver type is 'this'", "Approver type is 'this'", "BAD_REQUEST"));
       }
+
       if (resourceTypeInfo.updateApprover?.approverType === "parentResource") {
         // If approverManagement is enabled, use the resourceType's approverGroupId
         return getResourceInfoFunc({
           catalogId: input.catalogId,
-          resourceTypeId: resourceTypeInfo.id,
+          resourceTypeId: resourceTypeInfo.parentResourceTypeId ?? "",
           resourceId: resource.parentResourceId ?? "",
           requestUserId: input.requestUserId,
         }).andThen((parentResourceOpt) => {
           if (parentResourceOpt.isNone()) {
-            return errAsync(new StampHubError("Parent resource not found", "Parent Resource Not Found", "NOT_FOUND"));
+            return errAsync(new StampHubError("Parent resource not found", "Parent Resource Not Found", "BAD_REQUEST"));
           }
           const parentResource = parentResourceOpt.value;
           if (!parentResource.approverGroupId) {
@@ -105,16 +118,16 @@ export const updateResourceParamsWithApproval =
         requestUserId: input.requestUserId,
         inputParams: [
           {
-            id: "resourceId",
-            value: input.resourceId,
+            id: "catalogId",
+            value: input.catalogId,
           },
           {
             id: "resourceTypeId",
             value: input.resourceTypeId,
           },
           {
-            id: "catalogId",
-            value: input.catalogId,
+            id: "resourceId",
+            value: input.resourceId,
           },
           {
             id: "updateParams",
@@ -132,81 +145,19 @@ export const updateResourceParamsWithApproval =
       .andThen((approvalRequest) => {
         logger.info(`Approval request created with ID: ${approvalRequest.requestId}`);
 
-        return resourceDBProvider.getById({
-          id: input.resourceId,
-          catalogId: input.catalogId,
-          resourceTypeId: input.resourceTypeId,
-        });
-      })
-      .andThen((resourceOpt) => {
-        if (resourceOpt.isNone()) {
-          return errAsync(new TRPCError({ message: "Resource not found", code: "NOT_FOUND" }));
-        }
-        const resource = resourceOpt.value;
-        if (resource.pendingUpdateParams) {
-          return errAsync(new TRPCError({ message: "Resource already has a pending update request", code: "CONFLICT" }));
-        }
-        // Generate ApprovalRequest
-        const approvalRequestId = randomUUID();
-        // For now, use the resource's approverGroupId as the approverId (type: group)
-        if (!resource.approverGroupId) {
-          return errAsync(new TRPCError({ message: "Resource approverGroupId is not set", code: "BAD_REQUEST" }));
-        }
-
-        const now = new Date().toISOString();
-
-        // Use built-in stamp-system catalog and resource-update ApprovalFlow
-        const approvalRequest: PendingRequest = {
-          requestId: approvalRequestId,
-          status: "pending",
-          catalogId: "stamp-system", // Use built-in catalog
-          approvalFlowId: "resource-update", // Use built-in ApprovalFlow
-          requestUserId: input.requestUserId,
-          requestComment: input.comment ?? "",
-          inputParams: [
-            {
-              id: "resourceId",
-              value: input.resourceId,
+        return resourceDBProvider
+          .updatePendingUpdateParams({
+            id: input.resourceId,
+            catalogId: input.catalogId,
+            resourceTypeId: input.resourceTypeId,
+            pendingUpdateParams: {
+              approvalRequestId: approvalRequest.requestId,
+              updateParams: input.updateParams,
+              requestUserId: input.requestUserId,
+              requestedAt: approvalRequest.requestDate,
             },
-            {
-              id: "resourceTypeId",
-              value: input.resourceTypeId,
-            },
-            {
-              id: "catalogId",
-              value: input.catalogId,
-            },
-            {
-              id: "updateParams",
-              value: JSON.stringify(input.updateParams),
-            },
-          ],
-          inputResources: [{ resourceId: input.resourceId, resourceTypeId: input.resourceTypeId }],
-          approverType: "group",
-          approverId: resource.approverGroupId,
-          requestDate: now,
-          validatedDate: now,
-          validationHandlerResult: {
-            isSuccess: true,
-            message: "Built-in validation will be performed by approval flow",
-          },
-        };
-        return approvalRequestDBProvider
-          .set(approvalRequest)
-          .andThen(() => {
-            return resourceDBProvider.updatePendingUpdateParams({
-              id: input.resourceId,
-              catalogId: input.catalogId,
-              resourceTypeId: input.resourceTypeId,
-              pendingUpdateParams: {
-                approvalRequestId,
-                updateParams: input.updateParams,
-                requestUserId: input.requestUserId,
-                requestedAt: now,
-              },
-            });
           })
-          .map(() => ({ approvalRequestId }));
+          .map(() => ({ approvalRequestId: approvalRequest.requestId }));
       })
       .mapErr((error) => {
         logger.error(`Failed to update pending update params: ${error.message}`);

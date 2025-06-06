@@ -13,10 +13,11 @@ import { validateResourceTypeId } from "../../events/resource-type/validation";
 import { createGetResourceInfo } from "../../events/resource/info/get";
 import { parseZodObjectAsync } from "../../utils/neverthrow";
 
+export type GetResourceInfo = (input: GetResourceInfoInput) => ResultAsync<Option<ResourceInfo>, StampHubError>;
 export const getResourceInfo = (providers: {
   getCatalogConfigProvider: CatalogConfigProvider["get"];
   getResourceDBProvider: ResourceDBProvider["getById"];
-}) => {
+}): GetResourceInfo => {
   return (input: GetResourceInfoInput): ResultAsync<Option<ResourceInfo>, StampHubError> => {
     const { getCatalogConfigProvider, getResourceDBProvider } = providers;
     const validateCatalogId = createValidateCatalogId(getCatalogConfigProvider);
