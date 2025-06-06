@@ -35,12 +35,15 @@ function InfoParams({ resourceType, resourceOutline }: { resourceType: ResourceT
   const InfoParamsComp = [];
   for (const infoParam of resourceType.infoParams) {
     const infoParamFromId = `infoParam_${infoParam.id}`;
+    const paramValue = resourceOutline.params[infoParam.id];
+    const displayValue = Array.isArray(paramValue) ? paramValue.join(", ") : String(paramValue);
+
     InfoParamsComp.push(
       <Flex direction="row" gap="2" key={infoParamFromId}>
         <Text size="2">
           <Strong>{infoParam.name}</Strong>
         </Text>
-        <Text size="2">{resourceOutline.params[infoParam.id]}</Text>
+        <Text size="2">{displayValue}</Text>
       </Flex>
     );
   }

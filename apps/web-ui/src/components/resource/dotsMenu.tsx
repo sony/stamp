@@ -11,11 +11,14 @@ import { updateApproverGroup } from "@/server-actions/resource/updateApproverGro
 import { updateOwnerGroup } from "@/server-actions/resource/updateOwnerGroup";
 import { deleteResource } from "@/server-actions/resource/deleteResource";
 import { NotificationSettingModal } from "./setResourceNotification";
+import { ResourceEditModal } from "./resourceEditModal";
+
 export function DotsMenu({ resourceType, resourceOutline }: { resourceType: ResourceType; resourceOutline: ResourceOutline }) {
   const isUpdatable = !resourceType.isUpdatable;
   const isDeletable = !resourceType.isDeletable;
   const isOwnerSetting = !resourceType.ownerManagement;
   const isApproverSetting = !resourceType.approverManagement;
+  const [EditParamsModalOpen, setEditParamsModalOpen] = useState(false);
   const [OwnerSettingModalOpen, setOwnerSettingModalOpen] = useState(false);
   const [ApproverSettingModalOpen, setApproverSettingModalOpen] = useState(false);
   const [NotificationSettingModalOpen, setNotificationSettingModalOpen] = useState(false);
@@ -25,12 +28,12 @@ export function DotsMenu({ resourceType, resourceOutline }: { resourceType: Reso
   // https://github.com/radix-ui/primitives/issues/2355
   // https://github.com/radix-ui/primitives/issues/1241#issuecomment-1888232392
   useEffect(() => {
-    if (!OwnerSettingModalOpen || !ApproverSettingModalOpen || !DeleteModalOpen) {
+    if (!EditParamsModalOpen || !OwnerSettingModalOpen || !ApproverSettingModalOpen || !DeleteModalOpen) {
       setTimeout(() => {
         document.body.style.pointerEvents = "";
       }, 500);
     }
-  }, [OwnerSettingModalOpen, ApproverSettingModalOpen, DeleteModalOpen]);
+  }, [EditParamsModalOpen, OwnerSettingModalOpen, ApproverSettingModalOpen, DeleteModalOpen]);
 
   return (
     <Flex>
@@ -40,7 +43,14 @@ export function DotsMenu({ resourceType, resourceOutline }: { resourceType: Reso
             <DotsHorizontalIcon />
           </DropdownMenu.Trigger>
           <DropdownMenu.Content>
-            <DropdownMenu.Item disabled={isUpdatable}>Edit info</DropdownMenu.Item>
+            <DropdownMenu.Item
+              disabled={isUpdatable}
+              onClick={() => {
+                setEditParamsModalOpen(true);
+              }}
+            >
+              Edit params
+            </DropdownMenu.Item>
             <DropdownMenu.Item
               disabled={isOwnerSetting}
               onClick={() => {
@@ -76,6 +86,12 @@ export function DotsMenu({ resourceType, resourceOutline }: { resourceType: Reso
             </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
+        <ResourceEditModal
+          resourceType={resourceType}
+          resourceOutline={resourceOutline}
+          modalOpen={EditParamsModalOpen}
+          setModalOpen={setEditParamsModalOpen}
+        />
         <OwnerSettingModal
           resourceType={resourceType}
           resourceOutline={resourceOutline}
