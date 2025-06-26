@@ -6,6 +6,7 @@ import { err, okAsync } from "neverthrow";
 import { describe, expect, it } from "vitest";
 import { getResourceTypeInfo } from "./getResourceTypeInfo";
 import { GetResourceTypeInfoInput } from "./input";
+import { createGetCatalogConfig } from "../../events/catalog/catalogConfig";
 
 const requestUserId = "47f29c51-204c-09f6-2069-f3df073568c7"; // The uuid is meaningless and was generated for testing.
 
@@ -93,7 +94,8 @@ describe("getResourceTypeInfo", () => {
     const catalogConfigProvider: CatalogConfigProvider = {
       get: getCatalogConfigProvider,
     };
-    const result = await getResourceTypeInfo(input, catalogConfigProvider);
+    const getCatalogConfig = createGetCatalogConfig(catalogConfigProvider.get);
+    const result = await getResourceTypeInfo(getCatalogConfig)(input);
     if (result.isErr()) {
       throw result.error;
     }
@@ -116,7 +118,8 @@ describe("getResourceTypeInfo", () => {
     const catalogConfigProvider: CatalogConfigProvider = {
       get: getCatalogConfigProvider,
     };
-    const result = await getResourceTypeInfo(input, catalogConfigProvider);
+    const getCatalogConfig = createGetCatalogConfig(catalogConfigProvider.get);
+    const result = await getResourceTypeInfo(getCatalogConfig)(input);
     expect(result.isErr()).toBe(true);
   });
 });
