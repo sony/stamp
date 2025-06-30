@@ -71,7 +71,7 @@ export const resourceRouter = router({
     return unwrapOrthrowTRPCError(createResourceResult);
   }),
 
-  updateWithApprovalParams: publicProcedure.input(UpdateResourceParamsWithApprovalInput).mutation(async ({ input, ctx }) => {
+  updateParamsWithApproval: publicProcedure.input(UpdateResourceParamsWithApprovalInput).mutation(async ({ input, ctx }) => {
     const logger = createStampHubLogger();
     const submitWorkflowForResourceUpdate = adaptSubmitWorkflow(
       submitWorkflow(
