@@ -29,11 +29,12 @@ import { listResourceOutlines } from "../../workflows/resource/listResourceOutli
 import { updateAuditNotification } from "../../workflows/resource/updateAuditNotification";
 import { updateResourceApprover } from "../../workflows/resource/updateResourceApprover";
 import { updateResourceOwner } from "../../workflows/resource/updateResourceOwner";
-import { updateResourceParamsWithApproval } from "../../workflows/resource/updateResourceParamsWithApproval";
+import { updateResourceParamsWithApproval, createWorkflowDependencies } from "../../workflows/resource/updateResourceParamsWithApproval/index";
 import { cancelUpdateResourceParamsWithApproval } from "../../workflows/resource/cancelUpdateResourceParamsWithApproval";
+import { updateResourceParams } from "../../workflows/resource/updateResourceParams";
 import { submitWorkflow } from "../../workflows/approval-request/submit";
 import { createCheckCanEditResource } from "../../events/resource/authz/canEditResource";
-import { updateResourceParams } from "../../workflows/resource/updateResourceParams";
+import { adaptSubmitWorkflow } from "../../workflows/resource/updateResourceParamsWithApproval/execution";
 
 export const resourceRouter = router({
   get: publicProcedure.input(GetResourceInfoInput).query(async ({ input, ctx }) => {
@@ -70,26 +71,31 @@ export const resourceRouter = router({
     return unwrapOrthrowTRPCError(createResourceResult);
   }),
 
-  updateWithApprovalParams: publicProcedure.input(UpdateResourceParamsWithApprovalInput).mutation(async ({ input, ctx }) => {
+  updateParamsWithApproval: publicProcedure.input(UpdateResourceParamsWithApprovalInput).mutation(async ({ input, ctx }) => {
     const logger = createStampHubLogger();
-    const submitWorkflowFn = submitWorkflow(
-      {
-        getCatalogConfigProvider: ctx.config.catalogConfig.get,
-        setApprovalRequestDBProvider: ctx.db.approvalRequestDB.set,
-        getApprovalFlowById: ctx.db.approvalFlowDB.getById,
-        getResourceById: ctx.db.resourceDB.getById,
-        getNotificationPluginConfig: ctx.config.notificationPlugin.get,
-        createSchedulerEvent: ctx.scheduler?.createSchedulerEvent,
-        getGroup: ctx.identity.group.get,
-      },
-      logger
+    const submitWorkflowForResourceUpdate = adaptSubmitWorkflow(
+      submitWorkflow(
+        {
+          getCatalogConfigProvider: ctx.config.catalogConfig.get,
+          setApprovalRequestDBProvider: ctx.db.approvalRequestDB.set,
+          getApprovalFlowById: ctx.db.approvalFlowDB.getById,
+          getResourceById: ctx.db.resourceDB.getById,
+          getNotificationPluginConfig: ctx.config.notificationPlugin.get,
+          createSchedulerEvent: ctx.scheduler?.createSchedulerEvent,
+          getGroup: ctx.identity.group.get,
+        },
+        logger
+      )
     );
-    const result = await updateResourceParamsWithApproval({
+
+    const workflowDependencies = createWorkflowDependencies({
       catalogConfigProvider: ctx.config.catalogConfig,
       resourceDBProvider: ctx.db.resourceDB,
       logger,
-      submitWorkflow: submitWorkflowFn,
-    })(input).mapErr(convertTRPCError(logger));
+      submitWorkflow: submitWorkflowForResourceUpdate,
+    });
+
+    const result = await updateResourceParamsWithApproval(workflowDependencies)(input).mapErr(convertTRPCError(logger));
     return unwrapOrthrowTRPCError(result);
   }),
 

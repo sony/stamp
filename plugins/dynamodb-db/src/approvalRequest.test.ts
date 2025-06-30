@@ -7,6 +7,7 @@ import {
   ApprovedActionSucceededRequest,
   ApprovedActionFailedRequest,
   RejectedRequest,
+  CanceledRequest,
   RevokedRequest,
   RevokedActionSucceededRequest,
   RevokedActionFailedRequest,
@@ -24,6 +25,7 @@ import {
   updateStatusToApprovedImpl,
   updateStatusToRevokedImpl,
   updateStatusToRejectedImpl,
+  updateStatusToCanceledImpl,
 } from "./approvalRequest";
 
 const logger = createLogger("DEBUG", { moduleName: "plugins" });
@@ -42,6 +44,7 @@ const approvedDate = "2023-11-01T09:00:00.000Z";
 const revokedDate = "2023-11-01T10:00:00.000Z";
 const validatedDate = "2023-11-01T11:00:00.000Z";
 const rejectedDate = "2023-11-01T12:00:00.000Z";
+const canceledDate = "2023-11-01T13:00:00.000Z";
 
 const submittedRequest: SubmittedRequest = {
   status: "submitted",
@@ -128,6 +131,14 @@ const rejectedRequest: RejectedRequest = {
   rejectComment: "I reject this request",
 };
 
+const canceledRequest: CanceledRequest = {
+  ...pendingRequest,
+  status: "canceled",
+  canceledDate: canceledDate,
+  userIdWhoCanceled: requestUserId,
+  cancelComment: "I cancel this request",
+};
+
 const revokedRequest: RevokedRequest = {
   ...approvedActionSucceededRequest,
   status: "revoked",
@@ -170,6 +181,7 @@ describe("Testing approvalRequest", () => {
       [approvedActionSucceededRequest],
       [approvedActionFailedRequest],
       [rejectedRequest],
+      [canceledRequest],
       [revokedRequest],
       [revokedActionSucceededRequest],
       [revokedActionFailedRequest],
@@ -664,6 +676,76 @@ describe("Testing approvalRequest", () => {
 
       expect(result.isErr()).toBe(true);
       expect(result._unsafeUnwrapErr().message).toBe("Approval request does not exist or status is not approvedActionSucceeded or approved.");
+
+      await deleteImpl(logger)(testRequest.requestId, tableName, config);
+    });
+  });
+
+  describe("updateStatusToCanceledImpl", () => {
+    it("should successfully update status to canceled with valid input", async () => {
+      const testRequest = {
+        ...pendingRequest,
+      };
+      await setImpl(logger)(testRequest, tableName, config);
+
+      const result = await updateStatusToCanceledImpl(logger)(
+        {
+          catalogId: catalogId,
+          approvalFlowId: approvalFlowId,
+          requestId: testRequest.requestId,
+          canceledDate: canceledDate,
+          userIdWhoCanceled: requestUserId,
+          cancelComment: "I cancel this request",
+        },
+        tableName,
+        config
+      );
+      if (result.isErr()) {
+        throw result.error;
+      }
+      expect(result.value).toEqual(canceledRequest);
+
+      await deleteImpl(logger)(testRequest.requestId, tableName, config);
+    });
+
+    it("returns failure result if request ID does not exist", async () => {
+      const result = await updateStatusToCanceledImpl(logger)(
+        {
+          catalogId: catalogId,
+          approvalFlowId: approvalFlowId,
+          requestId: "not-exist",
+          canceledDate: canceledDate,
+          userIdWhoCanceled: requestUserId,
+          cancelComment: "I cancel this request",
+        },
+        tableName,
+        config
+      );
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe("Approval request does not exist or status is not pending.");
+    });
+
+    it("returns failure result if approval request status is not pending", async () => {
+      const testRequest = {
+        ...approvedActionSucceededRequest,
+      };
+      await setImpl(logger)(testRequest, tableName, config);
+
+      const result = await updateStatusToCanceledImpl(logger)(
+        {
+          catalogId: catalogId,
+          approvalFlowId: approvalFlowId,
+          requestId: testRequest.requestId,
+          canceledDate: canceledDate,
+          userIdWhoCanceled: requestUserId,
+          cancelComment: "I cancel this request",
+        },
+        tableName,
+        config
+      );
+
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe("Approval request does not exist or status is not pending.");
 
       await deleteImpl(logger)(testRequest.requestId, tableName, config);
     });
