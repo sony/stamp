@@ -21,6 +21,33 @@ export const CreateResourceInput = z.object({
 });
 export type CreateResourceInput = z.infer<typeof CreateResourceInput>;
 
+export const UpdateResourceParamsInput = z.object({
+  catalogId: CatalogId,
+  resourceTypeId: ResourceTypeId,
+  resourceId: ResourceId,
+  updateParams: ResourceParams,
+  requestUserId: UserId,
+});
+export type UpdateResourceParamsInput = z.infer<typeof UpdateResourceParamsInput>;
+
+export const UpdateResourceParamsWithApprovalInput = z.object({
+  catalogId: z.string(),
+  resourceTypeId: z.string(),
+  resourceId: z.string(),
+  updateParams: ResourceParams,
+  requestUserId: z.string(),
+  comment: z.string().optional(),
+});
+export type UpdateResourceParamsWithApprovalInput = z.infer<typeof UpdateResourceParamsWithApprovalInput>;
+
+export const CancelUpdateResourceParamsWithApprovalInput = z.object({
+  catalogId: z.string(),
+  resourceTypeId: z.string(),
+  resourceId: z.string(),
+  requestUserId: z.string(),
+});
+export type CancelUpdateResourceParamsWithApprovalInput = z.infer<typeof CancelUpdateResourceParamsWithApprovalInput>;
+
 export const DeleteResourceInput = z.object({
   catalogId: CatalogId,
   resourceTypeId: ResourceTypeId,

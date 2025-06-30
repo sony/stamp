@@ -17,9 +17,12 @@ import { Logger } from "@stamp-lib/stamp-logger";
 import { validateAutoRevokeDurationTime } from "../../events/approval-request/actions/autoRevoke";
 import { CreateSchedulerEvent } from "@stamp-lib/stamp-types/pluginInterface/scheduler";
 
-export const SubmitWorkflowInput = SubmittedRequest.omit({ requestId: true, status: true, requestDate: true, approverType: true, approverId: true });
+export const SubmitWorkflowInput = SubmittedRequest.omit({ requestId: true, status: true, requestDate: true }).extend({
+  approverType: ApproverType.optional(),
+  approverId: z.string().uuid().optional(),
+});
 export type SubmitWorkflowInput = z.infer<typeof SubmitWorkflowInput>;
-
+export type SubmitWorkflow = (input: SubmitWorkflowInput) => ResultAsync<PendingRequest | ValidationFailedRequest, StampHubError>;
 export const submitWorkflow =
   (
     providers: {
@@ -32,7 +35,7 @@ export const submitWorkflow =
       createSchedulerEvent?: CreateSchedulerEvent;
     },
     logger: Logger
-  ) =>
+  ): SubmitWorkflow =>
   (input: SubmitWorkflowInput): ResultAsync<PendingRequest | ValidationFailedRequest, StampHubError> => {
     const {
       getCatalogConfigProvider,
@@ -144,6 +147,15 @@ export const submitWorkflow =
               }
             }
           );
+        } else if (targetApprover.approverType === "requestSpecified") {
+          // If approverType is requestSpecified, approverId must be set.
+          if (extendInput.approverType === undefined || extendInput.approverId === undefined) {
+            return errAsync(new StampHubError("ApproverType and ApproverId must be set", "ApproverType and ApproverId must be set", "BAD_REQUEST"));
+          }
+          const approverType: ApproverType = extendInput.approverType;
+          const approverId = extendInput.approverId;
+
+          return okAsync({ ...extendInput, approverType, approverId });
         } else {
           // Return Internal server error because nothing ApproverType is unexpected.
           return errAsync(new StampHubError("ApproverType is not set", "ApproverType is not set", "INTERNAL_SERVER_ERROR"));

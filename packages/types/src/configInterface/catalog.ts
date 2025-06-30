@@ -20,3 +20,10 @@ export type GetCatalogConfig = (id: string) => GetCatalogConfigResult;
 export type CatalogConfigProvider = {
   get: GetCatalogConfig;
 };
+
+export type RegisterCatalogConfigResult = ResultAsync<void, ConfigError>;
+export type RegisterCatalogConfig = (catalogConfig: CatalogConfig) => RegisterCatalogConfigResult;
+
+export type RegisterCatalogConfigProvider = {
+  register: RegisterCatalogConfig;
+};

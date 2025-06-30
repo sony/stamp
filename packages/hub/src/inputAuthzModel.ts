@@ -16,6 +16,8 @@ import {
   UpdateResourceOwnerInput as WorkflowUpdateResourceOwnerInput,
   CreateAuditNotificationInput,
   DeleteAuditNotificationInput,
+  UpdateResourceParamsInput,
+  CancelUpdateResourceParamsWithApprovalInput,
 } from "./workflows/resource/input";
 import { UserId } from "@stamp-lib/stamp-types/pluginInterface/identity";
 import { ApprovalFlowInfo } from "@stamp-lib/stamp-types/models";
@@ -35,7 +37,14 @@ export type CreateGroupInput = z.infer<typeof CreateGroupInput>;
 export const CreateResourceInput = WorkflowCreateResourceInput;
 export type CreateResourceInput = z.infer<typeof CreateResourceInput>;
 
-export const EditResourceInput = z.union([DeleteResourceInput, CreateAuditNotificationInput, DeleteAuditNotificationInput]);
+export const EditResourceInput = z.union([
+  DeleteResourceInput,
+  CreateAuditNotificationInput,
+  DeleteAuditNotificationInput,
+  UpdateResourceParamsInput,
+  UpdateResourceParamsInput,
+  CancelUpdateResourceParamsWithApprovalInput,
+]);
 export type EditResourceInput = z.infer<typeof EditResourceInput>;
 
 export const UpdateResourceApproverInput = WorkflowUpdateResourceApproverInput;

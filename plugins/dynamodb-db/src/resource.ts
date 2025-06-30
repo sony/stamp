@@ -16,6 +16,7 @@ import {
   ResourceInput,
   UpdateAuditNotificationInput,
   UpdateAuditNotificationOutput,
+  UpdatePendingUpdateParamsInput,
 } from "@stamp-lib/stamp-types/pluginInterface/database";
 import { errAsync, okAsync, ResultAsync } from "neverthrow";
 import { parseDBInputAsync, parseDBItemAsync } from "./utils/neverthrow";
@@ -80,6 +81,58 @@ export function setImpl(logger: Logger) {
       );
 
       return putResult.andThen(() => okAsync(resourceOnDB));
+    });
+  };
+}
+
+export function updatePendingUpdateParamsImpl(logger: Logger) {
+  return (input: UpdatePendingUpdateParamsInput, TableName: string, config: DynamoDBClientConfig = {}): ResourceDBSetResult => {
+    const client = new DynamoDBClient(config);
+    const ddbDocClient = DynamoDBDocumentClient.from(client, { marshallOptions: { removeUndefinedValues: true } });
+    return parseDBInputAsync(input, UpdatePendingUpdateParamsInput).andThen((resourceKey) => {
+      const compositeKey = `${resourceKey.catalogId}#${resourceKey.resourceTypeId}`;
+      const pendingUpdateParams = resourceKey.pendingUpdateParams;
+      const updateResult = ResultAsync.fromPromise(
+        ddbDocClient.send(
+          new UpdateCommand({
+            TableName: TableName,
+            Key: {
+              id: resourceKey.id,
+              "catalogId#resourceTypeId": compositeKey,
+            },
+            // If pendingUpdate is undefined, remove the attribute; otherwise, set it
+            ...(pendingUpdateParams === undefined
+              ? {
+                  UpdateExpression: "REMOVE pendingUpdateParams",
+                  ConditionExpression: "attribute_exists(id) and attribute_exists(#catalogIdResourceTypeId)",
+                  ExpressionAttributeNames: {
+                    "#catalogIdResourceTypeId": "catalogId#resourceTypeId",
+                  },
+                }
+              : {
+                  UpdateExpression: "set pendingUpdateParams = :pendingUpdateParams",
+                  ExpressionAttributeValues: {
+                    ":pendingUpdateParams": pendingUpdateParams,
+                  },
+                  ConditionExpression: "attribute_exists(id) and attribute_exists(#catalogIdResourceTypeId)",
+                  ExpressionAttributeNames: {
+                    "#catalogIdResourceTypeId": "catalogId#resourceTypeId",
+                  },
+                }),
+
+            ReturnValues: "ALL_NEW",
+          })
+        ),
+        (err) => {
+          logger.error(err);
+          return new DBError((err as Error).message ?? "Internal Server Error", "INTERNAL_SERVER_ERROR");
+        }
+      );
+
+      return updateResult.andThen((result) => {
+        const parsedItem = parseDBItemAsync(logger)(result.Attributes, ResourceOnDB);
+        return parsedItem.map((item) => item);
+      });
     });
   };
 }
@@ -337,6 +390,7 @@ export const createResourceDBProvider =
     return {
       getById: (input: ResourceInput) => getByIdImpl(logger)(input, TableName, config),
       set: (resourceOnDB: ResourceOnDB) => setImpl(logger)(resourceOnDB, TableName, config),
+      updatePendingUpdateParams: (input: UpdatePendingUpdateParamsInput) => updatePendingUpdateParamsImpl(logger)(input, TableName, config),
       delete: (input: ResourceInput) => deleteImpl(logger)(input, TableName, config),
       createAuditNotification: (input: CreateAuditNotificationInput) => createAuditNotificationImpl(logger)(input, TableName, config),
       updateAuditNotification: (input: UpdateAuditNotificationInput) => updateAuditNotificationImpl(logger)(input, TableName, config),

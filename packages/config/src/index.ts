@@ -7,6 +7,8 @@ import { createCatalogInfoOnConfigProvider } from "./catalogInfo";
 import { createApprovalFlowConfigProvider } from "./approvalFlow";
 import { createCatalogConfigProvider } from "./catalogConfig";
 import { createNotificationPluginConfigProvider } from "./notification";
+import { createRegisterCatalogConfigProvider } from "./registerCatalogConfig";
+
 export type CatalogConfigMap = ReadonlyMap<string, Readonly<CatalogConfig>>;
 
 export const CreateConfigInput = z.object({
@@ -32,10 +34,12 @@ export function createConfigProvider(input: CreateConfigInput): ConfigProvider {
   const catalogInfoOnConfigProvider = createCatalogInfoOnConfigProvider(catalogConfigMap);
   const approvalFlowConfigProvider = createApprovalFlowConfigProvider(catalogConfigMap);
   const notificationPluginConfigProvider = createNotificationPluginConfigProvider(notificationPluginMap);
+  const registerCatalogConfigProvider = createRegisterCatalogConfigProvider(catalogConfigMap);
   return {
     catalogConfig: catalogConfigProvider,
     catalogInfo: catalogInfoOnConfigProvider,
     approvalFlow: approvalFlowConfigProvider,
     notificationPlugin: notificationPluginConfigProvider,
+    registerCatalogConfig: registerCatalogConfigProvider,
   };
 }

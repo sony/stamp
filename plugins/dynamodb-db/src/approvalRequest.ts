@@ -10,8 +10,9 @@ import {
   UpdateStatusToRejectedResult,
   UpdateStatusToRevokedInput,
   UpdateStatusToRevokedResult,
+  UpdateStatusToCanceledInput,
+  UpdateStatusToCanceledResult,
 } from "@stamp-lib/stamp-types/pluginInterface/database";
-import { z } from "zod";
 import {
   ApprovalRequest,
   ValidationFailedRequest,
@@ -20,11 +21,14 @@ import {
   ApprovedActionSucceededRequest,
   ApprovedActionFailedRequest,
   RejectedRequest,
+  CanceledRequest,
   RevokedRequest,
   RevokedActionSucceededRequest,
   RevokedActionFailedRequest,
   SubmittedRequest,
 } from "@stamp-lib/stamp-types/models";
+import { z } from "zod";
+
 import { okAsync, ResultAsync } from "neverthrow";
 import { some, none } from "@stamp-lib/stamp-option";
 import { DynamoDBClient, DynamoDBClientConfig } from "@aws-sdk/client-dynamodb";
@@ -235,6 +239,7 @@ export function setImpl(logger: Logger) {
       | ApprovedActionSucceededRequest
       | ApprovedActionFailedRequest
       | RejectedRequest
+      | CanceledRequest
       | RevokedRequest
       | RevokedActionSucceededRequest
       | RevokedActionFailedRequest
@@ -435,6 +440,53 @@ export function deleteImpl(logger: Logger) {
   };
 }
 
+export function updateStatusToCanceledImpl(logger: Logger) {
+  return (input: UpdateStatusToCanceledInput, TableName: string, config: DynamoDBClientConfig = {}): UpdateStatusToCanceledResult => {
+    const client = new DynamoDBClient(config);
+    const ddbDocClient = DynamoDBDocumentClient.from(client, { marshallOptions: { removeUndefinedValues: true } });
+
+    return parseDBInputAsync(input, UpdateStatusToCanceledInput)
+      .andThen((input) => {
+        return ResultAsync.fromPromise(
+          ddbDocClient.send(
+            new UpdateCommand({
+              TableName: TableName,
+              Key: {
+                requestId: input.requestId,
+              },
+              ConditionExpression: "attribute_exists(requestId) AND #status = :pending",
+              ExpressionAttributeNames: {
+                "#status": "status",
+              },
+              ExpressionAttributeValues: {
+                ":pending": "pending",
+                ":canceled": "canceled",
+                ":canceledDate": input.canceledDate,
+                ":userIdWhoCanceled": input.userIdWhoCanceled,
+                ":cancelComment": input.cancelComment,
+              },
+              UpdateExpression: "SET #status = :canceled, canceledDate = :canceledDate, userIdWhoCanceled = :userIdWhoCanceled, cancelComment = :cancelComment",
+              ReturnValues: "ALL_NEW",
+            })
+          ),
+          (err) => {
+            if ((err as Error).name === "ConditionalCheckFailedException") {
+              logger.error("Condition check failed", err);
+              const message = "Approval request does not exist or status is not pending.";
+              return new DBError(message, message);
+            } else {
+              logger.error(err);
+              return new DBError((err as Error).message ?? "Internal Server Error", "INTERNAL_SERVER_ERROR");
+            }
+          }
+        );
+      })
+      .andThen((result) => {
+        return parseDBItemAsync(logger)(result.Attributes, CanceledRequest);
+      });
+  };
+}
+
 export const createApprovalRequestDBProvider =
   (logger: Logger) =>
   (TableName: string, config: DynamoDBClientConfig = {}): ApprovalRequestDBProvider => {
@@ -455,6 +507,7 @@ export const createApprovalRequestDBProvider =
           | ApprovedActionSucceededRequest
           | ApprovedActionFailedRequest
           | RejectedRequest
+          | CanceledRequest
           | RevokedRequest
           | RevokedActionSucceededRequest
           | RevokedActionFailedRequest
@@ -464,5 +517,6 @@ export const createApprovalRequestDBProvider =
       updateStatusToApproved: (input: UpdateStatusToApprovedInput) => updateStatusToApprovedImpl(logger)(input, TableName, config),
       updateStatusToRejected: (input: UpdateStatusToRejectedInput) => updateStatusToRejectedImpl(logger)(input, TableName, config),
       updateStatusToRevoked: (input: UpdateStatusToRevokedInput) => updateStatusToRevokedImpl(logger)(input, TableName, config),
+      updateStatusToCanceled: (input: UpdateStatusToCanceledInput) => updateStatusToCanceledImpl(logger)(input, TableName, config),
     };
   };

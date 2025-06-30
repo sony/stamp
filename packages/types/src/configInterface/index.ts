@@ -4,7 +4,7 @@ export * from "./error";
 export * from "./notificationPlugin";
 
 import { ApprovalFlowConfigProvider } from "./approvalFlow";
-import { CatalogInfoOnConfigProvider, CatalogConfigProvider } from "./catalog";
+import { CatalogInfoOnConfigProvider, CatalogConfigProvider, RegisterCatalogConfigProvider } from "./catalog";
 import { NotificationPluginConfigProvider } from "./notificationPlugin";
 
 export type ConfigProvider = {
@@ -12,4 +12,5 @@ export type ConfigProvider = {
   catalogInfo: CatalogInfoOnConfigProvider;
   catalogConfig: CatalogConfigProvider;
   notificationPlugin: NotificationPluginConfigProvider;
+  registerCatalogConfig: RegisterCatalogConfigProvider;
 };

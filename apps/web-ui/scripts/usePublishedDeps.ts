@@ -5,6 +5,8 @@ const packages: { [pkgName: string]: string } = {
   "@stamp-lib/stamp-config": "../../packages/config",
   "@stamp-lib/stamp-ephemeral-db-plugin": "../../plugins/ephemeral-db",
   "@stamp-lib/stamp-ephemeral-identity-plugin": "../../plugins/ephemeral-identity",
+  "@stamp-lib/stamp-dynamodb-db-plugin": "../../plugins/dynamodb-db",
+  "@stamp-lib/stamp-dynamodb-identity-plugin": "../../plugins/dynamodb-identity",
   "@stamp-lib/stamp-example-catalog": "../../catalogs/example",
   "@stamp-lib/stamp-hub": "../../packages/hub",
   "@stamp-lib/stamp-iam-idc-catalog": "../../catalogs/iam-idc",

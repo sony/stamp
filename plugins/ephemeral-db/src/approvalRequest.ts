@@ -7,6 +7,7 @@ import {
   ApprovedActionFailedRequest,
   CatalogId,
   RejectedRequest,
+  CanceledRequest,
   RevokedRequest,
   RevokedActionFailedRequest,
   SubmittedRequest,
@@ -15,7 +16,13 @@ import {
   ApprovedActionSucceededRequest,
   RevokedActionSucceededRequest,
 } from "@stamp-lib/stamp-types/models";
-import { UpdateStatusToApprovedInput, UpdateStatusToRejectedInput, UpdateStatusToRevokedInput, DBError } from "@stamp-lib/stamp-types/pluginInterface/database";
+import {
+  UpdateStatusToApprovedInput,
+  UpdateStatusToRejectedInput,
+  UpdateStatusToRevokedInput,
+  UpdateStatusToCanceledInput,
+  DBError,
+} from "@stamp-lib/stamp-types/pluginInterface/database";
 import { some, none } from "@stamp-lib/stamp-option";
 import { Logger } from "@stamp-lib/stamp-logger";
 
@@ -98,6 +105,7 @@ export function createApprovalRequestDBProvider(logger: Logger): ApprovalRequest
         | ApprovedActionSucceededRequest
         | ApprovedActionFailedRequest
         | RejectedRequest
+        | CanceledRequest
         | RevokedRequest
         | RevokedActionSucceededRequest
         | RevokedActionFailedRequest
@@ -161,6 +169,24 @@ export function createApprovalRequestDBProvider(logger: Logger): ApprovalRequest
         return okAsync(structuredClone(revokedRequest));
       }
       return errAsync(new DBError("Request is not in approved status"));
+    },
+    updateStatusToCanceled: (input: UpdateStatusToCanceledInput) => {
+      const id = input.requestId;
+      logger.info("ApprovalRequestDB.updateStatusToCanceled", id);
+      const request = approvalRequestMap.get(id);
+      if (request?.status === "pending") {
+        const canceledRequest: CanceledRequest = {
+          ...request,
+          status: "canceled",
+          canceledDate: input.canceledDate,
+          userIdWhoCanceled: input.userIdWhoCanceled,
+          cancelComment: input.cancelComment,
+        };
+
+        approvalRequestMap.set(id, structuredClone(canceledRequest));
+        return okAsync(structuredClone(canceledRequest));
+      }
+      return errAsync(new DBError("Request is not in pending status"));
     },
   };
 }

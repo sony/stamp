@@ -1,7 +1,7 @@
 import { Option } from "@stamp-lib/stamp-option";
 import { ResultAsync } from "neverthrow";
 import { z } from "zod";
-import { AuditNotification, CatalogId, ResourceId, ResourceOnDB, ResourceTypeId } from "../../models";
+import { AuditNotification, CatalogId, ResourceId, ResourceOnDB, ResourceTypeId, PendingUpdateParams } from "../../models";
 import { DBError } from "./error";
 
 export type ResourceDBGetByIdResult = ResultAsync<Option<ResourceOnDB>, DBError>;
@@ -14,6 +14,16 @@ export const ResourceInput = z.object({
   resourceTypeId: ResourceTypeId,
 });
 export type ResourceInput = z.infer<typeof ResourceInput>;
+
+export const UpdatePendingUpdateParamsInput = z.object({
+  id: ResourceId,
+  catalogId: CatalogId,
+  resourceTypeId: ResourceTypeId,
+  pendingUpdateParams: PendingUpdateParams,
+});
+export type UpdatePendingUpdateParamsInput = z.infer<typeof UpdatePendingUpdateParamsInput>;
+export type UpdatePendingUpdateParamsOutput = ResultAsync<ResourceOnDB, DBError>;
+export type UpdatePendingUpdateParams = (input: UpdatePendingUpdateParamsInput) => UpdatePendingUpdateParamsOutput;
 
 export const CreateAuditNotificationInput = AuditNotification.omit({ id: true }).merge(ResourceInput);
 export type CreateAuditNotificationInput = z.infer<typeof CreateAuditNotificationInput>;
@@ -35,6 +45,7 @@ export type DeleteAuditNotification = (input: DeleteAuditNotificationInput) => D
 export type ResourceDBProvider = {
   getById(input: ResourceInput): ResourceDBGetByIdResult;
   set(resourceOnDB: ResourceOnDB): ResourceDBSetResult;
+  updatePendingUpdateParams: UpdatePendingUpdateParams;
   delete(input: ResourceInput): ResourceDBDeleteResult;
   createAuditNotification: CreateAuditNotification;
   updateAuditNotification: UpdateAuditNotification;

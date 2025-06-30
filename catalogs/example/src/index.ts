@@ -47,9 +47,9 @@ const unicornStableResourceHandler: ResourceHandlers = {
   },
 };
 
-const unicornMap = new Map<string, { name: string; color: string; age: number; stableId: string; favoriteFood: string[] }>();
-
-const unicornRentalResourceHandler: ResourceHandlers = {
+const unicornRentalResourceHandler = (
+  unicornMap: Map<string, { name: string; color: string; age: number; stableId: string; favoriteFood: string[] }>
+): ResourceHandlers => ({
   createResource: async (input) => {
     logger.info("create", input);
     const id = globalThis.crypto.randomUUID();
@@ -117,13 +117,33 @@ const unicornRentalResourceHandler: ResourceHandlers = {
   },
   updateResource: async (input) => {
     logger.info("update", input);
-    return err(new HandlerError("not implemented", "INTERNAL_SERVER_ERROR"));
+    const stableData = unicornMap.get(input.resourceId);
+    if (stableData === undefined) {
+      return err(new HandlerError("Resource not found", "NOT_FOUND"));
+    }
+    const updatedData = {
+      ...stableData,
+      color: input.updateParams.color ? (input.updateParams.color as string) : stableData.color,
+      age: input.updateParams.age ? (input.updateParams.age as number) : stableData.age,
+      favoriteFood: input.updateParams.favoriteFood ? (input.updateParams.favoriteFood as string[]) : stableData.favoriteFood,
+    };
+
+    unicornMap.set(input.resourceId, updatedData);
+    return ok({
+      resourceId: input.resourceId,
+      name: updatedData.name,
+      params: {
+        color: updatedData.color,
+        age: updatedData.age,
+        favoriteFood: updatedData.favoriteFood,
+      },
+    });
   },
   listResourceAuditItem: async (input) => {
     logger.info("listAuditItem", input);
     return ok({ auditItems: [] });
   },
-};
+});
 
 const unicornRentalApplicationHandler: ApprovalFlowHandler = {
   approvalRequestValidation: async (input) => {
@@ -154,6 +174,8 @@ const unicornStableResourceType: ResourceTypeConfig = {
   approverManagement: true,
 };
 
+const normalUnicornMap = new Map<string, { name: string; color: string; age: number; stableId: string; favoriteFood: string[] }>();
+
 const unicornResourceType: ResourceTypeConfig = {
   id: "unicorn",
   name: "Unicorn",
@@ -170,13 +192,41 @@ const unicornResourceType: ResourceTypeConfig = {
     { type: "number", id: "age", name: "Age", edit: false },
     { type: "string[]", id: "favoriteFood", name: "Favorite Food", edit: false },
   ],
-  handlers: unicornRentalResourceHandler,
+  handlers: unicornRentalResourceHandler(normalUnicornMap),
   parentResourceTypeId: "unicorn-stable",
   isCreatable: true,
   isUpdatable: false,
   isDeletable: true,
   ownerManagement: false,
   approverManagement: false,
+};
+
+const exclusiveUnicornMap = new Map<string, { name: string; color: string; age: number; stableId: string; favoriteFood: string[] }>();
+const exclusiveUnicornResourceType: ResourceTypeConfig = {
+  id: "exclusive-unicorn",
+  name: "Exclusive Unicorn",
+  description: "Exclusive unicorn rental resource type",
+  createParams: [
+    { type: "string", id: "name", name: "Name", required: true },
+    { type: "string", id: "color", name: "Color", required: true },
+    { type: "number", id: "age", name: "Age", required: false },
+    { type: "boolean", id: "isSpecial", name: "Treat as Special", required: true },
+    { type: "string[]", id: "favoriteFood", name: "Favorite Food", required: true },
+  ],
+  infoParams: [
+    { type: "string", id: "color", name: "Color", edit: true },
+    { type: "number", id: "age", name: "Age", edit: true },
+    { type: "string[]", id: "favoriteFood", name: "Favorite Food", edit: true },
+  ],
+  handlers: unicornRentalResourceHandler(exclusiveUnicornMap),
+  parentResourceTypeId: "unicorn-stable",
+  isCreatable: true,
+  isUpdatable: true,
+  isDeletable: true,
+  ownerManagement: false,
+  approverManagement: false,
+  updateApprover: { approverType: "parentResource" }, // Approver is the parent resource (unicorn stable)
+  anyoneCanCreate: false, // Only the owner of the stable can create exclusive unicorns
 };
 
 const unicornRentalApplicationConfig: ApprovalFlowConfig = {
@@ -228,5 +278,5 @@ export const unicornRentalCatalog: CatalogConfig = {
   name: "Unicorn Rental",
   description: "Approval flows for renting unicorns.",
   approvalFlows: [unicornRentalApplicationConfig, unicornRentalApplicationByStableApproverConfig],
-  resourceTypes: [unicornStableResourceType, unicornResourceType],
+  resourceTypes: [unicornStableResourceType, unicornResourceType, exclusiveUnicornResourceType],
 };

@@ -25,7 +25,7 @@ export const SubmittedRequest = z.object({
   status: z.enum(["submitted"]),
   catalogId: CatalogId,
   approvalFlowId: ApprovalFlowId,
-  inputParams: z.array(ApprovalRequestInputParam).max(5),
+  inputParams: z.array(ApprovalRequestInputParam).max(12),
   inputResources: z.array(ApprovalRequestInputResource).max(5),
   requestUserId: UserId,
   approverType: ApproverType,
@@ -55,6 +55,14 @@ export const PendingRequest = SubmittedRequest.extend({
   }),
 });
 export type PendingRequest = z.infer<typeof PendingRequest>;
+
+export const CanceledRequest = PendingRequest.extend({
+  status: z.enum(["canceled"]),
+  canceledDate: z.string().datetime(),
+  userIdWhoCanceled: UserId,
+  cancelComment: z.string().max(1024),
+});
+export type CanceledRequest = z.infer<typeof CanceledRequest>;
 
 export const ApprovedRequest = PendingRequest.extend({
   status: z.enum(["approved"]),
@@ -140,6 +148,7 @@ export const ApprovalRequest = z.union([
   ApprovedActionSucceededRequest,
   ApprovedActionFailedRequest,
   RejectedRequest,
+  CanceledRequest,
   RevokedRequest,
   RevokedActionSucceededRequest,
   RevokedActionFailedRequest,
