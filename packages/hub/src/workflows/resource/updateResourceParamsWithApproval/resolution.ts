@@ -84,21 +84,18 @@ export const createResolveApproverGroup =
 
     // Validate resource state
     const pendingValidation = validateResourceNotPending(resourceData);
-    console.log(`[createResolveApproverGroup] Pending validation result: ${pendingValidation.isOk() ? "Success" : "Failure"}`);
     if (pendingValidation.isErr()) {
       return errAsync(pendingValidation.error);
     }
 
     // Validate updatable capability
     const updateCapabilityValidation = validateResourceTypeHasUpdateCapability(resourceType);
-    console.log(`[createResolveApproverGroup] Update capability validation result: ${updateCapabilityValidation.isOk() ? "Success" : "Failure"}`);
     if (updateCapabilityValidation.isErr()) {
       return errAsync(updateCapabilityValidation.error);
     }
 
     // Validate approver type
     const approverTypeValidation = validateApproverType(resourceType.updateApprover);
-    console.log(`[createResolveApproverGroup] Approver type validation result: ${approverTypeValidation.isOk() ? "Success" : "Failure"}`);
     if (approverTypeValidation.isErr()) {
       return errAsync(approverTypeValidation.error);
     }
@@ -155,7 +152,6 @@ export const createResolveSystemCatalog = (catalogConfigProvider: CatalogConfigP
 export const resolveApprovalFlow = (catalogConfig: unknown): ResultAsync<unknown, StampHubError> => {
   const config = catalogConfig as { approvalFlows: Array<{ id: string }> };
   const flowValidation = validateApprovalFlowExists(config);
-  console.log(`[resolveApprovalFlow] Flow validation result: ${flowValidation.isOk() ? "Success" : "Failure"}`);
   if (flowValidation.isErr()) {
     return errAsync(flowValidation.error);
   }
