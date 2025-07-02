@@ -27,7 +27,6 @@ describe("updateResourceParams", () => {
     isDeletable: true,
     ownerManagement: false,
     approverManagement: false,
-    updateApprover: { approverType: "this" },
     handlers: {
       updateResource: vi.fn(),
     },
@@ -122,7 +121,7 @@ describe("updateResourceParams", () => {
 
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
-      expect(result.error.userMessage).toBe("ResourceType Not Updatable");
+      expect(result.error.userMessage).toBe("ResourceType is not updatable");
     }
   });
 
@@ -152,7 +151,7 @@ describe("updateResourceParams", () => {
 
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
-      expect(result.error.userMessage).toBe("ResourceType Not Updatable");
+      expect(result.error.userMessage).toBe("Resource type is not updatable by user.");
     }
   });
 

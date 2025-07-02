@@ -49,27 +49,25 @@ async function CatalogTable() {
               </Table.Row>
             </Table.Header>
             <Table.Body>
-              {(() => {
-                return catalogs.map((catalog) => {
-                  return (
-                    <Table.Row key={catalog.id} align="center">
-                      <Table.Cell>
-                        <Link href={`/catalog/${encodeURIComponent(catalog.id)}`}>
-                          <Flex direction="row" gap="1" align="center">
-                            {catalog.name}
-                            <Link2Icon />
-                          </Flex>
-                        </Link>
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Flex justify="end">
-                          <DotsMenu catalog={catalog} />
+              {catalogs
+                .filter((catalog) => catalog.id !== "stamp-system") // Exclude system catalog
+                .map((catalog) => (
+                  <Table.Row key={catalog.id} align="center">
+                    <Table.Cell>
+                      <Link href={`/catalog/${encodeURIComponent(catalog.id)}`}>
+                        <Flex direction="row" gap="1" align="center">
+                          {catalog.name}
+                          <Link2Icon />
                         </Flex>
-                      </Table.Cell>
-                    </Table.Row>
-                  );
-                });
-              })()}
+                      </Link>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Flex justify="end">
+                        <DotsMenu catalog={catalog} />
+                      </Flex>
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
             </Table.Body>
           </Table.Root>
         </Flex>

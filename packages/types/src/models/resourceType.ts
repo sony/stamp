@@ -21,7 +21,7 @@ export const ResourceInfoParam = z.object({
 });
 export type ResourceInfoParam = z.infer<typeof ResourceInfoParam>;
 
-const UpdateApprover = z.union([z.object({ approverType: z.literal("this") }), z.object({ approverType: z.literal("parentResource") })]);
+const UpdateApprover = z.object({ approverType: z.literal("parentResource") });
 
 export const ResourceTypeConfig = z.object({
   id: ResourceTypeId,

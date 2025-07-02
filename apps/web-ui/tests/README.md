@@ -38,7 +38,7 @@ To execute the tests from the command line, run the following command:
 
 ```bash
 $ cd apps/web-ui/
-$ npx playwright test --forbid-only src/app/user/page.test.ts
+$ npx playwright test --forbid-only src/app/user/page.test.ts --workers=1
 ```
 
 Note: This command runs tests on three browsers. For more command line options of Playwright, refer to the [official Playwright CLI documentation](https://playwright.dev/docs/test-cli#reference)
