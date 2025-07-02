@@ -29,11 +29,11 @@ export const updateResourceParams =
         .andThen(getResourceTypeConfig)
         .andThen((extendInput) => {
           if (extendInput.resourceTypeConfig.isUpdatable !== true) {
-            return errAsync(new StampHubError("Resource type is not updatable", "ResourceType Not Updatable", "BAD_REQUEST"));
+            return errAsync(new StampHubError("Resource type is not updatable", "ResourceType is not updatable", "BAD_REQUEST"));
           }
 
-          if (extendInput.resourceTypeConfig.updateApprover?.approverType !== "this") {
-            return errAsync(new StampHubError("Resource type is not updatable by this user", "ResourceType Not Updatable", "BAD_REQUEST"));
+          if (extendInput.resourceTypeConfig.updateApprover?.approverType === "parentResource") {
+            return errAsync(new StampHubError("Resource type is not updatable by user.", "Resource type is not updatable by user.", "BAD_REQUEST"));
           }
 
           return convertPromiseResultToResultAsync()(

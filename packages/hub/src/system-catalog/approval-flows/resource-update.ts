@@ -102,7 +102,7 @@ export const validateResourceUpdateRequest =
         }
         const result: ApprovalRequestValidationOutput = {
           isSuccess: true,
-          message: `This is resource update request. Catalog: ${catalogId} , Resource type : ${resourceTypeId}  , Resource : ${resourceId}`,
+          message: `This is resource update request. Catalog: ${catalogId.value} , Resource type : ${resourceTypeId.value}  , Resource : ${resourceId.value}`,
         };
 
         return okAsync(result);

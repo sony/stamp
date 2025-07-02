@@ -81,6 +81,13 @@ export function ResourceEditModal({
   const [cancelUpdateParamsState, cancelUpdateParamsFormAction] = useFormState(cancelUpdateResourceInfoParamsSubmit, undefined);
   const [resource, setResource] = useState<StampHubRouterOutput["userRequest"]["resource"]["get"] | undefined>(undefined);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [parentResource, setParentResource] = useState<StampHubRouterOutput["userRequest"]["resource"]["get"] | undefined>(undefined);
+  const [approvalTargetGroupId, setApprovalTargetGroupId] = useState<string | undefined>(undefined);
+  const [loadingParentResource, setLoadingParentResource] = useState(false);
+
+  const hasPendingUpdate = resource?.pendingUpdateParams;
+  const useApprovalFlow = resourceType.updateApprover?.approverType === "parentResource";
+  const canEdit = resourceType.isUpdatable && resourceType.infoParams.some((param) => param.edit) && !hasPendingUpdate;
 
   // Fetch detailed resource information
   useEffect(() => {
@@ -88,9 +95,32 @@ export function ResourceEditModal({
       setIsRedirecting(false); // Reset redirecting state when modal opens
       getResource(resourceOutline.id, resourceOutline.catalogId, resourceOutline.resourceTypeId).then((r) => {
         setResource(r);
+
+        // If useApprovalFlow is true, fetch parent resource for approver group info
+        if (useApprovalFlow && r?.parentResourceId && resourceType.parentResourceTypeId) {
+          setLoadingParentResource(true);
+          getResource(r.parentResourceId, resourceOutline.catalogId, resourceType.parentResourceTypeId)
+            .then((parentRes) => {
+              setParentResource(parentRes);
+              setApprovalTargetGroupId(parentRes?.approverGroupId);
+            })
+            .catch((error) => {
+              console.error("Failed to fetch parent resource:", error);
+              setParentResource(undefined);
+              setApprovalTargetGroupId(undefined);
+            })
+            .finally(() => {
+              setLoadingParentResource(false);
+            });
+        } else if (useApprovalFlow) {
+          // Clear previous state if approval flow is enabled but no parent resource
+          setParentResource(undefined);
+          setApprovalTargetGroupId(undefined);
+          setLoadingParentResource(false);
+        }
       });
     }
-  }, [modalOpen, resourceOutline]);
+  }, [modalOpen, resourceOutline, useApprovalFlow, resourceType.parentResourceTypeId]);
 
   useEffect(() => {
     if (updateInfoParamsState?.isSuccess === true || cancelUpdateParamsState?.isSuccess === true) {
@@ -115,10 +145,6 @@ export function ResourceEditModal({
       }, 1000);
     }
   }, [router, updateInfoParamsWithApprovalState, setModalOpen]);
-
-  const hasPendingUpdate = resource?.pendingUpdateParams;
-  const useApprovalFlow = resourceType.updateApprover?.approverType === "parentResource";
-  const canEdit = resourceType.isUpdatable && resourceType.infoParams.some((param) => param.edit) && !hasPendingUpdate;
 
   return (
     <Dialog.Root open={modalOpen} onOpenChange={setModalOpen}>
@@ -191,63 +217,97 @@ export function ResourceEditModal({
               </form>
             </>
           ) : canEdit ? (
-            // Show editable form
-            <form>
-              <input type="hidden" name="catalogId" value={resourceOutline.catalogId} />
-              <input type="hidden" name="resourceTypeId" value={resourceOutline.resourceTypeId} />
-              <input type="hidden" name="resourceId" value={resourceOutline.id} />
-              {/* Hidden fields to indicate which parameters are arrays */}
-              {resourceType.infoParams
-                .filter((param) => param.type === "string[]" && param.edit)
-                .map((param) => (
-                  <input key={`array_marker_${param.id}`} type="hidden" name={`arrayParam_${param.id}`} value="true" />
-                ))}
-              <Flex direction="column" gap="3">
-                <InfoParams resourceType={resourceType} resourceOutline={resourceOutline} isEditable={true} />
+            <Flex direction="column" gap="3">
+              {useApprovalFlow && (
+                <Flex direction="column" gap="2">
+                  {loadingParentResource ? (
+                    <Box p="3" style={{ backgroundColor: "var(--gray-2)", borderRadius: "6px", border: "1px solid var(--gray-6)" }}>
+                      <Flex gap="2" align="center">
+                        <Spinner size="1" />
+                      </Flex>
+                    </Box>
+                  ) : parentResource !== undefined ? (
+                    <Box
+                      p="3"
+                      style={{
+                        backgroundColor: approvalTargetGroupId ? "var(--blue-2)" : "var(--yellow-2)",
+                        borderRadius: "6px",
+                        border: approvalTargetGroupId ? "1px solid var(--blue-6)" : "1px solid var(--yellow-6)",
+                      }}
+                    >
+                      <Flex direction="column" gap="2">
+                        {approvalTargetGroupId ? (
+                          <Text size="2" as="p">
+                            When you submit this update request, the approval will be sent to: <GroupLink groupId={approvalTargetGroupId} />
+                          </Text>
+                        ) : (
+                          <Text size="2" as="p">
+                            The parent resource does not have an approver group configured. Please contact your administrator.
+                          </Text>
+                        )}
+                      </Flex>
+                    </Box>
+                  ) : null}
+                </Flex>
+              )}
+              {/* // Show editable form */}
+              <form>
+                <input type="hidden" name="catalogId" value={resourceOutline.catalogId} />
+                <input type="hidden" name="resourceTypeId" value={resourceOutline.resourceTypeId} />
+                <input type="hidden" name="resourceId" value={resourceOutline.id} />
+                {/* Hidden fields to indicate which parameters are arrays */}
+                {resourceType.infoParams
+                  .filter((param) => param.type === "string[]" && param.edit)
+                  .map((param) => (
+                    <input key={`array_marker_${param.id}`} type="hidden" name={`arrayParam_${param.id}`} value="true" />
+                  ))}
+                <Flex direction="column" gap="3">
+                  <InfoParams resourceType={resourceType} resourceOutline={resourceOutline} isEditable={true} />
 
-                {useApprovalFlow && (
-                  <Flex direction="column" gap="2">
-                    <Text size="2" weight="bold">
-                      Request Comment
+                  {useApprovalFlow && (
+                    <Flex direction="column" gap="2">
+                      <Text size="2" weight="bold">
+                        Request Comment
+                      </Text>
+                      <TextField.Root name="comment" placeholder="Add a comment for the approval request (optional)" style={{ width: "100%" }} />
+                    </Flex>
+                  )}
+                </Flex>
+
+                {updateInfoParamsState?.isSuccess === false && updateInfoParamsState?.message && (
+                  <Flex gap="3" mt="4" justify="end">
+                    <Text size="2" color="red">
+                      {updateInfoParamsState.message}
                     </Text>
-                    <TextField.Root name="comment" placeholder="Add a comment for the approval request (optional)" style={{ width: "100%" }} />
                   </Flex>
                 )}
-              </Flex>
 
-              {updateInfoParamsState?.isSuccess === false && updateInfoParamsState?.message && (
-                <Flex gap="3" mt="4" justify="end">
-                  <Text size="2" color="red">
-                    {updateInfoParamsState.message}
-                  </Text>
-                </Flex>
-              )}
-
-              {updateInfoParamsWithApprovalState?.isSuccess === false && updateInfoParamsWithApprovalState?.message && (
-                <Flex gap="3" mt="4" justify="end">
-                  <Text size="2" color="red">
-                    {updateInfoParamsWithApprovalState.message}
-                  </Text>
-                </Flex>
-              )}
-
-              <Flex gap="3" mt="2" justify="end">
-                <Dialog.Close>
-                  <Button variant="soft" color="gray" disabled={isRedirecting}>
-                    Cancel
-                  </Button>
-                </Dialog.Close>
-                {useApprovalFlow ? (
-                  <RequestWithApprovalButton
-                    updateInfoParamsWithApprovalFormAction={updateInfoParamsWithApprovalFormAction}
-                    setModalOpen={setModalOpen}
-                    isRedirecting={isRedirecting}
-                  />
-                ) : (
-                  <RequestButton updateInfoParamsFormAction={updateInfoParamsFormAction} />
+                {updateInfoParamsWithApprovalState?.isSuccess === false && updateInfoParamsWithApprovalState?.message && (
+                  <Flex gap="3" mt="4" justify="end">
+                    <Text size="2" color="red">
+                      {updateInfoParamsWithApprovalState.message}
+                    </Text>
+                  </Flex>
                 )}
-              </Flex>
-            </form>
+
+                <Flex gap="3" mt="2" justify="end">
+                  <Dialog.Close>
+                    <Button variant="soft" color="gray" disabled={isRedirecting}>
+                      Cancel
+                    </Button>
+                  </Dialog.Close>
+                  {useApprovalFlow ? (
+                    <RequestWithApprovalButton
+                      updateInfoParamsWithApprovalFormAction={updateInfoParamsWithApprovalFormAction}
+                      setModalOpen={setModalOpen}
+                      isRedirecting={isRedirecting}
+                    />
+                  ) : (
+                    <RequestButton updateInfoParamsFormAction={updateInfoParamsFormAction} />
+                  )}
+                </Flex>
+              </form>
+            </Flex>
           ) : (
             // Show read-only view
             <>

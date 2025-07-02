@@ -71,7 +71,7 @@ export async function updateResourceInfoParamsWithApprovalSubmit(
   }
 
   try {
-    const result = await stampHubClient.userRequest.resource.updateWithApprovalParams.mutate({
+    const result = await stampHubClient.userRequest.resource.updateParamsWithApproval.mutate({
       requestUserId: sessionUser.stampUserId,
       catalogId,
       resourceTypeId,

@@ -19,10 +19,10 @@ export function GroupLink({ groupId }: { groupId: string }) {
   return (
     <Link href={`/group/${groupId}`} target="_blank" rel="noopener noreferrer">
       {group?.groupName && (
-        <Flex direction="row" gap="1" align="center">
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
           <Text size="2">{group.groupName}</Text>
-          <ExternalLinkIcon />
-        </Flex>
+          <ExternalLinkIcon style={{ width: "12px", height: "12px" }} />
+        </span>
       )}
     </Link>
   );
