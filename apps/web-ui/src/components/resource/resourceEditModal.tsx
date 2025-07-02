@@ -8,9 +8,11 @@ import { useFormState, useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 
 import { GroupLink } from "@/components/group/clientGroupLink";
-import { updateResourceInfoParamsSubmit } from "@/server-actions/resource/updateResourceInfoParams";
-import { updateResourceInfoParamsWithApprovalSubmit } from "@/server-actions/resource/updateResourceInfoParamsWithApproval";
-import { cancelUpdateResourceInfoParamsSubmit } from "@/server-actions/resource/cancelUpdateResourceInfoParams";
+import {
+  updateResourceInfoParamsSubmit,
+  updateResourceInfoParamsWithApprovalSubmit,
+  cancelUpdateResourceInfoParamsSubmit,
+} from "@/server-actions/resource/updateResourceInfo";
 
 // Enhanced StringArrayInput component for better visual appearance
 function StringArrayInput({ name, id, defaultValues }: { name: string; id: string; defaultValues: string[] }) {

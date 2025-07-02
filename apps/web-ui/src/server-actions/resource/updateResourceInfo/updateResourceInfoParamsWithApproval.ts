@@ -3,7 +3,7 @@
 import { stampHubClient } from "@/utils/stampHubClient";
 import { getSessionUser } from "@/utils/sessionUser";
 import { createServerLogger } from "@/logger";
-import { parseInfoParamsFromFormData } from "@/utils/formDataParser";
+import { parseInfoParamsFromFormData } from "./formDataParser";
 
 export type UpdateResourceInfoParamsWithApprovalState = { isSuccess: false; message: string } | { isSuccess: true; approvalRequestId: string } | undefined;
 

@@ -14,10 +14,10 @@ import { NotificationSettingModal } from "./setResourceNotification";
 import { ResourceEditModal } from "./resourceEditModal";
 
 export function DotsMenu({ resourceType, resourceOutline }: { resourceType: ResourceType; resourceOutline: ResourceOutline }) {
-  const isUpdatable = !resourceType.isUpdatable;
-  const isDeletable = !resourceType.isDeletable;
-  const isOwnerSetting = !resourceType.ownerManagement;
-  const isApproverSetting = !resourceType.approverManagement;
+  const isNotUpdatable = !resourceType.isUpdatable;
+  const isNotDeletable = !resourceType.isDeletable;
+  const isNotOwnerSetting = !resourceType.ownerManagement;
+  const isNotApproverSetting = !resourceType.approverManagement;
   const [EditParamsModalOpen, setEditParamsModalOpen] = useState(false);
   const [OwnerSettingModalOpen, setOwnerSettingModalOpen] = useState(false);
   const [ApproverSettingModalOpen, setApproverSettingModalOpen] = useState(false);
@@ -44,7 +44,7 @@ export function DotsMenu({ resourceType, resourceOutline }: { resourceType: Reso
           </DropdownMenu.Trigger>
           <DropdownMenu.Content>
             <DropdownMenu.Item
-              disabled={isUpdatable}
+              disabled={isNotUpdatable}
               onClick={() => {
                 setEditParamsModalOpen(true);
               }}
@@ -52,7 +52,7 @@ export function DotsMenu({ resourceType, resourceOutline }: { resourceType: Reso
               Edit params
             </DropdownMenu.Item>
             <DropdownMenu.Item
-              disabled={isOwnerSetting}
+              disabled={isNotOwnerSetting}
               onClick={() => {
                 setOwnerSettingModalOpen(true);
               }}
@@ -60,7 +60,7 @@ export function DotsMenu({ resourceType, resourceOutline }: { resourceType: Reso
               Owner Setting
             </DropdownMenu.Item>
             <DropdownMenu.Item
-              disabled={isApproverSetting}
+              disabled={isNotApproverSetting}
               onClick={() => {
                 setApproverSettingModalOpen(true);
               }}
@@ -77,7 +77,7 @@ export function DotsMenu({ resourceType, resourceOutline }: { resourceType: Reso
             <DropdownMenu.Separator />
             <DropdownMenu.Item
               color="red"
-              disabled={isDeletable}
+              disabled={isNotDeletable}
               onClick={() => {
                 setDeleteModalOpen(true);
               }}
