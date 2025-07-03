@@ -52,3 +52,21 @@ export const ListPermissionInfoResult = z.object({
   nextToken: z.string().optional(),
 });
 export type ListPermissionInfoResult = z.infer<typeof ListPermissionInfoResult>;
+
+export const UpdatePermissionInput = z.object({
+  permissionId: z.string(),
+  description: z.string().max(1024, "permission description cannot be longer than 1024 characters").optional(),
+  sessionDuration: z.string().optional(),
+  managedIamPolicyNames: z
+    .array(z.string().refine((value) => value !== "", "managedIamPolicyName cannot be empty"))
+    .max(10, "managedIamPolicyNames cannot be more than 10")
+    .optional(),
+  customIamPolicyNames: z
+    .array(z.string().refine((value) => value !== "", "customIamPolicyName cannot be empty"))
+    .max(10, "customIamPolicyNames cannot be more than 10")
+    .optional(),
+});
+export type UpdatePermissionInput = z.infer<typeof UpdatePermissionInput>;
+
+export const UpdatePermissionOutput = PermissionInfo;
+export type UpdatePermissionOutput = z.infer<typeof UpdatePermissionOutput>;

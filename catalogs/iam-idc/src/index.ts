@@ -65,19 +65,22 @@ export function createIamIdcCatalog(iamIdcCatalogConfigInput: IamIdcCatalogConfi
       { type: "string[]", id: "customIamPolicyNames", name: "Custom IAM Policy Names", required: false },
     ],
     infoParams: [
-      { type: "string", id: "description", name: "description", edit: false },
-      { type: "string", id: "sessionDuration", name: "Session Duration", edit: false },
+      { type: "string", id: "description", name: "description", edit: true },
+      { type: "string", id: "sessionDuration", name: "Session Duration", edit: true },
       { type: "string", id: "permissionSetNameId", name: "Permission Set Name Id", edit: false },
-      { type: "string[]", id: "managedIamPolicyNames", name: "Managed IAM Policy Names", edit: false },
-      { type: "string[]", id: "customIamPolicyNames", name: "Custom IAM Policy Names", edit: false },
+      { type: "string[]", id: "managedIamPolicyNames", name: "Managed IAM Policy Names", edit: true },
+      { type: "string[]", id: "customIamPolicyNames", name: "Custom IAM Policy Names", edit: true },
     ],
     parentResourceTypeId: "iam-idc-aws-account",
     handlers: createIamIdcPermissionResourceHandler(iamIdcCatalogConfig),
     isCreatable: true,
     isDeletable: true,
-    isUpdatable: false,
+    isUpdatable: true,
     ownerManagement: false,
     approverManagement: false,
+    updateApprover: {
+      approverType: "parentResource",
+    },
   };
 
   const iamIdcCatalog: CatalogConfig = {
