@@ -7,8 +7,9 @@ import {
   ListResourcesInput,
   ResourceHandlers,
   ResourceOutput,
+  UpdateResourceInput,
 } from "@stamp-lib/stamp-types/catalogInterface/handler";
-import { Result, err, errAsync, ok } from "neverthrow";
+import { Result, err, ok } from "neverthrow";
 
 import { createLogger } from "@stamp-lib/stamp-logger";
 import { Option, some } from "@stamp-lib/stamp-option";
@@ -18,15 +19,15 @@ import { deletePermission } from "../workflows/permission/deletePermission";
 import { GetPermissionInput, getPermission } from "../workflows/permission/getPermission";
 import { listOfAuditItem } from "../workflows/permission/listAuditItem";
 import { ListPermissionInput, listPermission } from "../workflows/permission/listPermission";
+import { updatePermission } from "../workflows/permission/updatePermission";
+import { UpdatePermissionInput } from "../types/permission";
 
 export function createIamIdcPermissionResourceHandler(iamIdcCatalogConfig: IamIdcCatalogConfig): ResourceHandlers {
   const iamIdcPermissionResourceHandler: ResourceHandlers = {
     createResource: createResourceHandler(iamIdcCatalogConfig),
     deleteResource: deleteResourceHandler(iamIdcCatalogConfig),
     getResource: getResourceHandler(iamIdcCatalogConfig),
-    updateResource: async () => {
-      return errAsync(new HandlerError("Not implemented", "INTERNAL_SERVER_ERROR"));
-    },
+    updateResource: updateResourceHandler(iamIdcCatalogConfig),
     listResources: listResourcesHandler(iamIdcCatalogConfig),
     listResourceAuditItem: (input: ListResourceAuditItemInput) => listResourceAuditItemHandler(input, iamIdcCatalogConfig),
   };
@@ -192,3 +193,53 @@ async function listResourceAuditItemHandler(
 
   return ok({ auditItems: [{ ...result.value, type: "permission" }], paginationToken: result.value.nextToken });
 }
+
+const updateResourceHandler =
+  (iamIdcCatalogConfig: IamIdcCatalogConfig): ResourceHandlers["updateResource"] =>
+  async (input: UpdateResourceInput): Promise<Result<ResourceOutput, HandlerError>> => {
+    const logger = createLogger(iamIdcCatalogConfig.logLevel, { moduleName: "iam-idc" });
+    logger.info("updateResource", input, iamIdcCatalogConfig);
+
+    // Parse and validate the update parameters
+    const parsedResult = UpdatePermissionInput.pick({
+      description: true,
+      sessionDuration: true,
+      managedIamPolicyNames: true,
+      customIamPolicyNames: true,
+    }).safeParse(input.updateParams);
+
+    if (!parsedResult.success) {
+      const message = `Invalid input parameters: ${parsedResult.error.toString()}`;
+      return err(new HandlerError(message, "BAD_REQUEST", message));
+    }
+
+    // Validate policy limits
+    const totalPolicyNames = (parsedResult.data.customIamPolicyNames?.length || 0) + (parsedResult.data.managedIamPolicyNames?.length || 0);
+    if (totalPolicyNames > 10) {
+      return err(new HandlerError("The total number of customIamPolicyNames and managedIamPolicyNames cannot exceed 10", "BAD_REQUEST"));
+    }
+
+    const updatePermissionParam: UpdatePermissionInput = {
+      permissionId: input.resourceId,
+      ...parsedResult.data,
+    };
+
+    const result = await updatePermission(logger, iamIdcCatalogConfig)(updatePermissionParam);
+    if (result.isErr()) {
+      logger.error("Failed to update resource", result.error);
+      const message = `Failed to update resource: ${(result.error as Error).message ?? ""}`;
+      return err(new HandlerError(message, "INTERNAL_SERVER_ERROR", message));
+    }
+
+    return ok({
+      name: result.value.name,
+      resourceId: result.value.permissionId,
+      params: {
+        description: result.value.description,
+        sessionDuration: result.value.sessionDuration,
+        permissionSetNameId: result.value.permissionSetNameId,
+        managedIamPolicyNames: result.value.managedIamPolicyNames,
+        customIamPolicyNames: result.value.customIamPolicyNames,
+      },
+    });
+  };

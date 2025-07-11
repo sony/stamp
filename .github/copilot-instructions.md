@@ -24,6 +24,7 @@
 - **Mocking**: Use mocks for all side-effectful dependencies (DB, network, etc.) in unit and integration tests.
 - **Test Coverage**: Strive for high coverage, especially for business logic and error handling paths.
 - **Test Naming**: Use descriptive test names that clearly state the expected behavior.
+- **Result/Option Handling in Tests**: In tests, avoid conditional `expect` statements inside `if` blocks. Instead, use `_unsafeUnwrapErr()` and `_unsafeUnwrap()` to directly access error or success values after asserting the result state. This ensures all assertions are unconditional and tests fail clearly if assumptions are wrong.
 
 ## Example Patterns
 

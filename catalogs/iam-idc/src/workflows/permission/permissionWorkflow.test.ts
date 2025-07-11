@@ -4,7 +4,8 @@ import { getPermission, GetPermissionInput } from "./getPermission";
 import { listPermission, ListPermissionInput } from "./listPermission";
 import { listOfAuditItem, ListOfAuditItemInput } from "./listAuditItem";
 import { deletePermission, DeletePermissionInput } from "./deletePermission";
-import { PermissionInfo } from "../../types/permission";
+import { updatePermission } from "./updatePermission";
+import { PermissionInfo, UpdatePermissionInput } from "../../types/permission";
 import { createLogger } from "@stamp-lib/stamp-logger";
 
 import { approved, ApprovedInput } from "../approvalFlow/approved";
@@ -227,6 +228,141 @@ describe(
       const list2 = result2.value;
       expect(list2.values.length).toBe(1);
       expect(list2.nextToken).toBe(undefined);
+    });
+
+    it("normal case of updatePermission - description only", async () => {
+      if (permissionId === null) throw new Error("permissionId is undefined.");
+
+      const updateInput: UpdatePermissionInput = {
+        permissionId: permissionId,
+        description: "Unit-test-updated",
+      };
+
+      const resultAsync = updatePermission(logger, config)(updateInput);
+      const result = await resultAsync;
+      if (result.isErr()) {
+        throw result.error;
+      }
+      const updatedPermissionInfo = result.value;
+      expect(updatedPermissionInfo.description).toBe("Unit-test-updated");
+      expect(updatedPermissionInfo.permissionId).toBe(permissionId);
+      expect(updatedPermissionInfo.updatedAt).not.toBe(updatedPermissionInfo.createdAt);
+    });
+
+    it("normal case of updatePermission - session duration only", async () => {
+      if (permissionId === null) throw new Error("permissionId is undefined.");
+
+      const updateInput: UpdatePermissionInput = {
+        permissionId: permissionId,
+        sessionDuration: "PT8H",
+      };
+
+      const resultAsync = updatePermission(logger, config)(updateInput);
+      const result = await resultAsync;
+      if (result.isErr()) {
+        throw result.error;
+      }
+      const updatedPermissionInfo = result.value;
+      expect(updatedPermissionInfo.sessionDuration).toBe("PT8H");
+      expect(updatedPermissionInfo.permissionId).toBe(permissionId);
+    });
+
+    it("normal case of updatePermission - managed policies only", async () => {
+      if (permissionId === null) throw new Error("permissionId is undefined.");
+
+      const newManagedPolicies = ["AWSLambda_ReadOnlyAccess"];
+      const updateInput: UpdatePermissionInput = {
+        permissionId: permissionId,
+        managedIamPolicyNames: newManagedPolicies,
+      };
+
+      const resultAsync = updatePermission(logger, config)(updateInput);
+      const result = await resultAsync;
+      if (result.isErr()) {
+        throw result.error;
+      }
+      const updatedPermissionInfo = result.value;
+      expect(updatedPermissionInfo.managedIamPolicyNames).toEqual(newManagedPolicies);
+      expect(updatedPermissionInfo.permissionId).toBe(permissionId);
+    });
+
+    it("normal case of updatePermission - custom policies only", async () => {
+      if (permissionId === null) throw new Error("permissionId is undefined.");
+
+      const newCustomPolicies = [`Stamp-Unit-test-another-${targetAwsAccountId}`];
+      const updateInput: UpdatePermissionInput = {
+        permissionId: permissionId,
+        customIamPolicyNames: newCustomPolicies,
+      };
+
+      const resultAsync = updatePermission(logger, config)(updateInput);
+      const result = await resultAsync;
+      if (result.isErr()) {
+        throw result.error;
+      }
+      const updatedPermissionInfo = result.value;
+      expect(updatedPermissionInfo.customIamPolicyNames).toEqual(newCustomPolicies);
+      expect(updatedPermissionInfo.permissionId).toBe(permissionId);
+    });
+
+    it("normal case of updatePermission - multiple parameters", async () => {
+      if (permissionId === null) throw new Error("permissionId is undefined.");
+
+      const updateInput: UpdatePermissionInput = {
+        permissionId: permissionId,
+        description: "Unit-test-multi-update",
+        sessionDuration: "PT6H",
+        managedIamPolicyNames: ["AmazonS3ReadOnlyAccess"],
+        customIamPolicyNames: [`Stamp-Unit-test-${targetAwsAccountId}`],
+      };
+
+      const resultAsync = updatePermission(logger, config)(updateInput);
+      const result = await resultAsync;
+      if (result.isErr()) {
+        throw result.error;
+      }
+      const updatedPermissionInfo = result.value;
+      expect(updatedPermissionInfo.description).toBe("Unit-test-multi-update");
+      expect(updatedPermissionInfo.sessionDuration).toBe("PT6H");
+      expect(updatedPermissionInfo.managedIamPolicyNames).toEqual(["AmazonS3ReadOnlyAccess"]);
+      expect(updatedPermissionInfo.customIamPolicyNames).toEqual([`Stamp-Unit-test-${targetAwsAccountId}`]);
+      expect(updatedPermissionInfo.permissionId).toBe(permissionId);
+    });
+
+    it("updatePermission with empty policies (removal)", async () => {
+      if (permissionId === null) throw new Error("permissionId is undefined.");
+
+      const updateInput: UpdatePermissionInput = {
+        permissionId: permissionId,
+        managedIamPolicyNames: [],
+        customIamPolicyNames: [],
+      };
+
+      const resultAsync = updatePermission(logger, config)(updateInput);
+      const result = await resultAsync;
+      if (result.isErr()) {
+        throw result.error;
+      }
+      const updatedPermissionInfo = result.value;
+      expect(updatedPermissionInfo.managedIamPolicyNames).toEqual([]);
+      expect(updatedPermissionInfo.customIamPolicyNames).toEqual([]);
+      expect(updatedPermissionInfo.permissionId).toBe(permissionId);
+    });
+
+    it("updatePermission failure - permission not found", async () => {
+      const nonExistentPermissionId = "non-existent-permission-id";
+      const updateInput: UpdatePermissionInput = {
+        permissionId: nonExistentPermissionId,
+        description: "should fail",
+      };
+
+      const resultAsync = updatePermission(logger, config)(updateInput);
+      const result = await resultAsync;
+      expect(result.isErr()).toBe(true);
+
+      const error = result._unsafeUnwrapErr();
+      expect(error.message).toBe("Permission not found");
+      expect(error.code).toBe("NOT_FOUND");
     });
 
     it("normal case of deletePermission", async () => {
