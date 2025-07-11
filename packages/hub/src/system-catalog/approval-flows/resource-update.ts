@@ -162,7 +162,15 @@ export const executeResourceUpdateApproval =
             updateParams: JSON.parse(updateParams.value), // Assuming updateParams is a JSON string
             resourceTypeId: resourceTypeId.value,
           })
-        );
+        ).mapErr((error) => {
+          logger.error("Error from updateResource handler", {
+            error: error.message,
+            errorType: error.constructor.name,
+            resourceId: resourceId.value,
+            resourceTypeId: resourceTypeId.value,
+          });
+          return error;
+        });
       })
       .andThen((result) => {
         logger.info("Resource update executed successfully", result);
@@ -176,14 +184,34 @@ export const executeResourceUpdateApproval =
       })
       .andThen(() => {
         const approvedOutput: ApprovedOutput = {
-          message: "Resource update approved and executed successfully",
+          message: "Resource update executed successfully",
           isSuccess: true,
         };
         return okAsync(approvedOutput);
       })
-      .mapErr((error) => {
-        logger.error("Error executing resource update approval", error);
-        return new HandlerError(`Failed to execute resource update approval: ${error.message}`, "INTERNAL_SERVER_ERROR");
+      .orElse((error) => {
+        logger.error("Error executing resource update approval", {
+          error: error.message,
+          errorType: error.constructor.name,
+          isHandlerError: error instanceof HandlerError,
+          errorCode: error instanceof HandlerError ? error.code : undefined,
+        });
+
+        if (error instanceof HandlerError) {
+          const errorResponse = {
+            message: `Resource update failed: ${error.message}`,
+            isSuccess: false,
+          };
+          logger.info("Returning HandlerError response", errorResponse);
+          return okAsync(errorResponse);
+        }
+
+        const genericErrorResponse = {
+          message: `Failed to execute resource update approval. Internal service error occurred: ${error.message}`,
+          isSuccess: false,
+        };
+        logger.info("Returning generic error response", genericErrorResponse);
+        return okAsync(genericErrorResponse);
       });
   };
 
