@@ -39,10 +39,9 @@ describe("validateResourceUpdateRequest", () => {
     const result = await validateResourceUpdateRequest(mockDeps)(invalidInput);
 
     expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error).toBeInstanceOf(HandlerError);
-      expect(result.error.message).toContain("Invalid input parameters");
-    }
+    const error = result._unsafeUnwrapErr();
+    expect(error).toBeInstanceOf(HandlerError);
+    expect(error.message).toContain("Invalid input parameters");
   });
 });
 
@@ -150,13 +149,12 @@ describe("executeResourceUpdateApproval", () => {
     const result = await executeResourceUpdateApproval(mockDeps)(validInput);
 
     expect(result.isOk()).toBe(true);
-    if (result.isOk()) {
-      expect(result.value.isSuccess).toBe(false);
-      // Test shows that executeResourceUpdateApproval is actually called and handles errors
-      // Even if it doesn't reach updateResource due to earlier validation failures,
-      // this confirms the function's error handling behavior
-      expect(result.value.message).toContain("Resource update failed:");
-    }
+    const value = result._unsafeUnwrap();
+    expect(value.isSuccess).toBe(false);
+    // Test shows that executeResourceUpdateApproval is actually called and handles errors
+    // Even if it doesn't reach updateResource due to earlier validation failures,
+    // this confirms the function's error handling behavior
+    expect(value.message).toContain("Resource update failed:");
 
     // Verify the function was called with the correct input
     expect(mockDeps.catalogConfigProvider.get).toHaveBeenCalled();
@@ -223,13 +221,12 @@ describe("executeResourceUpdateApproval", () => {
     const result = await executeResourceUpdateApproval(mockDeps)(validInput);
 
     expect(result.isOk()).toBe(true);
-    if (result.isOk()) {
-      expect(result.value.isSuccess).toBe(false);
-      // Test shows that executeResourceUpdateApproval is actually called and handles errors
-      // Even if it doesn't reach updateResource due to earlier validation failures,
-      // this confirms the function's error handling behavior
-      expect(result.value.message).toContain("Resource update failed:");
-    }
+    const value = result._unsafeUnwrap();
+    expect(value.isSuccess).toBe(false);
+    // Test shows that executeResourceUpdateApproval is actually called and handles errors
+    // Even if it doesn't reach updateResource due to earlier validation failures,
+    // this confirms the function's error handling behavior
+    expect(value.message).toContain("Resource update failed:");
 
     // Verify the function was called with the correct input
     expect(mockDeps.catalogConfigProvider.get).toHaveBeenCalled();
@@ -262,10 +259,9 @@ describe("checkCanApproveResourceUpdate", () => {
     })(validInput);
 
     expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error).toBeInstanceOf(HandlerError);
-      expect(result.error.message).toBe("Parent Resource not found");
-    }
+    const error = result._unsafeUnwrapErr();
+    expect(error).toBeInstanceOf(HandlerError);
+    expect(error.message).toBe("Parent Resource not found");
   });
 
   it("should return error if parent resource not found", async () => {
@@ -288,10 +284,9 @@ describe("checkCanApproveResourceUpdate", () => {
     })(validInput);
 
     expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error).toBeInstanceOf(HandlerError);
-      expect(result.error.message).toBe("Resource not found");
-    }
+    const error = result._unsafeUnwrapErr();
+    expect(error).toBeInstanceOf(HandlerError);
+    expect(error.message).toBe("Resource not found");
   });
 
   it("should return error if parent resource has no approver group", async () => {
@@ -351,9 +346,8 @@ describe("checkCanApproveResourceUpdate", () => {
     })(validInput);
 
     expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error.message).toBe("Approver group does not match parent resource's approver group");
-    }
+    const error = result._unsafeUnwrapErr();
+    expect(error.message).toBe("Approver group does not match parent resource's approver group");
   });
 
   it("should return success if all validations pass", async () => {
@@ -383,8 +377,7 @@ describe("checkCanApproveResourceUpdate", () => {
     })(validInput);
 
     expect(result.isOk()).toBe(true);
-    if (result.isOk()) {
-      expect(result.value).toEqual(validInput);
-    }
+    const value = result._unsafeUnwrap();
+    expect(value).toEqual(validInput);
   });
 });
