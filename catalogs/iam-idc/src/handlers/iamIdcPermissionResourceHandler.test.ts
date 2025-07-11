@@ -328,11 +328,9 @@ describe(
       });
 
       expect(updateResult.isOk()).toBe(true);
-      if (updateResult.isOk()) {
-        const updatedResource = updateResult.value;
-        expect(updatedResource.params.customIamPolicyNames).toEqual(anotherCustomIamPolicyNames);
-        expect(updatedResource.resourceId).toBe(resourceId);
-      }
+      const updatedResource = updateResult._unsafeUnwrap();
+      expect(updatedResource.params.customIamPolicyNames).toEqual(anotherCustomIamPolicyNames);
+      expect(updatedResource.resourceId).toBe(resourceId);
     });
 
     it("Testing successful updateResource - multiple parameters", async () => {
