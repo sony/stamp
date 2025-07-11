@@ -89,7 +89,6 @@ describe("executeResourceUpdateApproval", () => {
   });
 
   it("should handle HandlerError from updateResource handler when executing approval", async () => {
-    vi.clearAllMocks();
 
     // Mock all dependencies to reach the updateResource handler
     const mockUpdateResource = vi.fn().mockRejectedValue(new HandlerError("Resource validation failed", "BAD_REQUEST"));
