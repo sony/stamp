@@ -225,7 +225,7 @@ describe("executeResourceUpdateApproval", () => {
     // Test shows that executeResourceUpdateApproval is actually called and handles errors
     // Even if it doesn't reach updateResource due to earlier validation failures,
     // this confirms the function's error handling behavior
-    expect(value.message).toContain("Resource update failed:");
+    expect(value.message).toContain("Failed to execute resource update approval. Internal service error occurred:");
 
     // Verify the function was called with the correct input
     expect(mockDeps.catalogConfigProvider.get).toHaveBeenCalled();
