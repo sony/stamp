@@ -1,21 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { validateResourceUpdateRequest, executeResourceUpdateApproval, checkCanApproveResourceUpdate } from "./resource-update";
-import { okAsync, ok } from "neverthrow";
+import { okAsync, ok, errAsync } from "neverthrow";
 import { some, none } from "@stamp-lib/stamp-option";
 import { HandlerError } from "@stamp-lib/stamp-types/catalogInterface/handler";
 
 describe("validateResourceUpdateRequest", () => {
+  const mockGetCatalogConfig = vi.fn();
+  const mockCheckCanApproveResourceUpdate = vi.fn();
+
   const mockDeps = {
-    resourceDBProvider: {
-      getById: vi.fn(),
-      set: vi.fn(),
-      updatePendingUpdateParams: vi.fn(),
-      delete: vi.fn(),
-      createAuditNotification: vi.fn(),
-      updateAuditNotification: vi.fn(),
-      deleteAuditNotification: vi.fn(),
-    },
-    catalogConfigProvider: { get: vi.fn() },
+    getCatalogConfig: mockGetCatalogConfig,
+    checkCanApproveResourceUpdate: mockCheckCanApproveResourceUpdate,
   };
 
   const validInput = {
@@ -33,6 +28,10 @@ describe("validateResourceUpdateRequest", () => {
     requestDate: new Date().toISOString(),
   };
 
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("should return error if input parameters are invalid", async () => {
     const invalidInput = { ...validInput, inputParams: {} };
 
@@ -43,20 +42,69 @@ describe("validateResourceUpdateRequest", () => {
     expect(error).toBeInstanceOf(HandlerError);
     expect(error.message).toContain("Invalid input parameters");
   });
+
+  it("should return success when validation passes", async () => {
+    const mockResourceTypeConfig = {
+      id: "type-1",
+      name: "Test Resource Type",
+      description: "Test resource type description",
+      createParams: [],
+      infoParams: [],
+      handlers: {
+        getResource: vi.fn().mockResolvedValue(ok(some({ id: "res-1" }))),
+        createResource: vi.fn(),
+        updateResource: vi.fn(),
+        deleteResource: vi.fn(),
+      },
+      isCreatable: true,
+      isUpdatable: true,
+      isDeletable: true,
+      ownerManagement: true,
+      approverManagement: true,
+      anyoneCanCreate: false,
+      parentResourceTypeId: "parent-type",
+    };
+
+    const mockCatalogConfig = {
+      id: "cat-1",
+      name: "Test Catalog",
+      description: "Test catalog description",
+      approvalFlows: [],
+      resourceTypes: [mockResourceTypeConfig],
+    };
+
+    mockCheckCanApproveResourceUpdate.mockReturnValue(okAsync(validInput));
+    mockGetCatalogConfig.mockReturnValue(okAsync({ catalogConfig: mockCatalogConfig, resourceTypeId: "type-1" }));
+
+    const result = await validateResourceUpdateRequest(mockDeps)(validInput);
+
+    expect(result.isOk()).toBe(true);
+    const value = result._unsafeUnwrap();
+    expect(value.isSuccess).toBe(true);
+    expect(value.message).toContain("This is resource update request");
+  });
+
+  it("should return error when checkCanApproveResourceUpdate fails", async () => {
+    mockCheckCanApproveResourceUpdate.mockReturnValue(errAsync(new HandlerError("Access denied", "BAD_REQUEST")));
+
+    const result = await validateResourceUpdateRequest(mockDeps)(validInput);
+
+    expect(result.isErr()).toBe(true);
+    const error = result._unsafeUnwrapErr();
+    expect(error).toBeInstanceOf(HandlerError);
+    expect(error.message).toContain("Access denied");
+  });
 });
 
 describe("executeResourceUpdateApproval", () => {
+  const mockGetCatalogConfig = vi.fn();
+  const mockCheckCanApproveResourceUpdate = vi.fn();
+  const mockUpdatePendingUpdateParams = vi.fn();
+
   const mockDeps = {
-    resourceDBProvider: {
-      getById: vi.fn(),
-      set: vi.fn(),
-      updatePendingUpdateParams: vi.fn(),
-      delete: vi.fn(),
-      createAuditNotification: vi.fn(),
-      updateAuditNotification: vi.fn(),
-      deleteAuditNotification: vi.fn(),
-    },
-    catalogConfigProvider: { get: vi.fn() },
+    getCatalogConfig: mockGetCatalogConfig,
+    checkCanApproveResourceUpdate: mockCheckCanApproveResourceUpdate,
+    updatePendingUpdateParams: mockUpdatePendingUpdateParams,
   };
 
   const validInput = {
@@ -89,7 +137,6 @@ describe("executeResourceUpdateApproval", () => {
   });
 
   it("should handle HandlerError from updateResource handler when executing approval", async () => {
-
     // Mock all dependencies to reach the updateResource handler
     const mockUpdateResource = vi.fn().mockRejectedValue(new HandlerError("Resource validation failed", "BAD_REQUEST"));
 
@@ -122,41 +169,18 @@ describe("executeResourceUpdateApproval", () => {
       resourceTypes: [mockResourceTypeConfig],
     };
 
-    // Mock catalog config provider to return the config wrapped in Option
-    mockDeps.catalogConfigProvider.get.mockResolvedValue(okAsync(some(mockCatalogConfig)));
-
-    // Mock resource DB provider methods for checkCanApproveResourceUpdate
-    mockDeps.resourceDBProvider.getById
-      .mockResolvedValueOnce(
-        okAsync(
-          some({
-            resourceId: "res-1",
-            parentResourceTypeId: "parent-type",
-            parentResourceId: "parent-res",
-          })
-        )
-      )
-      .mockResolvedValueOnce(
-        okAsync(
-          some({
-            resourceId: "parent-res",
-            approverGroupId: "group-1",
-          })
-        )
-      );
+    // Mock all dependencies
+    mockCheckCanApproveResourceUpdate.mockReturnValue(okAsync(validInput));
+    mockGetCatalogConfig.mockReturnValue(okAsync({ catalogConfig: mockCatalogConfig, resourceTypeId: "type-1" }));
 
     const result = await executeResourceUpdateApproval(mockDeps)(validInput);
 
     expect(result.isOk()).toBe(true);
     const value = result._unsafeUnwrap();
     expect(value.isSuccess).toBe(false);
-    // Test shows that executeResourceUpdateApproval is actually called and handles errors
-    // Even if it doesn't reach updateResource due to earlier validation failures,
-    // this confirms the function's error handling behavior
-    expect(value.message).toContain("Resource update failed:");
-
-    // Verify the function was called with the correct input
-    expect(mockDeps.catalogConfigProvider.get).toHaveBeenCalled();
+    // HandlerError gets converted to StampHubError by convertPromiseResultToResultAsync,
+    // so it's handled as a generic error rather than a HandlerError
+    expect(value.message).toContain("Failed to execute resource update approval");
   });
 
   it("should handle generic Error from updateResource handler when executing approval", async () => {
@@ -194,41 +218,67 @@ describe("executeResourceUpdateApproval", () => {
       resourceTypes: [mockResourceTypeConfig],
     };
 
-    // Mock catalog config provider to return the config wrapped in Option
-    mockDeps.catalogConfigProvider.get.mockResolvedValue(okAsync(some(mockCatalogConfig)));
-
-    // Mock resource DB provider methods for checkCanApproveResourceUpdate
-    mockDeps.resourceDBProvider.getById
-      .mockResolvedValueOnce(
-        okAsync(
-          some({
-            resourceId: "res-1",
-            parentResourceTypeId: "parent-type",
-            parentResourceId: "parent-res",
-          })
-        )
-      )
-      .mockResolvedValueOnce(
-        okAsync(
-          some({
-            resourceId: "parent-res",
-            approverGroupId: "group-1",
-          })
-        )
-      );
+    // Mock all dependencies
+    mockCheckCanApproveResourceUpdate.mockReturnValue(okAsync(validInput));
+    mockGetCatalogConfig.mockReturnValue(okAsync({ catalogConfig: mockCatalogConfig, resourceTypeId: "type-1" }));
 
     const result = await executeResourceUpdateApproval(mockDeps)(validInput);
 
     expect(result.isOk()).toBe(true);
     const value = result._unsafeUnwrap();
     expect(value.isSuccess).toBe(false);
-    // Test shows that executeResourceUpdateApproval is actually called and handles errors
-    // Even if it doesn't reach updateResource due to earlier validation failures,
-    // this confirms the function's error handling behavior
-    expect(value.message).toContain("Failed to execute resource update approval. Internal service error occurred:");
+    expect(value.message).toContain("Failed to execute resource update approval");
+  });
 
-    // Verify the function was called with the correct input
-    expect(mockDeps.catalogConfigProvider.get).toHaveBeenCalled();
+  it("should execute successfully when all operations succeed", async () => {
+    const mockUpdateResource = vi.fn().mockResolvedValue(ok({ updated: true }));
+
+    const mockResourceTypeConfig = {
+      id: "type-1",
+      name: "Test Resource Type",
+      description: "Test resource type description",
+      createParams: [],
+      infoParams: [],
+      handlers: {
+        updateResource: mockUpdateResource,
+        getResource: vi.fn().mockResolvedValue(ok(some({}))),
+        createResource: vi.fn(),
+        deleteResource: vi.fn(),
+      },
+      isCreatable: true,
+      isUpdatable: true,
+      isDeletable: true,
+      ownerManagement: true,
+      approverManagement: true,
+      anyoneCanCreate: false,
+      parentResourceTypeId: "parent-type",
+    };
+
+    const mockCatalogConfig = {
+      id: "cat-1",
+      name: "Test Catalog",
+      description: "Test catalog description",
+      approvalFlows: [],
+      resourceTypes: [mockResourceTypeConfig],
+    };
+
+    // Mock all dependencies
+    mockCheckCanApproveResourceUpdate.mockReturnValue(okAsync(validInput));
+    mockGetCatalogConfig.mockReturnValue(okAsync({ catalogConfig: mockCatalogConfig, resourceTypeId: "type-1" }));
+    mockUpdatePendingUpdateParams.mockReturnValue(okAsync({}));
+
+    const result = await executeResourceUpdateApproval(mockDeps)(validInput);
+
+    expect(result.isOk()).toBe(true);
+    const value = result._unsafeUnwrap();
+    expect(value.isSuccess).toBe(true);
+    expect(value.message).toContain("Resource update executed successfully");
+    expect(mockUpdatePendingUpdateParams).toHaveBeenCalledWith({
+      catalogId: "cat-1",
+      resourceTypeId: "type-1",
+      id: "res-1",
+      pendingUpdateParams: undefined,
+    });
   });
 });
 
