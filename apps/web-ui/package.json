@@ -9,6 +9,8 @@
     "start-dynamodb": "NODE_ENV=production npx ts-node custom-server/dynamodbApp.ts",
     "build": "esbuild custom-server/index.ts --bundle --platform=node --packages=external --outfile=custom-server.js",
     "test": "vitest",
+    "test-playwright": "playwright test --workers=1",
+    "test-playwright:production": "NODE_ENV=production npx playwright test --workers=1",
     "next-dev": "next dev",
     "next-build": "next build",
     "next-start": "next start",

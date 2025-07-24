@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { Button, Card, Flex, Popover, Text } from "@radix-ui/themes";
-import { SelectInputResources } from "@/components/approval-flow/inputResource";
+import { InputResourceSelectorItems } from "@/components/approval-flow/inputResource";
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/combobox/command";
 import { ResourceOutline } from "@/type";
@@ -8,12 +8,12 @@ import { listResourceOutlines } from "@/client-lib/api-clients/resource";
 
 type SelectResourcesProps = {
   catalogId: string | undefined;
-  inputResources: SelectInputResources | undefined;
+  inputResourceSelectorItems: InputResourceSelectorItems | undefined;
   selectResourcesMap: Map<string, string>;
   onSelect: (resourceTypeId: string, parentResourceTypeId: string | undefined, selectedResourceId: string) => void;
 };
 
-export const SelectResources = ({ catalogId, inputResources, selectResourcesMap, onSelect }: SelectResourcesProps) => {
+export const SelectResources = ({ catalogId, inputResourceSelectorItems, selectResourcesMap, onSelect }: SelectResourcesProps) => {
   // key: inputResource.parentResourceTypeId / value: Actual selected resource ID
   const [parentResourceIdsMap, setParentResourceIdsMap] = React.useState<Map<string, string>>(new Map());
 
@@ -24,7 +24,7 @@ export const SelectResources = ({ catalogId, inputResources, selectResourcesMap,
     }
   }, [selectResourcesMap]);
 
-  if (!inputResources?.length) return null;
+  if (!inputResourceSelectorItems?.length) return null;
 
   const onSelectResource = (resourceTypeId: string, parentResourceTypeId: string | undefined, selectedResourceId: string) => {
     // If parent resource is selected
@@ -37,7 +37,7 @@ export const SelectResources = ({ catalogId, inputResources, selectResourcesMap,
 
   return (
     <Flex direction="column" gap="3">
-      {inputResources.map((resource) => {
+      {inputResourceSelectorItems.map((resource) => {
         const initialValue = selectResourcesMap.get(resource.resourceTypeId) ?? "";
         return (
           <Card key={resource.resourceTypeId} variant="ghost">

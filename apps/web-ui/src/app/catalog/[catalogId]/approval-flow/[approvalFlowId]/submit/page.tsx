@@ -3,7 +3,7 @@ import { ChevronRightIcon } from "@radix-ui/react-icons";
 import { stampHubClient, unwrapOr } from "@/utils/stampHubClient";
 import { notFound } from "next/navigation";
 import { RequestForm } from "@/components/approval-flow/requestForm";
-import { SelectInputResources } from "@/components/approval-flow/inputResource";
+import { InputResourceSelectorItems } from "@/components/approval-flow/inputResource";
 import { getSessionUser } from "@/utils/sessionUser";
 import { ResourceType } from "@/type";
 import { createServerLogger } from "@/logger";
@@ -17,17 +17,21 @@ export default async function Page({ params }: { params: { approvalFlowId: strin
   if (!catalog) return notFound();
   const approvalFlow = await unwrapOr(stampHubClient.userRequest.approvalFlow.get.query({ catalogId, approvalFlowId }), undefined);
   if (!approvalFlow) return notFound();
-  const selectInputResources: SelectInputResources = [];
+  const inputResourceSelectorItems: InputResourceSelectorItems = [];
   for (const inputResource of approvalFlow.inputResources ? approvalFlow.inputResources : []) {
     const resourceType = await unwrapOr(
-      stampHubClient.userRequest.resourceType.get.query({ catalogId: catalog.id, resourceTypeId: inputResource.resourceTypeId, requestUserId: userSession.stampUserId }),
+      stampHubClient.userRequest.resourceType.get.query({
+        catalogId: catalog.id,
+        resourceTypeId: inputResource.resourceTypeId,
+        requestUserId: userSession.stampUserId,
+      }),
       undefined
     );
     if (!resourceType) {
       logger.error(`Resource Type ${inputResource} is not found in catalog ${catalogId}`);
       throw new Error(`Resource Type ${inputResource} is not found in catalog ${catalogId}`);
     }
-    selectInputResources.push({
+    inputResourceSelectorItems.push({
       ...inputResource,
       resourceName: resourceType.name,
     });
@@ -54,7 +58,7 @@ export default async function Page({ params }: { params: { approvalFlowId: strin
           </Flex>
         </Container>
       </Box>
-      <RequestForm catalogId={catalog.id} approvalFlow={approvalFlow} selectInputResources={selectInputResources} />
+      <RequestForm catalogId={catalog.id} approvalFlow={approvalFlow} inputResourceSelectorItems={inputResourceSelectorItems} />
     </Flex>
   );
 }
