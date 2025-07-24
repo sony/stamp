@@ -10,7 +10,7 @@ import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from ".
 export type InputResourceSelectorItem = InputResource & { resourceName: string };
 export type InputResourceSelectorItems = InputResourceSelectorItem[];
 
-type SelectedResourceIdsByType = Record<string, string>;
+type SelectedResourceIdsByResourceTypeId = Record<string, string>;
 
 export function InputResourceSelectorList({
   inputResourceSelectorItems,
@@ -20,7 +20,7 @@ export function InputResourceSelectorList({
   catalogId: string;
 }) {
   // State to manage the selected parent resource ID for each resourceTypeId
-  const [selectedIdsByResourceTypeId, setSelectedIdsByResourceTypeId] = React.useState<SelectedResourceIdsByType>({});
+  const [selectedIdsByResourceTypeId, setSelectedIdsByResourceTypeId] = React.useState<SelectedResourceIdsByResourceTypeId>({});
   return (
     <React.Fragment>
       {inputResourceSelectorItems.map((inputResourceSelectorItem) => {
@@ -46,8 +46,8 @@ function InputResourceSelector({
 }: {
   inputResourceSelectorItem: InputResourceSelectorItem;
   catalogId: string;
-  selectedIdsByResourceTypeId: SelectedResourceIdsByType;
-  setSelectedIdsByResourceTypeId: React.Dispatch<React.SetStateAction<SelectedResourceIdsByType>>;
+  selectedIdsByResourceTypeId: SelectedResourceIdsByResourceTypeId;
+  setSelectedIdsByResourceTypeId: React.Dispatch<React.SetStateAction<SelectedResourceIdsByResourceTypeId>>;
 }) {
   const currentAccentColor = useThemeContext().accentColor;
   const [resources, setResources] = React.useState<Array<ResourceOutline> | undefined>(undefined);
