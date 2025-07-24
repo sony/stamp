@@ -1,72 +1,94 @@
 "use client";
 import { listResourceOutlines } from "@/client-lib/api-clients/resource";
 import { ResourceOutline } from "@/type";
-import { InputResource } from "@stamp-lib/stamp-types/models";
 import { CaretSortIcon, CheckIcon, InfoCircledIcon } from "@radix-ui/react-icons";
 import { Button, Flex, Popover, Text, useThemeContext } from "@radix-ui/themes";
+import { InputResource } from "@stamp-lib/stamp-types/models";
 import React from "react";
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from "../combobox/command";
 
-export type SelectInputResources = (InputResource & { resourceName: string })[];
+export type InputResourceSelectorItem = InputResource & { resourceName: string };
+export type InputResourceSelectorItems = InputResourceSelectorItem[];
 
-export function InputResources({ selectInputResources, catalogId }: { selectInputResources: SelectInputResources; catalogId: string }) {
-  const reverseSelectInputResources = selectInputResources.slice().reverse();
-  return <RecursiveSelectInputResources reverseSelectInputResources={reverseSelectInputResources} catalogId={catalogId} setSelectedResourceId={() => {}} />;
+type SelectedResourceIdsByResourceTypeId = Record<string, string>;
+
+export function InputResourceSelectorList({
+  inputResourceSelectorItems,
+  catalogId,
+}: {
+  inputResourceSelectorItems: InputResourceSelectorItems;
+  catalogId: string;
+}) {
+  // State to manage the selected parent resource ID for each resourceTypeId
+  const [selectedIdsByResourceTypeId, setSelectedIdsByResourceTypeId] = React.useState<SelectedResourceIdsByResourceTypeId>({});
+  return (
+    <React.Fragment>
+      {inputResourceSelectorItems.map((inputResourceSelectorItem) => {
+        return (
+          <InputResourceSelector
+            key={inputResourceSelectorItem.resourceTypeId}
+            inputResourceSelectorItem={inputResourceSelectorItem}
+            catalogId={catalogId}
+            selectedIdsByResourceTypeId={selectedIdsByResourceTypeId}
+            setSelectedIdsByResourceTypeId={setSelectedIdsByResourceTypeId}
+          />
+        );
+      })}
+    </React.Fragment>
+  );
 }
 
-function RecursiveSelectInputResources({
-  reverseSelectInputResources,
+function InputResourceSelector({
+  inputResourceSelectorItem,
   catalogId,
-  setSelectedResourceId,
+  selectedIdsByResourceTypeId,
+  setSelectedIdsByResourceTypeId,
 }: {
-  reverseSelectInputResources: SelectInputResources;
+  inputResourceSelectorItem: InputResourceSelectorItem;
   catalogId: string;
-  setSelectedResourceId: React.Dispatch<React.SetStateAction<string | undefined>>;
+  selectedIdsByResourceTypeId: SelectedResourceIdsByResourceTypeId;
+  setSelectedIdsByResourceTypeId: React.Dispatch<React.SetStateAction<SelectedResourceIdsByResourceTypeId>>;
 }) {
-  const [parentInputResourceId, setParentInputResourceId] = React.useState<string | undefined>(undefined);
-  const [resources, setResources] = React.useState<Array<ResourceOutline> | undefined>(undefined);
   const currentAccentColor = useThemeContext().accentColor;
-  const selectInputResource = reverseSelectInputResources[0];
+  const [resources, setResources] = React.useState<Array<ResourceOutline> | undefined>(undefined);
   const [openPopover, setPopoverOpen] = React.useState(false);
-  const [selectedItemId, setSelectedId] = React.useState<string | undefined>(undefined);
+
+  const targetResourceTypeId = inputResourceSelectorItem.resourceTypeId;
+  const selectedResourceId = selectedIdsByResourceTypeId[targetResourceTypeId];
+
+  const targetParentResourceTypeId = inputResourceSelectorItem.parentResourceTypeId;
+  const parentSelectedResourceId = targetParentResourceTypeId ? selectedIdsByResourceTypeId[targetParentResourceTypeId] : undefined;
 
   React.useEffect(() => {
-    if (!selectInputResource) {
-      return;
-    }
-
-    if (selectInputResource.parentResourceTypeId) {
-      if (parentInputResourceId) {
-        listResourceOutlines({ catalogId, resourceTypeId: selectInputResource.resourceTypeId, parentResourceId: parentInputResourceId }).then((r) => {
+    if (targetParentResourceTypeId) {
+      // Requires parent resource
+      if (parentSelectedResourceId) {
+        // Target parent resource selected
+        listResourceOutlines({ catalogId, resourceTypeId: targetResourceTypeId, parentResourceId: parentSelectedResourceId }).then((r) => {
           setResources(r);
         });
+      } else {
+        // Target parent resource not selected
+        setResources(undefined);
       }
     } else {
-      listResourceOutlines({ catalogId, resourceTypeId: selectInputResource.resourceTypeId }).then((r) => {
+      // Does not require parent resource
+      listResourceOutlines({ catalogId, resourceTypeId: targetResourceTypeId }).then((r) => {
         setResources(r);
       });
     }
-  }, [selectInputResource, catalogId, parentInputResourceId]);
+  }, [targetResourceTypeId, targetParentResourceTypeId, catalogId, parentSelectedResourceId]);
 
-  if (reverseSelectInputResources.length === 0) {
-    return <React.Fragment />;
-  }
-
-  const inputResourceFromId = `inputResource_${selectInputResource.resourceTypeId}`;
+  const inputResourceFromId = `inputResource_${targetResourceTypeId}`;
 
   if (!resources) {
     return (
       <React.Fragment>
-        <RecursiveSelectInputResources
-          reverseSelectInputResources={reverseSelectInputResources.slice(1)}
-          catalogId={catalogId}
-          setSelectedResourceId={setParentInputResourceId}
-        />
-        {selectInputResource.parentResourceTypeId && !parentInputResourceId ? (
+        {targetParentResourceTypeId && !parentSelectedResourceId ? (
           // Display comment if there is no selected parent resource
           <label key={inputResourceFromId}>
             <Text as="div" size="3" mb="1" weight="bold">
-              {selectInputResource.resourceName}
+              {inputResourceSelectorItem.resourceName}
             </Text>
             <Text as="div" size="2" mb="1">
               Please select parent resource.
@@ -75,7 +97,7 @@ function RecursiveSelectInputResources({
         ) : (
           <label key={inputResourceFromId}>
             <Text as="div" size="3" mb="1" weight="bold">
-              {selectInputResource.resourceName}
+              {inputResourceSelectorItem.resourceName}
             </Text>
             <Text as="div" size="2" mb="1">
               Loading...
@@ -102,14 +124,16 @@ function RecursiveSelectInputResources({
           // selectedNameValue is the selected 'name' value in resources, so find the id and set it
           const selectedId = resources.find((resource) => resource.name === selectedNameValue)?.id;
           if (selectedId) {
-            setSelectedResourceId(selectedId);
-            setSelectedId(selectedId);
+            setSelectedIdsByResourceTypeId((prev) => ({
+              ...prev,
+              [inputResourceSelectorItem.resourceTypeId]: selectedId,
+            }));
           }
           setPopoverOpen(false);
         }}
       >
         <Flex align="center" px="1">
-          <CheckIcon className={selectedItemId === resource.id ? "opacity-100" : "opacity-0"} />
+          <CheckIcon className={selectedResourceId === resource.id ? "opacity-100" : "opacity-0"} />
         </Flex>
         {resource.name}
       </CommandItem>
@@ -117,38 +141,33 @@ function RecursiveSelectInputResources({
   });
   return (
     <React.Fragment>
-      <RecursiveSelectInputResources
-        reverseSelectInputResources={reverseSelectInputResources.slice(1)}
-        catalogId={catalogId}
-        setSelectedResourceId={setParentInputResourceId}
-      />
       <div key={inputResourceFromId}>
         <label htmlFor={inputResourceFromId}>
           <Text as="div" size="3" mb="1" weight="bold">
-            {selectInputResource.resourceName}
+            {inputResourceSelectorItem.resourceName}
           </Text>
         </label>
-        {selectInputResource.description ? (
+        {inputResourceSelectorItem.description ? (
           <Flex p="1" align="center" gap="1">
             <Text size="2" color={currentAccentColor}>
               <InfoCircledIcon />
             </Text>
             <Text size="2" color={currentAccentColor}>
-              {selectInputResource.description}
+              {inputResourceSelectorItem.description}
             </Text>
           </Flex>
         ) : null}
-        <input type="hidden" name={inputResourceFromId} value={selectedItemId || ""} />
+        <input type="hidden" name={inputResourceFromId} value={selectedResourceId || ""} />
         <Popover.Root open={openPopover} onOpenChange={setPopoverOpen}>
           <Popover.Trigger disabled={0 < resources.length ? false : true} id={inputResourceFromId}>
             <Button color="gray" variant="surface">
-              {selectedItemId ? resources.find((resource) => resource.id === selectedItemId)?.name : ""}
+              {selectedResourceId ? resources.find((resource) => resource.id === selectedResourceId)?.name : ""}
               <CaretSortIcon />
             </Button>
           </Popover.Trigger>
           <Popover.Content size="1">
             <Command>
-              <CommandInput placeholder={`Search the ${selectInputResource.resourceName}…`} />
+              <CommandInput placeholder={`Search the ${inputResourceSelectorItem.resourceName}…`} />
               <CommandList>
                 <CommandGroup>{selectItems}</CommandGroup>
               </CommandList>

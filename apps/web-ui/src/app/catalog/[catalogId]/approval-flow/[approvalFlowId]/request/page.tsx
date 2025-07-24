@@ -12,7 +12,7 @@ import { filterApprovalRequests } from "@/server-lib/hub-clients/approvalRequest
 import { parseStatusType, parseInputParams, parseInputResources } from "@/server-lib/hub-clients/approvalRequests/filterApprovalRequests";
 
 import { ApprovalRequestFilter } from "./components/approvalRequestFilter";
-import { SelectInputResources } from "@/components/approval-flow/inputResource";
+import { InputResourceSelectorItems } from "@/components/approval-flow/inputResource";
 import { listGroups } from "@/server-lib/hub-clients/group/group";
 import { StatusBadge } from "@/components/approval-request/statusBadge";
 
@@ -56,7 +56,7 @@ export default async function Page({
   const sessionUser = await getSessionUser();
   const groups = await listGroups(stampHubClient.userRequest.group.list, sessionUser.stampUserId, 200);
 
-  const selectInputResources: SelectInputResources = [];
+  const inputResourceSelectorItems: InputResourceSelectorItems = [];
   for (const inputResource of approvalFlow.inputResources ? approvalFlow.inputResources : []) {
     const resourceType = await unwrapOr(
       stampHubClient.userRequest.resourceType.get.query({
@@ -69,7 +69,7 @@ export default async function Page({
     if (!resourceType) {
       throw new Error(`Resource Type ${inputResource} is not found in catalog ${catalogId}`);
     }
-    selectInputResources.push({
+    inputResourceSelectorItems.push({
       ...inputResource,
       resourceName: resourceType.name,
     });
@@ -114,7 +114,7 @@ export default async function Page({
                       dateRange={{ from: new Date(start), to: new Date(end) }}
                       groups={groups}
                       inputParams={approvalFlow.inputParams}
-                      inputResources={selectInputResources}
+                      inputResourceSelectorItems={inputResourceSelectorItems}
                     />
                   </Flex>
                 </Container>

@@ -6,7 +6,7 @@ import { DateRange } from "react-day-picker";
 import { useRouter, usePathname } from "next/navigation";
 import { Group } from "@stamp-lib/stamp-types/pluginInterface/identity";
 import { ApprovalFlowInputParam } from "@stamp-lib/stamp-types/models";
-import { SelectInputResources } from "@/components/approval-flow/inputResource";
+import { InputResourceSelectorItems } from "@/components/approval-flow/inputResource";
 import { SelectApprover } from "@/components/approval-request/selector/selectApprover";
 import { SelectStatus } from "@/components/approval-request/selector/selectStatus";
 import { InputParameters } from "@/components/approval-request/inputParameters";
@@ -18,7 +18,7 @@ export const ApprovalRequestFilter = ({
   dateRange,
   groups,
   inputParams,
-  inputResources,
+  inputResourceSelectorItems,
 }: {
   catalogId: string;
   dateRange: {
@@ -27,7 +27,7 @@ export const ApprovalRequestFilter = ({
   };
   groups: Array<Group>;
   inputParams: Array<ApprovalFlowInputParam>;
-  inputResources?: SelectInputResources;
+  inputResourceSelectorItems?: InputResourceSelectorItems;
 }) => {
   const [calenderDate, setCalenderDate] = React.useState<DateRange | undefined>(dateRange);
   const [isFilterOpen, setIsFilterOpen] = React.useState(false);
@@ -44,7 +44,7 @@ export const ApprovalRequestFilter = ({
     newMap.set(resourceTypeId, selectedResourceId);
 
     // Deselect child resources when the selection of parent resources changes
-    inputResources?.forEach((resource) => {
+    inputResourceSelectorItems?.forEach((resource) => {
       if (parentResourceTypeId === undefined && resource.parentResourceTypeId === resourceTypeId) {
         newMap.delete(resource.resourceTypeId);
       }
@@ -126,7 +126,7 @@ export const ApprovalRequestFilter = ({
             <InputParameters inputParams={inputParams} inputValuesMap={inputValuesMap} onParameterInput={onParameterInput} />
             <SelectResources
               catalogId={catalogId}
-              inputResources={inputResources}
+              inputResourceSelectorItems={inputResourceSelectorItems}
               selectResourcesMap={selectResourcesMap}
               onSelect={onSelectResourceInCatalog}
             />

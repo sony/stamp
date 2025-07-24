@@ -7,7 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Group } from "@stamp-lib/stamp-types/pluginInterface/identity";
 import { CatalogInfo } from "@stamp-lib/stamp-types/models";
 import { ApprovalFlowInputParam } from "@stamp-lib/stamp-types/models";
-import { SelectInputResources } from "@/components/approval-flow/inputResource";
+import { InputResourceSelectorItems } from "@/components/approval-flow/inputResource";
 import { getApprovalFlow } from "@/client-lib/api-clients/approvalFlow";
 import { getResourceType } from "@/client-lib/api-clients/resourceType";
 import { SelectApprover } from "@/components/approval-request/selector/selectApprover";
@@ -44,7 +44,7 @@ export const ApprovalRequestFilter = ({
 
   // Input Parameters and Input Resources for the selected approval flow
   const [inputParams, setInputParams] = React.useState<Array<ApprovalFlowInputParam>>([]);
-  const [inputResources, setInputResources] = React.useState<SelectInputResources | undefined>(undefined);
+  const [inputResourceSelectorItems, setInputResourceSelectorItems] = React.useState<InputResourceSelectorItems | undefined>(undefined);
 
   // A Map where the key is a string representing the filter identifier.
   // The value is a string representing the input or selected value.
@@ -57,7 +57,7 @@ export const ApprovalRequestFilter = ({
     setInputValuesMap(new Map());
     setSelectResourcesMap(new Map());
     setInputParams([]);
-    setInputResources(undefined);
+    setInputResourceSelectorItems(undefined);
     const approvalFlowsInCatalog = await fetchApprovalFlows(catalogId, catalogs);
     setApprovalFlows(approvalFlowsInCatalog);
   };
@@ -72,7 +72,7 @@ export const ApprovalRequestFilter = ({
     if (!approvalFlowInputConfig) return;
 
     setInputParams(approvalFlowInputConfig.inputParams);
-    setInputResources(approvalFlowInputConfig.inputResources);
+    setInputResourceSelectorItems(approvalFlowInputConfig.inputResourceSelectorItems);
   };
 
   const onSelectResourceInCatalog = (resourceTypeId: string, parentResourceTypeId: string | undefined, selectedResourceId: string) => {
@@ -80,7 +80,7 @@ export const ApprovalRequestFilter = ({
     newMap.set(resourceTypeId, selectedResourceId);
 
     // Deselect child resources when the selection of parent resources changes
-    inputResources?.forEach((resource) => {
+    inputResourceSelectorItems?.forEach((resource) => {
       if (parentResourceTypeId === undefined && resource.parentResourceTypeId === resourceTypeId) {
         newMap.delete(resource.resourceTypeId);
       }
@@ -141,7 +141,7 @@ export const ApprovalRequestFilter = ({
     setSelectedApprovalFlowId(undefined);
     setApprovalFlows([]);
     setInputParams([]);
-    setInputResources(undefined);
+    setInputResourceSelectorItems(undefined);
     setInputValuesMap(new Map());
     setSelectResourcesMap(new Map());
   };
@@ -171,7 +171,7 @@ export const ApprovalRequestFilter = ({
             <InputParameters inputParams={inputParams} inputValuesMap={inputValuesMap} onParameterInput={onParameterInput} />
             <SelectResources
               catalogId={selectedCatalogId}
-              inputResources={inputResources}
+              inputResourceSelectorItems={inputResourceSelectorItems}
               selectResourcesMap={selectResourcesMap}
               onSelect={onSelectResourceInCatalog}
             />
@@ -201,7 +201,7 @@ const fetchApprovalFlowInputConfig = async (
   selectedApprovalFlowId: string | undefined,
   approvalFlows: ApprovalFlow[],
   userId: string
-): Promise<{ inputParams: ApprovalFlowInputParam[]; inputResources: SelectInputResources } | undefined> => {
+): Promise<{ inputParams: ApprovalFlowInputParam[]; inputResourceSelectorItems: InputResourceSelectorItems } | undefined> => {
   if (!selectedApprovalFlowId || !selectedCatalogId) {
     return;
   }
@@ -212,11 +212,15 @@ const fetchApprovalFlowInputConfig = async (
   }
 
   const inputParams = [...selectedApprovalFlow.inputParams];
-  const inputResources = await fetchSelectInputResources(selectedApprovalFlow, selectedCatalogId, userId);
-  return { inputParams, inputResources };
+  const inputResources = await fetchInputResourceSelectorItems(selectedApprovalFlow, selectedCatalogId, userId);
+  return { inputParams, inputResourceSelectorItems: inputResources };
 };
 
-const fetchSelectInputResources = async ({ inputResources = [] }: ApprovalFlow, catalogId: string, requestUserId: string): Promise<SelectInputResources> => {
+const fetchInputResourceSelectorItems = async (
+  { inputResources = [] }: ApprovalFlow,
+  catalogId: string,
+  requestUserId: string
+): Promise<InputResourceSelectorItems> => {
   const resourceTypePromises = inputResources.map((inputResource) =>
     getResourceType({ catalogId, resourceTypeId: inputResource.resourceTypeId, requestUserId }).then((resourceType) => ({
       ...inputResource,

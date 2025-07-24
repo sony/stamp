@@ -21,7 +21,7 @@ import {
 import { useFormState, useFormStatus } from "react-dom";
 import { ApprovalFlow } from "@/type";
 import { InputParamsFormInput } from "./inputParam";
-import { InputResources, SelectInputResources } from "./inputResource";
+import { InputResourceSelectorList, InputResourceSelectorItems } from "./inputResource";
 import React, { useState, useEffect, useMemo } from "react";
 
 // Helper to parse ISO 8601 duration
@@ -169,11 +169,11 @@ function AutoRevokeDurationInput({
 export function RequestForm({
   catalogId,
   approvalFlow,
-  selectInputResources,
+  inputResourceSelectorItems,
 }: {
   catalogId: string;
   approvalFlow: ApprovalFlow;
-  selectInputResources: SelectInputResources;
+  inputResourceSelectorItems: InputResourceSelectorItems;
 }) {
   console.log(approvalFlow);
   const [state, formAction] = useFormState(approvalRequestSubmit, undefined);
@@ -198,7 +198,7 @@ export function RequestForm({
             </Flex>
             {approvalFlow.inputResources && (
               <React.Fragment>
-                <InputResources selectInputResources={selectInputResources} catalogId={catalogId} />
+                <InputResourceSelectorList inputResourceSelectorItems={inputResourceSelectorItems} catalogId={catalogId} />
               </React.Fragment>
             )}
             {approvalFlow.enableRevoke && approvalFlow.autoRevoke && (
