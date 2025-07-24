@@ -11,8 +11,13 @@
     "versionup:patch": "lerna version patch --force-publish --no-push",
     "versionup:minor": "lerna version minor --force-publish --no-push",
     "versionup:major": "lerna version major --force-publish --no-push",
+    "versionup:rc": "lerna version prerelease --preid rc --force-publish --no-push",
+    "version:patch-rc": "lerna version prepatch --preid rc --force-publish --no-push",
+    "versionup:minor-rc": "lerna version preminor --preid rc --force-publish --no-push",
+    "versionup:major-rc": "lerna version premajor --preid rc --force-publish --no-push",
     "build": "lerna run build",
-    "publish-package": "lerna publish from-package --no-private"
+    "publish-package": "lerna publish from-package --no-private",
+    "publish-package-rc": "lerna publish from-package --dist-tag rc --no-private"
   },
   "publishConfig": {
     "access": "public",
