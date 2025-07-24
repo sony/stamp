@@ -1,7 +1,8 @@
 import { CatalogConfig } from "@stamp-lib/stamp-types/models";
 import { ResourceDBProvider } from "@stamp-lib/stamp-types/pluginInterface/database";
-import { validateResourceUpdateRequest, executeResourceUpdateApproval } from "./approval-flows/resource-update";
+import { validateResourceUpdateRequest, executeResourceUpdateApproval, createCheckCanApproveResourceUpdate } from "./approval-flows/resource-update";
 import { CatalogConfigProvider } from "@stamp-lib/stamp-types/configInterface";
+import { createGetCatalogConfig } from "../events/catalog/catalogConfig";
 
 export interface StampSystemCatalogDependencies {
   resourceDBProvider: ResourceDBProvider;
@@ -9,6 +10,21 @@ export interface StampSystemCatalogDependencies {
 }
 
 export function createStampSystemCatalog(deps: StampSystemCatalogDependencies): CatalogConfig {
+  // Create necessary dependencies
+  const getCatalogConfig = createGetCatalogConfig(deps.catalogConfigProvider.get);
+  const checkCanApproveResourceUpdate = createCheckCanApproveResourceUpdate(deps.catalogConfigProvider, deps.resourceDBProvider);
+
+  const validationDeps = {
+    getCatalogConfig,
+    checkCanApproveResourceUpdate,
+  };
+
+  const approvalDeps = {
+    getCatalogConfig,
+    checkCanApproveResourceUpdate,
+    updatePendingUpdateParams: deps.resourceDBProvider.updatePendingUpdateParams,
+  };
+
   return {
     id: "stamp-system",
     name: "STAMP System",
@@ -49,8 +65,8 @@ export function createStampSystemCatalog(deps: StampSystemCatalogDependencies): 
           },
         ],
         handlers: {
-          approvalRequestValidation: validateResourceUpdateRequest(deps),
-          approved: executeResourceUpdateApproval(deps),
+          approvalRequestValidation: validateResourceUpdateRequest(validationDeps),
+          approved: executeResourceUpdateApproval(approvalDeps),
           revoked: () => {
             throw new Error("Not implemented");
           },

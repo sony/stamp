@@ -17,9 +17,44 @@ import { GetResourceInfo, getResourceInfo } from "../../workflows/resource/getRe
 import { Logger } from "@stamp-lib/stamp-logger";
 
 export interface ResourceUpdateValidationHandlerDependencies {
-  resourceDBProvider: ResourceDBProvider;
-  catalogConfigProvider: CatalogConfigProvider;
+  getCatalogConfig: ReturnType<typeof createGetCatalogConfig>;
+  checkCanApproveResourceUpdate: CheckCanApproveResourceUpdate;
 }
+
+export interface ResourceUpdateApprovalHandlerDependencies {
+  getCatalogConfig: ReturnType<typeof createGetCatalogConfig>;
+  checkCanApproveResourceUpdate: CheckCanApproveResourceUpdate;
+  updatePendingUpdateParams: ResourceDBProvider["updatePendingUpdateParams"];
+}
+
+export type CheckCanApproveResourceUpdate = <
+  T extends {
+    catalogId: string;
+    resourceTypeId: string;
+    resourceId: string;
+    requestUserId: string;
+    approverGroupId: string;
+  }
+>(
+  input: T
+) => ResultAsync<T, HandlerError>;
+
+/**
+ * Factory function to create checkCanApproveResourceUpdate dependency
+ */
+export const createCheckCanApproveResourceUpdate = (
+  catalogConfigProvider: CatalogConfigProvider,
+  resourceDBProvider: ResourceDBProvider
+): CheckCanApproveResourceUpdate => {
+  return checkCanApproveResourceUpdate({
+    getResourceInfo: getResourceInfo({
+      getCatalogConfigProvider: catalogConfigProvider.get,
+      getResourceDBProvider: resourceDBProvider.getById,
+    }),
+    logger: createStampHubLogger(),
+  });
+};
+
 const ResourceUpdateApprovalHandlerInput = z.object({
   catalogId: z.object({
     id: z.string(),
@@ -46,9 +81,8 @@ const ResourceUpdateApprovalHandlerInput = z.object({
 export const validateResourceUpdateRequest =
   (dependencies: ResourceUpdateValidationHandlerDependencies) =>
   async (input: ApprovalRequestValidationInput): Promise<Result<ApprovalRequestValidationOutput, HandlerError>> => {
-    const { catalogConfigProvider } = dependencies;
+    const { getCatalogConfig, checkCanApproveResourceUpdate } = dependencies;
     const logger = createStampHubLogger();
-    const getCatalogConfig = createGetCatalogConfig(catalogConfigProvider.get);
 
     const handlerInput = ResourceUpdateApprovalHandlerInput.safeParse(input.inputParams);
 
@@ -60,12 +94,6 @@ export const validateResourceUpdateRequest =
     logger.info("Validating resource update request", handlerInput.data);
 
     return checkCanApproveResourceUpdate({
-      getResourceInfo: getResourceInfo({
-        getCatalogConfigProvider: catalogConfigProvider.get,
-        getResourceDBProvider: dependencies.resourceDBProvider.getById,
-      }),
-      logger,
-    })({
       catalogId: catalogId.value,
       resourceTypeId: resourceTypeId.value,
       resourceId: resourceId.value,
@@ -114,11 +142,10 @@ export const validateResourceUpdateRequest =
  * Executes the approved resource update request
  */
 export const executeResourceUpdateApproval =
-  (dependencies: ResourceUpdateValidationHandlerDependencies) =>
+  (dependencies: ResourceUpdateApprovalHandlerDependencies) =>
   async (input: ApprovedInput): Promise<Result<ApprovedOutput, HandlerError>> => {
-    const { catalogConfigProvider, resourceDBProvider } = dependencies;
+    const { getCatalogConfig, checkCanApproveResourceUpdate, updatePendingUpdateParams } = dependencies;
     const logger = createStampHubLogger();
-    const getCatalogConfig = createGetCatalogConfig(catalogConfigProvider.get);
 
     const handlerInput = ResourceUpdateApprovalHandlerInput.safeParse(input.inputParams);
 
@@ -136,12 +163,6 @@ export const executeResourceUpdateApproval =
     // Get resource
 
     return checkCanApproveResourceUpdate({
-      getResourceInfo: getResourceInfo({
-        getCatalogConfigProvider: catalogConfigProvider.get,
-        getResourceDBProvider: dependencies.resourceDBProvider.getById,
-      }),
-      logger,
-    })({
       catalogId: catalogId.value,
       resourceTypeId: resourceTypeId.value,
       resourceId: resourceId.value,
@@ -162,12 +183,20 @@ export const executeResourceUpdateApproval =
             updateParams: JSON.parse(updateParams.value), // Assuming updateParams is a JSON string
             resourceTypeId: resourceTypeId.value,
           })
-        );
+        ).mapErr((error) => {
+          logger.error("Error from updateResource handler", {
+            error: error.message,
+            errorType: error.constructor.name,
+            resourceId: resourceId.value,
+            resourceTypeId: resourceTypeId.value,
+          });
+          return error;
+        });
       })
       .andThen((result) => {
         logger.info("Resource update executed successfully", result);
         logger.info("Approval request canceled successfully");
-        return resourceDBProvider.updatePendingUpdateParams({
+        return updatePendingUpdateParams({
           catalogId: catalogId.value,
           resourceTypeId: resourceTypeId.value,
           id: resourceId.value,
@@ -176,14 +205,26 @@ export const executeResourceUpdateApproval =
       })
       .andThen(() => {
         const approvedOutput: ApprovedOutput = {
-          message: "Resource update approved and executed successfully",
+          message: "Resource update executed successfully",
           isSuccess: true,
         };
         return okAsync(approvedOutput);
       })
-      .mapErr((error) => {
-        logger.error("Error executing resource update approval", error);
-        return new HandlerError(`Failed to execute resource update approval: ${error.message}`, "INTERNAL_SERVER_ERROR");
+      .orElse((error) => {
+        logger.error("Error executing resource update approval", {
+          error: error.message,
+          errorType: error.constructor.name,
+          isHandlerError: error instanceof HandlerError,
+          errorCode: error instanceof HandlerError ? error.code : undefined,
+        });
+
+        const errorResponse = {
+          message: `Failed to execute resource update approval: ${error.message}`,
+          isSuccess: false,
+          errorCode: error instanceof HandlerError ? error.code : undefined,
+        };
+        logger.info("Returning error response", errorResponse);
+        return okAsync(errorResponse);
       });
   };
 
