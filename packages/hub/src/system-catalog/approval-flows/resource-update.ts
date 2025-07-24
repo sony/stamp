@@ -218,21 +218,13 @@ export const executeResourceUpdateApproval =
           errorCode: error instanceof HandlerError ? error.code : undefined,
         });
 
-        if (error instanceof HandlerError) {
-          const errorResponse = {
-            message: `Resource update failed: ${error.message}`,
-            isSuccess: false,
-          };
-          logger.info("Returning HandlerError response", errorResponse);
-          return okAsync(errorResponse);
-        }
-
-        const genericErrorResponse = {
-          message: `Failed to execute resource update approval. Internal service error occurred: ${error.message}`,
+        const errorResponse = {
+          message: `Failed to execute resource update approval: ${error.message}`,
           isSuccess: false,
+          errorCode: error instanceof HandlerError ? error.code : undefined,
         };
-        logger.info("Returning generic error response", genericErrorResponse);
-        return okAsync(genericErrorResponse);
+        logger.info("Returning error response", errorResponse);
+        return okAsync(errorResponse);
       });
   };
 
