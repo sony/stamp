@@ -4,7 +4,7 @@ import { ApprovalFlowId } from "./id";
 import { UserId } from "../pluginInterface/identity";
 export const ApprovalRequestInputParam = z.object({
   id: z.string().max(128),
-  value: z.union([z.string().max(128), z.number(), z.boolean()]),
+  value: z.union([z.string().max(4096), z.number(), z.boolean()]),
 });
 export type ApprovalRequestInputParam = z.infer<typeof ApprovalRequestInputParam>;
 
