@@ -1,6 +1,6 @@
 {
   "name": "@stamp-lib/stamp-slack-plugin",
-  "version": "0.7.0-rc.1",
+  "version": "0.7.0-rc.2",
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,8 +15,8 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.481.0",
     "@aws-sdk/lib-dynamodb": "^3.481.0",
-    "@stamp-lib/stamp-hub": "^0.7.0-rc.1",
-    "@stamp-lib/stamp-logger": "^0.7.0-rc.1",
+    "@stamp-lib/stamp-hub": "^0.7.0-rc.2",
+    "@stamp-lib/stamp-logger": "^0.7.0-rc.2",
     "hono": "^4.2.7",
     "neverthrow": "^6.1.0",
     "slack-edge": "^0.12.0",

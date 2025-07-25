@@ -1,6 +1,6 @@
 {
   "name": "@stamp-lib/stamp-dynamodb-db-plugin",
-  "version": "0.7.0-rc.1",
+  "version": "0.7.0-rc.2",
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,8 +15,8 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.474.0",
     "@aws-sdk/lib-dynamodb": "^3.474.0",
-    "@stamp-lib/stamp-logger": "^0.7.0-rc.1",
-    "@stamp-lib/stamp-types": "^0.7.0-rc.1",
+    "@stamp-lib/stamp-logger": "^0.7.0-rc.2",
+    "@stamp-lib/stamp-types": "^0.7.0-rc.2",
     "neverthrow": "^6.1.0",
     "zod": "^3.22.4"
   },
