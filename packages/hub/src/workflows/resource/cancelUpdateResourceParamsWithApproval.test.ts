@@ -219,7 +219,55 @@ describe("cancelUpdateResourceWithApproval", () => {
     expect((result._unsafeUnwrapErr() as { message: string }).message).toMatch(/Approval request not found/);
   });
 
-  it("returns error if approval request is not pending", async () => {
+  it("clears pending update params when approval request is approvedActionFailed", async () => {
+    const resourceDBProvider = {
+      getById: vi.fn().mockReturnValue(okAsync(some(resource))),
+      set: vi.fn(),
+      updatePendingUpdateParams: vi.fn().mockReturnValue(okAsync({ ...resource, pendingUpdateParams: undefined })),
+      delete: vi.fn(),
+      createAuditNotification: vi.fn(),
+      updateAuditNotification: vi.fn(),
+      deleteAuditNotification: vi.fn(),
+    };
+    const approvalRequestDBProvider = {
+      getById: vi.fn().mockReturnValue(okAsync(some({ ...approvalRequest, status: "approvedActionFailed" }))),
+      updateStatusToCanceled: vi.fn(),
+      listByApprovalFlowId: vi.fn(),
+      listByRequestUserId: vi.fn(),
+      listByApproverId: vi.fn(),
+      set: vi.fn(),
+      updateStatusToApproved: vi.fn(),
+      updateStatusToRejected: vi.fn(),
+      updateStatusToRevoked: vi.fn(),
+    };
+
+    const logger = createLogger("DEBUG", { moduleName: "test" });
+    const input = {
+      catalogId: "cat-1",
+      resourceTypeId: "type-1",
+      resourceId: uuidResource,
+      requestUserId: uuidUser,
+      approvalRequestId: uuidApprovalRequest,
+    };
+    const result = await cancelUpdateResourceParamsWithApproval({
+      checkCanEditResource: vi.fn().mockReturnValue(okAsync(true)),
+      resourceDBProvider,
+      approvalRequestDBProvider,
+      logger,
+    })(input);
+
+    expect(result.isOk()).toBe(true);
+    expect(resourceDBProvider.updatePendingUpdateParams).toHaveBeenCalledWith({
+      catalogId: "cat-1",
+      resourceTypeId: "type-1",
+      id: uuidResource,
+      pendingUpdateParams: undefined,
+    });
+    // Should not call updateStatusToCanceled for approvedActionFailed
+    expect(approvalRequestDBProvider.updateStatusToCanceled).not.toHaveBeenCalled();
+  });
+
+  it("returns error if approval request is not pending or approvedActionFailed", async () => {
     const resourceDBProvider = {
       getById: vi.fn().mockReturnValue(okAsync(some(resource))),
       set: vi.fn(),
@@ -256,7 +304,7 @@ describe("cancelUpdateResourceWithApproval", () => {
       logger,
     })(input);
     expect(result.isErr()).toBe(true);
-    expect((result._unsafeUnwrapErr() as { message: string }).message).toMatch(/Approval request is not pending/);
+    expect((result._unsafeUnwrapErr() as { message: string }).message).toMatch(/Approval request is not pending or approvedActionFailed/);
   });
 
   it("returns error if user cannot edit resource", async () => {

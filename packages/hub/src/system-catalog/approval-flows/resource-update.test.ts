@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { validateResourceUpdateRequest, executeResourceUpdateApproval, checkCanApproveResourceUpdate } from "./resource-update";
+import {
+  validateResourceUpdateRequest,
+  executeResourceUpdateApproval,
+  checkCanApproveResourceUpdate,
+  errorHandlingForCancelUpdateResourceParamsWithApproval,
+} from "./resource-update";
 import { okAsync, ok, errAsync } from "neverthrow";
 import { some, none } from "@stamp-lib/stamp-option";
 import { HandlerError } from "@stamp-lib/stamp-types/catalogInterface/handler";
@@ -100,11 +105,21 @@ describe("executeResourceUpdateApproval", () => {
   const mockGetCatalogConfig = vi.fn();
   const mockCheckCanApproveResourceUpdate = vi.fn();
   const mockUpdatePendingUpdateParams = vi.fn();
+  const mockErrorHandling = vi.fn();
+  const mockLogger = {
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    fatal: vi.fn(),
+  };
 
   const mockDeps = {
     getCatalogConfig: mockGetCatalogConfig,
     checkCanApproveResourceUpdate: mockCheckCanApproveResourceUpdate,
     updatePendingUpdateParams: mockUpdatePendingUpdateParams,
+    errorHandling: mockErrorHandling,
+    logger: mockLogger,
   };
 
   const validInput = {
@@ -169,18 +184,30 @@ describe("executeResourceUpdateApproval", () => {
       resourceTypes: [mockResourceTypeConfig],
     };
 
-    // Mock all dependencies
+    // Mock dependencies - error handling should be called
     mockCheckCanApproveResourceUpdate.mockReturnValue(okAsync(validInput));
     mockGetCatalogConfig.mockReturnValue(okAsync({ catalogConfig: mockCatalogConfig, resourceTypeId: "type-1" }));
+    mockErrorHandling.mockReturnValue(
+      okAsync({
+        message: "Failed to execute resource update approval: Resource validation failed",
+        isSuccess: false,
+      })
+    );
 
     const result = await executeResourceUpdateApproval(mockDeps)(validInput);
 
     expect(result.isOk()).toBe(true);
     const value = result._unsafeUnwrap();
     expect(value.isSuccess).toBe(false);
-    // HandlerError gets converted to StampHubError by convertPromiseResultToResultAsync,
-    // so it's handled as a generic error rather than a HandlerError
     expect(value.message).toContain("Failed to execute resource update approval");
+
+    // Verify error handling was called with correct parameters
+    expect(mockErrorHandling).toHaveBeenCalledWith({
+      error: expect.any(Error), // The converted error from updateResource
+      catalogId: "cat-1",
+      resourceTypeId: "type-1",
+      resourceId: "res-1",
+    });
   });
 
   it("should handle generic Error from updateResource handler when executing approval", async () => {
@@ -218,9 +245,15 @@ describe("executeResourceUpdateApproval", () => {
       resourceTypes: [mockResourceTypeConfig],
     };
 
-    // Mock all dependencies
+    // Mock dependencies - error handling should be called
     mockCheckCanApproveResourceUpdate.mockReturnValue(okAsync(validInput));
     mockGetCatalogConfig.mockReturnValue(okAsync({ catalogConfig: mockCatalogConfig, resourceTypeId: "type-1" }));
+    mockErrorHandling.mockReturnValue(
+      okAsync({
+        message: "Failed to execute resource update approval: Network timeout during resource update",
+        isSuccess: false,
+      })
+    );
 
     const result = await executeResourceUpdateApproval(mockDeps)(validInput);
 
@@ -228,6 +261,14 @@ describe("executeResourceUpdateApproval", () => {
     const value = result._unsafeUnwrap();
     expect(value.isSuccess).toBe(false);
     expect(value.message).toContain("Failed to execute resource update approval");
+
+    // Verify error handling was called with correct parameters
+    expect(mockErrorHandling).toHaveBeenCalledWith({
+      error: expect.any(Error), // The converted error from updateResource
+      catalogId: "cat-1",
+      resourceTypeId: "type-1",
+      resourceId: "res-1",
+    });
   });
 
   it("should execute successfully when all operations succeed", async () => {
@@ -279,6 +320,153 @@ describe("executeResourceUpdateApproval", () => {
       id: "res-1",
       pendingUpdateParams: undefined,
     });
+  });
+
+  it("should handle error from checkCanApproveResourceUpdate", async () => {
+    mockCheckCanApproveResourceUpdate.mockReturnValue(errAsync(new HandlerError("Access denied", "BAD_REQUEST")));
+    mockErrorHandling.mockReturnValue(
+      okAsync({
+        message: "Failed to execute resource update approval: Access denied",
+        isSuccess: false,
+      })
+    );
+
+    const result = await executeResourceUpdateApproval(mockDeps)(validInput);
+
+    expect(result.isOk()).toBe(true);
+    const value = result._unsafeUnwrap();
+    expect(value.isSuccess).toBe(false);
+    expect(value.message).toContain("Failed to execute resource update approval");
+
+    // Verify error handling was called
+    expect(mockErrorHandling).toHaveBeenCalledWith({
+      error: expect.any(HandlerError),
+      catalogId: "cat-1",
+      resourceTypeId: "type-1",
+      resourceId: "res-1",
+    });
+  });
+
+  it("should handle error from getCatalogConfig", async () => {
+    mockCheckCanApproveResourceUpdate.mockReturnValue(okAsync(validInput));
+    mockGetCatalogConfig.mockReturnValue(errAsync(new Error("Catalog not found")));
+    mockErrorHandling.mockReturnValue(
+      okAsync({
+        message: "Failed to execute resource update approval: Catalog not found",
+        isSuccess: false,
+      })
+    );
+
+    const result = await executeResourceUpdateApproval(mockDeps)(validInput);
+
+    expect(result.isOk()).toBe(true);
+    const value = result._unsafeUnwrap();
+    expect(value.isSuccess).toBe(false);
+    expect(value.message).toContain("Failed to execute resource update approval");
+
+    // Verify error handling was called
+    expect(mockErrorHandling).toHaveBeenCalledWith({
+      error: expect.any(Error),
+      catalogId: "cat-1",
+      resourceTypeId: "type-1",
+      resourceId: "res-1",
+    });
+  });
+});
+
+describe("errorHandlingForCancelUpdateResourceParamsWithApproval", () => {
+  const mockLogger = {
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    fatal: vi.fn(),
+  };
+  const mockUpdatePendingUpdateParams = vi.fn();
+
+  const providers = {
+    logger: mockLogger,
+    updatePendingUpdateParams: mockUpdatePendingUpdateParams,
+  };
+
+  const input = {
+    error: new HandlerError("Test error", "BAD_REQUEST"),
+    catalogId: "cat-1",
+    resourceTypeId: "type-1",
+    resourceId: "res-1",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should clear pending update params and return error response when updatePendingUpdateParams succeeds", async () => {
+    mockUpdatePendingUpdateParams.mockReturnValue(okAsync({}));
+
+    const errorHandling = errorHandlingForCancelUpdateResourceParamsWithApproval(providers);
+    const result = await errorHandling(input);
+
+    expect(result.isOk()).toBe(true);
+    const value = result._unsafeUnwrap();
+    expect(value.isSuccess).toBe(false);
+    expect(value.message).toContain("Failed to execute resource update approval: Test error");
+
+    // Verify updatePendingUpdateParams was called to clear pending params
+    expect(mockUpdatePendingUpdateParams).toHaveBeenCalledWith({
+      catalogId: "cat-1",
+      resourceTypeId: "type-1",
+      id: "res-1",
+      pendingUpdateParams: undefined,
+    });
+
+    // Verify logging
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      "Error executing resource update approval",
+      expect.objectContaining({
+        error: "Test error",
+        errorType: "HandlerError",
+        isHandlerError: true,
+        errorCode: "BAD_REQUEST",
+      })
+    );
+    expect(mockLogger.info).toHaveBeenCalledWith("Returning error response", value);
+  });
+
+  it("should handle failure to clear pending update params", async () => {
+    const dbError = new Error("Database connection failed");
+    mockUpdatePendingUpdateParams.mockReturnValue(errAsync(dbError));
+
+    const errorHandling = errorHandlingForCancelUpdateResourceParamsWithApproval(providers);
+    const result = await errorHandling(input);
+
+    expect(result.isOk()).toBe(true);
+    const value = result._unsafeUnwrap();
+    expect(value.isSuccess).toBe(false);
+    expect(value.message).toContain("Failed to execute resource update approval: Test error. Also failed to reset the update status for the resource.");
+
+    // Verify updatePendingUpdateParams was called
+    expect(mockUpdatePendingUpdateParams).toHaveBeenCalledWith({
+      catalogId: "cat-1",
+      resourceTypeId: "type-1",
+      id: "res-1",
+      pendingUpdateParams: undefined,
+    });
+
+    // Verify error logging for both the original error and the DB error
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      "Error executing resource update approval",
+      expect.objectContaining({
+        error: "Test error",
+        errorType: "HandlerError",
+      })
+    );
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      "Error clearing pending update params",
+      expect.objectContaining({
+        error: "Database connection failed",
+        errorType: "Error",
+      })
+    );
   });
 });
 

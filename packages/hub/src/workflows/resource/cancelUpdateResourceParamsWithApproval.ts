@@ -58,30 +58,53 @@ export const cancelUpdateResourceParamsWithApproval =
             return errAsync(new StampHubError("Approval request not found", "Approval Request Not Found", "NOT_FOUND"));
           }
           const approval = approvalOpt.value;
-          if (approval.status !== "pending") {
-            return errAsync(new StampHubError("Approval request is not pending", "Approval Request Not Pending", "BAD_REQUEST"));
-          }
           // 3. Check if the approval request matches the pending update
-          if (pendingUpdateParams.approvalRequestId !== pendingUpdateParams.approvalRequestId) {
-            return errAsync(new StampHubError("No matching pending update for this resource", "No Matching Pending Update", "BAD_REQUEST"));
-          }
-          // 4. Mark approval request as canceled (using events layer)
-          return cancelApprovalRequest(approvalRequestDBProvider.updateStatusToCanceled)({
-            catalogId: input.catalogId,
-            approvalFlowId: approval.approvalFlowId,
-            requestId: pendingUpdateParams.approvalRequestId,
-            canceledDate: new Date().toISOString(),
-            userIdWhoCanceled: "system",
-            cancelComment: "Cancelled by requester",
-          }).andThen(() => {
-            logger.info("Approval request canceled successfully");
+          if (approval.status === "pending") {
+            logger.info("Approval request is pending, proceeding to cancel update");
+            if (pendingUpdateParams.approvalRequestId !== pendingUpdateParams.approvalRequestId) {
+              return errAsync(new StampHubError("No matching pending update for this resource", "No Matching Pending Update", "BAD_REQUEST"));
+            }
+            // 4. Mark approval request as canceled (using events layer)
+            return cancelApprovalRequest(approvalRequestDBProvider.updateStatusToCanceled)({
+              catalogId: input.catalogId,
+              approvalFlowId: approval.approvalFlowId,
+              requestId: pendingUpdateParams.approvalRequestId,
+              canceledDate: new Date().toISOString(),
+              userIdWhoCanceled: "system",
+              cancelComment: "Cancelled by requester",
+            }).andThen(() => {
+              logger.info("Approval request canceled successfully");
+              return resourceDBProvider.updatePendingUpdateParams({
+                catalogId: input.catalogId,
+                resourceTypeId: input.resourceTypeId,
+                id: input.resourceId,
+                pendingUpdateParams: undefined, // Clear pending update params
+              });
+            });
+          } else if (approval.status === "approvedActionFailed") {
+            // If the approval request is already approved with action failed, we clear the pending update params
+            logger.info("Approval request is already approved with action failed, clearing pending update params");
             return resourceDBProvider.updatePendingUpdateParams({
               catalogId: input.catalogId,
               resourceTypeId: input.resourceTypeId,
               id: input.resourceId,
               pendingUpdateParams: undefined, // Clear pending update params
             });
-          });
+          } else {
+            logger.warn("Approval request is not pending or approvedActionFailed, cannot cancel update", {
+              approvalStatus: approval.status,
+              catalogId: input.catalogId,
+              resourceTypeId: input.resourceTypeId,
+              resourceId: input.resourceId,
+            });
+            return errAsync(
+              new StampHubError(
+                "Approval request is not pending or approvedActionFailed ",
+                "Approval request is not pending or approvedActionFailed",
+                "BAD_REQUEST"
+              )
+            );
+          }
         });
       })
       .map(() => {

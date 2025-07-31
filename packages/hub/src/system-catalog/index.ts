@@ -1,8 +1,15 @@
 import { CatalogConfig } from "@stamp-lib/stamp-types/models";
 import { ResourceDBProvider } from "@stamp-lib/stamp-types/pluginInterface/database";
-import { validateResourceUpdateRequest, executeResourceUpdateApproval, createCheckCanApproveResourceUpdate } from "./approval-flows/resource-update";
+import {
+  validateResourceUpdateRequest,
+  executeResourceUpdateApproval,
+  createCheckCanApproveResourceUpdate,
+  errorHandlingForCancelUpdateResourceParamsWithApproval,
+} from "./approval-flows/resource-update";
 import { CatalogConfigProvider } from "@stamp-lib/stamp-types/configInterface";
 import { createGetCatalogConfig } from "../events/catalog/catalogConfig";
+import { createStampHubLogger } from "../logger";
+import { ApprovedInput } from "@stamp-lib/stamp-types/catalogInterface/handler";
 
 export interface StampSystemCatalogDependencies {
   resourceDBProvider: ResourceDBProvider;
@@ -19,10 +26,19 @@ export function createStampSystemCatalog(deps: StampSystemCatalogDependencies): 
     checkCanApproveResourceUpdate,
   };
 
-  const approvalDeps = {
-    getCatalogConfig,
-    checkCanApproveResourceUpdate,
-    updatePendingUpdateParams: deps.resourceDBProvider.updatePendingUpdateParams,
+  const executeResourceUpdateApprovalFunc = (input: ApprovedInput) => {
+    const logger = createStampHubLogger();
+    const approvalDeps = {
+      getCatalogConfig,
+      checkCanApproveResourceUpdate,
+      updatePendingUpdateParams: deps.resourceDBProvider.updatePendingUpdateParams,
+      errorHandling: errorHandlingForCancelUpdateResourceParamsWithApproval({
+        logger,
+        updatePendingUpdateParams: deps.resourceDBProvider.updatePendingUpdateParams,
+      }),
+      logger,
+    };
+    return executeResourceUpdateApproval(approvalDeps)(input);
   };
 
   return {
@@ -66,7 +82,7 @@ export function createStampSystemCatalog(deps: StampSystemCatalogDependencies): 
         ],
         handlers: {
           approvalRequestValidation: validateResourceUpdateRequest(validationDeps),
-          approved: executeResourceUpdateApproval(approvalDeps),
+          approved: executeResourceUpdateApprovalFunc,
           revoked: () => {
             throw new Error("Not implemented");
           },
