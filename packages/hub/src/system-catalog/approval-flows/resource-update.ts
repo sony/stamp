@@ -249,7 +249,7 @@ export const errorHandlingForCancelUpdateResourceParamsWithApproval =
     })
       .andThen(() => {
         const errorResponse = {
-          message: `Failed to execute resource update approval: ${input.error.message}`,
+          message: "An error occurred while processing the request.",
           isSuccess: false,
         };
         logger.info("Returning error response", errorResponse);
