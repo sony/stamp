@@ -61,7 +61,7 @@ export const cancelUpdateResourceParamsWithApproval =
           // 3. Check if the approval request matches the pending update
           if (approval.status === "pending") {
             logger.info("Approval request is pending, proceeding to cancel update");
-            if (pendingUpdateParams.approvalRequestId !== pendingUpdateParams.approvalRequestId) {
+            if (pendingUpdateParams.approvalRequestId !== input.approvalRequestId) {
               return errAsync(new StampHubError("No matching pending update for this resource", "No Matching Pending Update", "BAD_REQUEST"));
             }
             // 4. Mark approval request as canceled (using events layer)
