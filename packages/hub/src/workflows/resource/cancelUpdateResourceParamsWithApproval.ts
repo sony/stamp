@@ -99,7 +99,7 @@ export const cancelUpdateResourceParamsWithApproval =
             });
             return errAsync(
               new StampHubError(
-                "Approval request is not pending or approvedActionFailed ",
+                "Approval request is not pending or approvedActionFailed",
                 "Approval request is not pending or approvedActionFailed",
                 "BAD_REQUEST"
               )
