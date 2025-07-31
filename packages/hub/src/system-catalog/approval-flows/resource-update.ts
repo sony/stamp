@@ -5,7 +5,7 @@ import {
   ApprovedOutput,
   HandlerError,
 } from "@stamp-lib/stamp-types/catalogInterface/handler";
-import { ResourceDBProvider } from "@stamp-lib/stamp-types/pluginInterface/database";
+import { DBError, ResourceDBProvider } from "@stamp-lib/stamp-types/pluginInterface/database";
 import { getResourceTypeConfig } from "../../events/resource-type/resourceTypeConfig";
 import { okAsync, errAsync, Result, ResultAsync } from "neverthrow";
 import { z } from "zod";
@@ -15,6 +15,7 @@ import { createGetCatalogConfig } from "../../events/catalog/catalogConfig";
 import { convertPromiseResultToResultAsync } from "../../utils/neverthrow";
 import { GetResourceInfo, getResourceInfo } from "../../workflows/resource/getResourceInfo";
 import { Logger } from "@stamp-lib/stamp-logger";
+import { StampHubError } from "../../error";
 
 export interface ResourceUpdateValidationHandlerDependencies {
   getCatalogConfig: ReturnType<typeof createGetCatalogConfig>;
@@ -25,6 +26,8 @@ export interface ResourceUpdateApprovalHandlerDependencies {
   getCatalogConfig: ReturnType<typeof createGetCatalogConfig>;
   checkCanApproveResourceUpdate: CheckCanApproveResourceUpdate;
   updatePendingUpdateParams: ResourceDBProvider["updatePendingUpdateParams"];
+  errorHandling: ErrorHandlingForCancelUpdateResourceParamsWithApproval;
+  logger: Logger;
 }
 
 export type CheckCanApproveResourceUpdate = <
@@ -144,8 +147,7 @@ export const validateResourceUpdateRequest =
 export const executeResourceUpdateApproval =
   (dependencies: ResourceUpdateApprovalHandlerDependencies) =>
   async (input: ApprovedInput): Promise<Result<ApprovedOutput, HandlerError>> => {
-    const { getCatalogConfig, checkCanApproveResourceUpdate, updatePendingUpdateParams } = dependencies;
-    const logger = createStampHubLogger();
+    const { getCatalogConfig, checkCanApproveResourceUpdate, updatePendingUpdateParams, logger } = dependencies;
 
     const handlerInput = ResourceUpdateApprovalHandlerInput.safeParse(input.inputParams);
 
@@ -195,7 +197,6 @@ export const executeResourceUpdateApproval =
       })
       .andThen((result) => {
         logger.info("Resource update executed successfully", result);
-        logger.info("Approval request canceled successfully");
         return updatePendingUpdateParams({
           catalogId: catalogId.value,
           resourceTypeId: resourceTypeId.value,
@@ -211,20 +212,62 @@ export const executeResourceUpdateApproval =
         return okAsync(approvedOutput);
       })
       .orElse((error) => {
-        logger.error("Error executing resource update approval", {
-          error: error.message,
-          errorType: error.constructor.name,
-          isHandlerError: error instanceof HandlerError,
-          errorCode: error instanceof HandlerError ? error.code : undefined,
+        return dependencies.errorHandling({
+          error,
+          catalogId: catalogId.value,
+          resourceTypeId: resourceTypeId.value,
+          resourceId: resourceId.value,
         });
+      });
+  };
 
+export type ErrorHandlingForCancelUpdateResourceParamsWithApproval = (input: {
+  error: HandlerError | StampHubError | DBError;
+  catalogId: string;
+  resourceTypeId: string;
+  resourceId: string;
+}) => ResultAsync<ApprovedOutput, never>;
+
+export const errorHandlingForCancelUpdateResourceParamsWithApproval =
+  (providers: {
+    logger: Logger;
+    updatePendingUpdateParams: ResourceDBProvider["updatePendingUpdateParams"];
+  }): ErrorHandlingForCancelUpdateResourceParamsWithApproval =>
+  (input) => {
+    const { logger, updatePendingUpdateParams } = providers;
+    logger.error("Error executing resource update approval", {
+      error: input.error.message,
+      errorType: input.error.constructor.name,
+      isHandlerError: input.error instanceof HandlerError,
+      errorCode: input.error instanceof HandlerError ? input.error.code : undefined,
+    });
+    return updatePendingUpdateParams({
+      catalogId: input.catalogId,
+      resourceTypeId: input.resourceTypeId,
+      id: input.resourceId,
+      pendingUpdateParams: undefined, // Clear pending update params
+    })
+      .andThen(() => {
+        const message =
+          input.error instanceof HandlerError
+            ? `Failed to execute resource update approval: ${input.error.message}`
+            : `An error occurred while processing the request.`;
         const errorResponse = {
-          message: `Failed to execute resource update approval: ${error.message}`,
+          message,
           isSuccess: false,
-          errorCode: error instanceof HandlerError ? error.code : undefined,
         };
         logger.info("Returning error response", errorResponse);
         return okAsync(errorResponse);
+      })
+      .orElse((error) => {
+        logger.error("Error clearing pending update params", {
+          error: error.message,
+          errorType: error.constructor.name,
+        });
+        return okAsync({
+          message: `Failed to execute resource update approval: ${input.error.message}. Also failed to reset the update status for the resource.`,
+          isSuccess: false,
+        });
       });
   };
 
