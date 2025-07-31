@@ -52,19 +52,15 @@ export const cancelUpdateResourceParamsWithApproval =
           return errAsync(new StampHubError("No matching pending update for this resource", "No Matching Pending Update", "BAD_REQUEST"));
         }
         const pendingUpdateParams = resource.pendingUpdateParams; // Store for type safety
-        // 2. Fetch approval request and validate it exists and is pending first
+        // Fetch approval request and validate it exists and is pending first
         return approvalRequestDBProvider.getById(pendingUpdateParams.approvalRequestId).andThen((approvalOpt) => {
           if (approvalOpt.isNone()) {
             return errAsync(new StampHubError("Approval request not found", "Approval Request Not Found", "NOT_FOUND"));
           }
           const approval = approvalOpt.value;
-          // 3. Check if the approval request matches the pending update
+          // Check if the approval request matches the pending update
           if (approval.status === "pending") {
-            logger.info("Approval request is pending, proceeding to cancel update");
-            if (pendingUpdateParams.approvalRequestId !== input.approvalRequestId) {
-              return errAsync(new StampHubError("No matching pending update for this resource", "No Matching Pending Update", "BAD_REQUEST"));
-            }
-            // 4. Mark approval request as canceled (using events layer)
+            // Mark approval request as canceled
             return cancelApprovalRequest(approvalRequestDBProvider.updateStatusToCanceled)({
               catalogId: input.catalogId,
               approvalFlowId: approval.approvalFlowId,
