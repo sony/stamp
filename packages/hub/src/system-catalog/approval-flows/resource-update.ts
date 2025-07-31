@@ -248,8 +248,12 @@ export const errorHandlingForCancelUpdateResourceParamsWithApproval =
       pendingUpdateParams: undefined, // Clear pending update params
     })
       .andThen(() => {
+        const message =
+          input.error instanceof HandlerError
+            ? `Failed to execute resource update approval: ${input.error.message}`
+            : `An error occurred while processing the request.`;
         const errorResponse = {
-          message: "An error occurred while processing the request.",
+          message,
           isSuccess: false,
         };
         logger.info("Returning error response", errorResponse);

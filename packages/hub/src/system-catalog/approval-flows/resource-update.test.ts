@@ -468,6 +468,44 @@ describe("errorHandlingForCancelUpdateResourceParamsWithApproval", () => {
       })
     );
   });
+
+  it("should return generic error message for non-HandlerError when updatePendingUpdateParams succeeds", async () => {
+    const nonHandlerError = new Error("Network timeout");
+    const inputWithNonHandlerError = {
+      ...input,
+      error: nonHandlerError,
+    };
+
+    mockUpdatePendingUpdateParams.mockReturnValue(okAsync({}));
+
+    const errorHandling = errorHandlingForCancelUpdateResourceParamsWithApproval(providers);
+    const result = await errorHandling(inputWithNonHandlerError);
+
+    expect(result.isOk()).toBe(true);
+    const value = result._unsafeUnwrap();
+    expect(value.isSuccess).toBe(false);
+    expect(value.message).toBe("An error occurred while processing the request.");
+
+    // Verify updatePendingUpdateParams was called to clear pending params
+    expect(mockUpdatePendingUpdateParams).toHaveBeenCalledWith({
+      catalogId: "cat-1",
+      resourceTypeId: "type-1",
+      id: "res-1",
+      pendingUpdateParams: undefined,
+    });
+
+    // Verify logging
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      "Error executing resource update approval",
+      expect.objectContaining({
+        error: "Network timeout",
+        errorType: "Error",
+        isHandlerError: false,
+        errorCode: undefined,
+      })
+    );
+    expect(mockLogger.info).toHaveBeenCalledWith("Returning error response", value);
+  });
 });
 
 describe("checkCanApproveResourceUpdate", () => {
