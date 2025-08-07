@@ -133,10 +133,13 @@ Use CDK (or similar) to deploy the container. Update the container’s IAM Execu
         "sso:CreateAccountAssignment",
         "sso:CreatePermissionSet",
         "sso:UpdatePermissionSet",
+        "sso:GetInlinePolicyForPermissionSet",
         "sso:PutInlinePolicyToPermissionSet",
+        "sso:DeleteInlinePolicyFromPermissionSet",
         "sso:DeleteAccountAssignment",
         "sso:DeletePermissionSet",
         "sso:AttachManagedPolicyToPermissionSet",
+        "sso:DetachManagedPolicyFromPermissionSet",
         "sso:AttachCustomerManagedPolicyReferenceToPermissionSet",
         "sso:ProvisionPermissionSet"
       ],
