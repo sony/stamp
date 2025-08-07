@@ -868,5 +868,231 @@ describe("rejectWorkflow", () => {
       expect(result.isOk()).toBe(false);
       expect(result._unsafeUnwrapErr().message).toBe("Approval request is not pending. Current status is approved");
     });
+
+    describe("rejectWorkflow that approverType is requestSpecified", () => {
+      it("should reject a pending approval request that approverType is requestSpecified", async () => {
+        const testApprovalFlowHandler: ApprovalFlowHandler = {
+          approvalRequestValidation: vi.fn(),
+          approved: vi.fn(),
+          revoked: vi.fn(),
+        };
+
+        const getCatalogConfigProvider: CatalogConfigProvider["get"] = vi.fn().mockReturnValue(
+          okAsync(
+            some({
+              id: "test-catalog-id",
+              name: "test-catalog",
+              description: "catalogDescription",
+              approvalFlows: [
+                {
+                  id: "test-approval-flow-id",
+                  name: "testApprovalFlowName",
+                  description: "testApprovalFlowDescription",
+                  inputParams: [],
+                  handlers: testApprovalFlowHandler,
+                  inputResources: [],
+                  approver: { approverType: "requestSpecified" },
+                },
+              ],
+              resourceTypes: [],
+            })
+          )
+        );
+
+        const getApprovalRequestById: ApprovalRequestDBProvider["getById"] = vi.fn().mockReturnValue(
+          okAsync(
+            some({
+              userIdWhoApproved: "13f6d758-cea9-bfab-ffaf-9e012ddacf47",
+              requestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
+              requestDate: new Date().toISOString(),
+              approvalFlowId: "test-approval-flow-id",
+              requestUserId: "dbf33b00-8a5f-e045-4aa1-2d943cb659b6",
+              approverId: "8204a484-c5da-4648-810a-c095e2d473a3",
+              inputParams: [],
+              inputResources: [],
+              status: "pending",
+              catalogId: "test-catalog-id",
+              approverType: "group",
+              requestComment: "test request comment",
+              validatedDate: new Date().toISOString(),
+              validationHandlerResult: {
+                isSuccess: true,
+                message: "test validation success message",
+              },
+              approvedDate: new Date().toISOString(),
+              approvedComment: "test approved comment",
+            })
+          )
+        );
+
+        const updateApprovalRequestStatusToRejected: ApprovalRequestDBProvider["updateStatusToRejected"] = vi.fn().mockReturnValue(
+          okAsync({
+            userIdWhoApproved: "13f6d758-cea9-bfab-ffaf-9e012ddacf47",
+            requestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
+            requestDate: new Date().toISOString(),
+            approvalFlowId: "test-approval-flow-id",
+            requestUserId: "dbf33b00-8a5f-e045-4aa1-2d943cb659b6",
+            approverId: "8204a484-c5da-4648-810a-c095e2d473a3",
+            inputParams: [],
+            inputResources: [],
+            status: "rejected",
+            catalogId: "test-catalog-id",
+            approverType: "group",
+            requestComment: "test request comment",
+            validatedDate: new Date().toISOString(),
+            validationHandlerResult: {
+              isSuccess: true,
+              message: "test validation success message",
+            },
+            approvedDate: new Date().toISOString(),
+            approvedComment: "test approved comment",
+          })
+        );
+
+        const getApprovalFlowById: ApprovalFlowDBProvider["getById"] = vi.fn().mockReturnValue(okAsync(none));
+        const getResourceById: ResourceDBProvider["getById"] = vi.fn();
+        const getGroupMemberShip: GroupMemberShipProvider["get"] = vi.fn().mockReturnValue(
+          okAsync(
+            some({
+              userId: "13f6d758-cea9-bfab-ffaf-9e012ddacf47",
+              groupId: "8204a484-c5da-4648-810a-c095e2d473a3",
+              role: "owner",
+              createdAt: "2021-09-01T00:00:00Z",
+              updatedAt: "2021-09-01T00:00:00Z",
+            })
+          )
+        );
+
+        const workflow = rejectWorkflow({
+          getCatalogConfigProvider,
+          getApprovalRequestById,
+          updateApprovalRequestStatusToRejected,
+          getApprovalFlowById,
+          getResourceById,
+          getGroupMemberShip,
+        });
+
+        const input: RejectWorkflowInput = {
+          approvalRequestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
+          rejectComment: "test reject comment",
+          userIdWhoRejected: "13f6d758-cea9-bfab-ffaf-9e012ddacf47",
+        };
+
+        const result = await workflow(input);
+        expect(result.isOk()).toBe(true);
+        expect(result._unsafeUnwrap().status).toBe("rejected");
+        expect(getGroupMemberShip).toHaveBeenCalledWith({
+          userId: "13f6d758-cea9-bfab-ffaf-9e012ddacf47",
+          groupId: "8204a484-c5da-4648-810a-c095e2d473a3",
+        });
+      });
+
+      it("should return error if requester is not approver and approverType is requestSpecified", async () => {
+        const testApprovalFlowHandler: ApprovalFlowHandler = {
+          approvalRequestValidation: vi.fn(),
+          approved: vi.fn(),
+          revoked: vi.fn(),
+        };
+
+        const getCatalogConfigProvider: CatalogConfigProvider["get"] = vi.fn().mockReturnValue(
+          okAsync(
+            some({
+              id: "test-catalog-id",
+              name: "test-catalog",
+              description: "catalogDescription",
+              approvalFlows: [
+                {
+                  id: "test-approval-flow-id",
+                  name: "testApprovalFlowName",
+                  description: "testApprovalFlowDescription",
+                  inputParams: [],
+                  handlers: testApprovalFlowHandler,
+                  inputResources: [],
+                  approver: { approverType: "requestSpecified" },
+                },
+              ],
+              resourceTypes: [],
+            })
+          )
+        );
+
+        const getApprovalRequestById: ApprovalRequestDBProvider["getById"] = vi.fn().mockReturnValue(
+          okAsync(
+            some({
+              userIdWhoApproved: "13f6d758-cea9-bfab-ffaf-9e012ddacf47",
+              requestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
+              requestDate: new Date().toISOString(),
+              approvalFlowId: "test-approval-flow-id",
+              requestUserId: "dbf33b00-8a5f-e045-4aa1-2d943cb659b6",
+              approverId: "8204a484-c5da-4648-810a-c095e2d473a3",
+              inputParams: [],
+              inputResources: [],
+              status: "pending",
+              catalogId: "test-catalog-id",
+              approverType: "group",
+              requestComment: "test request comment",
+              validatedDate: new Date().toISOString(),
+              validationHandlerResult: {
+                isSuccess: true,
+                message: "test validation success message",
+              },
+              approvedDate: new Date().toISOString(),
+              approvedComment: "test approved comment",
+            })
+          )
+        );
+
+        const updateApprovalRequestStatusToRejected: ApprovalRequestDBProvider["updateStatusToRejected"] = vi.fn().mockReturnValue(
+          okAsync({
+            userIdWhoApproved: "13f6d758-cea9-bfab-ffaf-9e012ddacf47",
+            requestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
+            requestDate: new Date().toISOString(),
+            approvalFlowId: "test-approval-flow-id",
+            requestUserId: "dbf33b00-8a5f-e045-4aa1-2d943cb659b6",
+            approverId: "8204a484-c5da-4648-810a-c095e2d473a3",
+            inputParams: [],
+            inputResources: [],
+            status: "rejected",
+            catalogId: "test-catalog-id",
+            approverType: "group",
+            requestComment: "test request comment",
+            validatedDate: new Date().toISOString(),
+            validationHandlerResult: {
+              isSuccess: true,
+              message: "test validation success message",
+            },
+            approvedDate: new Date().toISOString(),
+            approvedComment: "test approved comment",
+          })
+        );
+
+        const getApprovalFlowById: ApprovalFlowDBProvider["getById"] = vi.fn().mockReturnValue(okAsync(none));
+        const getResourceById: ResourceDBProvider["getById"] = vi.fn();
+        const getGroupMemberShip: GroupMemberShipProvider["get"] = vi.fn().mockReturnValue(okAsync(none));
+
+        const workflow = rejectWorkflow({
+          getCatalogConfigProvider,
+          getApprovalRequestById,
+          updateApprovalRequestStatusToRejected,
+          getApprovalFlowById,
+          getResourceById,
+          getGroupMemberShip,
+        });
+
+        const input: RejectWorkflowInput = {
+          approvalRequestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
+          rejectComment: "test reject comment",
+          userIdWhoRejected: "13f6d758-cea9-bfab-ffaf-9e012ddacf47",
+        };
+
+        const result = await workflow(input);
+        expect(result.isOk()).toBe(false);
+        expect(result._unsafeUnwrapErr().message).toBe("Permission denied");
+        expect(getGroupMemberShip).toHaveBeenCalledWith({
+          userId: "13f6d758-cea9-bfab-ffaf-9e012ddacf47",
+          groupId: "8204a484-c5da-4648-810a-c095e2d473a3",
+        });
+      });
+    });
   });
 });

@@ -8,7 +8,11 @@ import { GroupMemberShipProvider, UserId } from "@stamp-lib/stamp-types/pluginIn
 import { createRejectApprovalRequest } from "../../events/approval-request/actions/reject";
 
 import { RejectedRequest } from "@stamp-lib/stamp-types/models";
-import { checkCanRejectRequestForResource, checkCanRejectRequestForFlow } from "../../events/approval-request/authz/reject";
+import {
+  checkCanRejectRequestForResource,
+  checkCanRejectRequestForFlow,
+  checkCanRejectRequestForRequestSpecified,
+} from "../../events/approval-request/authz/reject";
 import { createGetCatalogConfig } from "../../events/catalog/catalogConfig";
 import { CatalogConfigProvider } from "@stamp-lib/stamp-types/configInterface";
 import { getApprovalFlowConfig } from "../../events/approval-flow/approvalFlowConfig";
@@ -93,8 +97,13 @@ export const rejectWorkflow =
               return checkCanRejectRequestForResource(getGroupMemberShip)({ ...extendApprovalRequest, resourceOnDB: resource.value });
             }
           });
+        } else if (approvalFlowConfig.approver.approverType === "requestSpecified") {
+          return checkCanRejectRequestForRequestSpecified(getGroupMemberShip)({
+            ...extendApprovalRequest,
+            request: extendApprovalRequest,
+          });
         } else {
-          // Return Internal server error because approverType is only approvalFlow or resource.
+          // Return Internal server error because approverType is only approvalFlow, resource, or requestSpecified.
           return errAsync(new StampHubError("Approver type not found", "Approver Type Not Found", "INTERNAL_SERVER_ERROR"));
         }
       })
