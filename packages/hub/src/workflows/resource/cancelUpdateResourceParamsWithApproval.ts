@@ -77,9 +77,9 @@ export const cancelUpdateResourceParamsWithApproval =
                 pendingUpdateParams: undefined, // Clear pending update params
               });
             });
-          } else if (approval.status === "approvedActionFailed") {
-            // If the approval request is already approved with action failed, we clear the pending update params
-            logger.info("Approval request is already approved with action failed, clearing pending update params");
+          } else if (approval.status === "approvedActionFailed" || approval.status === "rejected") {
+            // If the approval request is already approved with action failed or rejected, we clear the pending update params
+            logger.info("Approval request is already approved with action failed or rejected, clearing pending update params");
             return resourceDBProvider.updatePendingUpdateParams({
               catalogId: input.catalogId,
               resourceTypeId: input.resourceTypeId,
@@ -87,7 +87,7 @@ export const cancelUpdateResourceParamsWithApproval =
               pendingUpdateParams: undefined, // Clear pending update params
             });
           } else {
-            logger.warn("Approval request is not pending or approvedActionFailed, cannot cancel update", {
+            logger.warn("Approval request is not pending or approvedActionFailed or rejected, cannot cancel update", {
               approvalStatus: approval.status,
               catalogId: input.catalogId,
               resourceTypeId: input.resourceTypeId,
@@ -95,8 +95,8 @@ export const cancelUpdateResourceParamsWithApproval =
             });
             return errAsync(
               new StampHubError(
-                "Approval request is not pending or approvedActionFailed",
-                "Approval request is not pending or approvedActionFailed",
+                "Approval request is not pending or approvedActionFailed or rejected",
+                "Approval request is not pending or approvedActionFailed or rejected",
                 "BAD_REQUEST"
               )
             );
