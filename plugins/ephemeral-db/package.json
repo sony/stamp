@@ -1,6 +1,6 @@
 {
   "name": "@stamp-lib/stamp-ephemeral-db-plugin",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,8 +13,8 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "@stamp-lib/stamp-logger": "^0.7.0",
-    "@stamp-lib/stamp-types": "^0.7.0",
+    "@stamp-lib/stamp-logger": "^0.7.1",
+    "@stamp-lib/stamp-types": "^0.7.1",
     "neverthrow": "^6.1.0",
     "zod": "^3.22.4"
   },
