@@ -164,7 +164,7 @@ async function ApprovalRequestsTable({ approvalRequests }: { approvalRequests: A
 }
 
 async function TableRow({ approvalRequest }: { approvalRequest: ApprovalRequest }) {
-  const requestUserName = await getUserName({ userId: approvalRequest.requestUserId });
+  const requestUserName = await getUserName(approvalRequest.requestUserId);
   return (
     <Table.Row key={approvalRequest.requestId} align="center">
       <Table.Cell>
