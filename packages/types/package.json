@@ -1,6 +1,6 @@
 {
   "name": "@stamp-lib/stamp-types",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -24,7 +24,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@stamp-lib/stamp-option": "^0.7.2",
+    "@stamp-lib/stamp-option": "^0.7.3",
     "neverthrow": "^6.1.0",
     "zod": "^3.22.4"
   },
