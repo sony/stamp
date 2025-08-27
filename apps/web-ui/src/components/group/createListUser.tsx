@@ -33,7 +33,7 @@ export function ListUser() {
 
   React.useEffect(() => {
     (async () => {
-      const userList = await getUserList({ limit: 100 });
+      const userList = await getUserList({ limit: 1000 });
       const items = userList.map((user) =>
         // Add a field that combines userName and email
         ({ ...user, userNameEmail: `${user.userName.trim()} (${user.email.trim()})` })
