@@ -135,8 +135,8 @@ export default async function Page({
   );
 }
 
-async function getUserName({ userId }: { userId: string }) {
-  const user = await unwrapOr(cacheStampHubClient.systemRequest.user.get.query({ userId: userId }), undefined);
+async function getUserName(userId: string) {
+  const user = await unwrapOr(cacheStampHubClient.systemRequest.user.get.query({ userId }), undefined);
   return user?.userName ?? userId;
 }
 
