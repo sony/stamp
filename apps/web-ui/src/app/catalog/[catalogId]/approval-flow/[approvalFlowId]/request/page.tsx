@@ -135,9 +135,9 @@ export default async function Page({
   );
 }
 
-async function getUser(userId: string) {
-  const res = await cacheStampHubClient.systemRequest.user.get.query({ userId });
-  return res;
+async function getUserName(userId: string) {
+  const user = await unwrapOr(cacheStampHubClient.systemRequest.user.get.query({ userId }), undefined);
+  return user?.userName ?? userId;
 }
 
 async function ApprovalRequestsTable({ approvalRequests }: { approvalRequests: ApprovalRequest[] }) {
@@ -164,7 +164,7 @@ async function ApprovalRequestsTable({ approvalRequests }: { approvalRequests: A
 }
 
 async function TableRow({ approvalRequest }: { approvalRequest: ApprovalRequest }) {
-  const requestUser = await getUser(approvalRequest.requestUserId);
+  const requestUserName = await getUserName(approvalRequest.requestUserId);
   return (
     <Table.Row key={approvalRequest.requestId} align="center">
       <Table.Cell>
@@ -181,7 +181,7 @@ async function TableRow({ approvalRequest }: { approvalRequest: ApprovalRequest 
           </Flex>
         </Link>
       </Table.Cell>
-      <Table.Cell>{requestUser.userName}</Table.Cell>
+      <Table.Cell>{requestUserName}</Table.Cell>
       <Table.Cell>
         <GroupLink groupId={approvalRequest.approverId} />
       </Table.Cell>
