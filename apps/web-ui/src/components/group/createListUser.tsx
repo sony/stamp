@@ -6,25 +6,11 @@ import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
 import { Button, Flex, Popover, Text } from "@radix-ui/themes";
 import React, { useState } from "react";
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from "../combobox/command";
+import { listUsers } from "@/client-lib/api-clients/user";
 
 type UserItem = StampUser & {
   userNameEmail: string; // format: userName (email)
 };
-
-async function getUserList({ limit, paginationToken }: { limit: number; paginationToken?: string }): Promise<Array<StampUser>> {
-  let url = `/api/user/list?limit=${limit}`;
-  if (paginationToken) {
-    url += `&paginationToken=${paginationToken}`;
-  }
-  const result = await fetch(url);
-  if (!result.ok) throw new Error(`Failed to fetch resources: ${result.statusText}`);
-  const response = (await result.json()) as StampHubRouterOutput["systemRequest"]["user"]["list"];
-  if (response.nextPaginationToken) {
-    const nextItems = await getUserList({ limit, paginationToken: response.nextPaginationToken });
-    return response.users.concat(nextItems);
-  }
-  return response.users;
-}
 
 export function ListUser() {
   const [userItems, setUserItems] = useState<Array<UserItem> | undefined>(undefined);
@@ -33,7 +19,7 @@ export function ListUser() {
 
   React.useEffect(() => {
     (async () => {
-      const userList = await getUserList({ limit: 1000 });
+      const userList = await listUsers();
       const items = userList.map((user) =>
         // Add a field that combines userName and email
         ({ ...user, userNameEmail: `${user.userName.trim()} (${user.email.trim()})` })

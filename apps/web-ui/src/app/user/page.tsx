@@ -40,8 +40,8 @@ export default async function Page() {
 }
 
 async function UserTable() {
-  // Review the UI when the specified number of groups is exceeded
-  const users = await listUsers(200);
+  // Review the UI when the specified number is exceeded
+  const users = await listUsers(1000);
 
   return (
     <Container size="3" px="8">
