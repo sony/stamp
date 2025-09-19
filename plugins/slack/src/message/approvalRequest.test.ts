@@ -10,11 +10,19 @@ describe("notifySlack", () => {
   const requestId = "1234567890";
 
   it("Success case with valid token and existing channel", async () => {
+    if (!slackBotToken || !slackChannelId) {
+      console.log("Skipping Slack API test - environment variables not set");
+      return;
+    }
     const response = await notifySlack(slackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId);
     expect(response.ok).toBe(true);
   });
 
   it("Failure case with invalid token", async () => {
+    if (!slackChannelId) {
+      console.log("Skipping Slack API test - environment variables not set");
+      return;
+    }
     const errorSlackBotToken = "invalid-token";
     try {
       await notifySlack(errorSlackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId);
@@ -25,6 +33,10 @@ describe("notifySlack", () => {
   });
 
   it("Failure case specifying not exist channel", async () => {
+    if (!slackBotToken) {
+      console.log("Skipping Slack API test - environment variables not set");
+      return;
+    }
     const errorSlackChannelId = "#not-exist";
     try {
       await notifySlack(slackBotToken, errorSlackChannelId, customMessage, messagePayload, requestComment, requestId);
