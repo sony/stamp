@@ -16,7 +16,7 @@ export const rejectButtonActionLazyHandler =
     const timeStamp = new Date().toISOString();
 
     if (context.respond) {
-      const originalBlocks = (payload.message ? payload.message["blocks"] : []) as AnyMessageBlock[];
+      const originalBlocks = ("message" in payload ? payload.message["blocks"] : []) as AnyMessageBlock[];
       const accountLink = await getAccountLink({ slackUserId });
       if (accountLink.isErr()) {
         originalBlocks.push({
