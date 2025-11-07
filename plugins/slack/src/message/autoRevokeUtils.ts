@@ -1,4 +1,6 @@
-// Parse ISO 8601 duration format (e.g., "P7D" for 7 days, "PT12H" for 12 hours, "P1DT2H" for 1 day 2 hours)
+// Parse simplified ISO 8601 duration format supporting only days (D) and hours (H).
+// Supported examples: "P7D" for 7 days, "PT12H" for 12 hours, "P1DT2H" for 1 day 2 hours.
+// Does NOT support years (Y), months (M), weeks (W), minutes (M), or seconds (S).
 export const parseAutoRevokeDuration = (duration: string): { days: number; hours: number } | null => {
   const durationMatch = duration.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?)?$/);
   if (durationMatch) {
