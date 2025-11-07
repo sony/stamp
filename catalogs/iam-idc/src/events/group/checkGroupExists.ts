@@ -5,7 +5,6 @@ import { Logger } from "@stamp-lib/stamp-logger";
 type Config = { region: string; identityStoreId: string };
 type CheckGroupExistsInput = {
   groupName: string;
-  permissionId: string;
 };
 
 /**
