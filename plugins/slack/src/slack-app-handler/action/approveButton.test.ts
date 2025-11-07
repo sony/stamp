@@ -1,7 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { WebClient } from "@slack/web-api";
-import type { ChatPostMessageArguments, ChatUpdateArguments } from "@slack/web-api";
-import type { Block, KnownBlock } from "@slack/types";
+import { SlackAPIClient } from "slack-web-api-client";
 import { createLogger } from "@stamp-lib/stamp-logger";
 import { okAsync } from "neverthrow";
 import { some } from "@stamp-lib/stamp-option";
@@ -15,8 +13,8 @@ const channelId = process.env.SLACK_CHANNEL_ID;
 const isSectionBlock = (block: AnyMessageBlock): block is SectionBlock => block.type === "section";
 
 const postInitialSlackMessage = async (
-  webClient: WebClient,
-  testWebClient: WebClient,
+  webClient: SlackAPIClient,
+  testWebClient: SlackAPIClient,
   channelId: string,
   requestId: string
 ): Promise<{ postedMessageTs: string; originalBlocks: AnyMessageBlock[] }> => {
@@ -48,8 +46,8 @@ const postInitialSlackMessage = async (
   const postResponse = await webClient.chat.postMessage({
     channel: channelId,
     text: "Approval request (integration test)",
-    blocks: initialBlocks as unknown as (KnownBlock | Block)[],
-  } as ChatPostMessageArguments);
+    blocks: initialBlocks,
+  });
 
   if (!postResponse.ok || !postResponse.ts) {
     throw new Error("Failed to post initial Slack message for integration test");
@@ -88,8 +86,8 @@ describe("approveButtonActionLazyHandler integration", () => {
   const slackApproverId = "test_user";
 
   it("updates Slack message when approval succeeds", async () => {
-    const webClient = new WebClient(slackToken);
-    const testWebClient = new WebClient(slackTestToken);
+    const webClient = new SlackAPIClient(slackToken);
+    const testWebClient = new SlackAPIClient(slackTestToken);
     const logger = createLogger("DEBUG", { moduleName: "slack-approve-button-test" });
     const requestId = `integration-test-${Date.now()}`;
     const approvedComment = "Approved via integration test";
@@ -146,8 +144,8 @@ describe("approveButtonActionLazyHandler integration", () => {
           channel: slackChannelId,
           ts: postedMessageTs,
           text,
-          blocks: blocks as unknown as (KnownBlock | Block)[],
-        } as ChatUpdateArguments);
+          blocks,
+        });
       },
     };
 
