@@ -138,7 +138,7 @@ export const generateMessageFromPendingRequest = (logger: Logger, getStampHubUse
   if (pendingRequest.autoRevokeDuration) {
     const duration = formatAutoRevokeDuration(pendingRequest.autoRevokeDuration);
     if (duration) {
-      messagePayload += `\n*Auto-Revoke*: This approval will be automatically revoked after ${duration}`;
+      messagePayload += `\n*Auto-Revoke*: This approval will be automatically revoked in ${duration}`;
     }
   }
 
