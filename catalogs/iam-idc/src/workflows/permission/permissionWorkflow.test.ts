@@ -19,6 +19,25 @@ const config = {
   permissionTableName: `${process.env.IAM_IDC_DYNAMO_TABLE_PREFIX}-iam-idc-Permission`,
   permissionIdPrefix: "ST",
 };
+
+async function cleanupExistingPermissions(targetAwsAccountId: string, permissionSetNameIds: string[], userName1: string, userName2: string) {
+  for (const permissionSetNameId of permissionSetNameIds) {
+    const permissionId = `${config.permissionIdPrefix}-${permissionSetNameId}-${targetAwsAccountId}`;
+
+    // Try to get the permission to check if it exists
+    const getResult = await getPermission(logger, config)({ permissionId });
+
+    if (getResult.isOk()) {
+      console.log(`Cleaning up existing permission: ${permissionId}`);
+      try {
+        await revokeAndDeletePermission(permissionId, userName1, userName2);
+      } catch (error) {
+        console.warn(`Failed to cleanup permission ${permissionId}:`, error);
+      }
+    }
+  }
+}
+
 async function createAndApprovePermission(input: CreatePermissionInput, userName1: string, userName2: string) {
   const resultAsync = createPermission(logger, config)(input);
   const result = await resultAsync;
@@ -87,7 +106,11 @@ describe(
     const userName1: string = process.env.EXISTING_USER_NAME!;
     const userName2: string = process.env.EXISTING_USER_NAME_2!;
     const targetAwsAccountId = process.env.TARGET_AWS_ACCOUNT_ID!;
+
     beforeAll(async () => {
+      // Clean up any existing permissions from previous test runs
+      await cleanupExistingPermissions(targetAwsAccountId, ["Unit-test", "Unit-test1"], userName1, userName2);
+
       const input1: CreatePermissionInput = {
         name: "approval workflow unit test1",
         description: "Unit-test-1",
@@ -104,6 +127,10 @@ describe(
       if (permissionId1) {
         await revokeAndDeletePermission(permissionId1, userName1, userName2);
         permissionId1 = null;
+      }
+      if (permissionId) {
+        await revokeAndDeletePermission(permissionId, userName1, userName2);
+        permissionId = null;
       }
     });
 
@@ -365,17 +392,48 @@ describe(
       expect(error.code).toBe("NOT_FOUND");
     });
 
-    it("normal case of deletePermission", async () => {
-      if (permissionId === null) throw new Error("permissionId is undefined.");
-      const input: DeletePermissionInput = {
-        permissionId: permissionId,
+    it("createPermission should fail when group with case-insensitive duplicate name exists", async () => {
+      // Try to create a permission with different case version of existing permission set name
+      // The existing permission has "Unit-test" as permissionSetNameId
+      const lowerCaseInput: CreatePermissionInput = {
+        name: "case sensitivity test",
+        description: "Testing case sensitivity - should fail",
+        awsAccountId: targetAwsAccountId,
+        permissionSetNameId: "unit-test", // Same name but different case
+        managedIamPolicyNames: ["ReadOnlyAccess"],
+        customIamPolicyNames: [],
+        sessionDuration: "PT8H",
       };
-      const resultAsync = deletePermission(logger, config)(input);
-      const result = await resultAsync;
-      if (result.isErr()) {
-        throw result.error;
-      }
-      expect(result.value).toEqual(void 0);
+
+      const lowerCaseResult = await createPermission(logger, config)(lowerCaseInput);
+
+      // This should fail because the group name would conflict (case-insensitive)
+      expect(lowerCaseResult.isErr()).toBe(true);
+      const error = lowerCaseResult._unsafeUnwrapErr();
+      expect(error.message).toContain("cannot be used");
+      expect(error.code).toBe("BAD_REQUEST");
+    });
+
+    it("createPermission should fail when exact same permission set name exists", async () => {
+      // Try to create another permission with the exact same permission set name
+      // The existing permission has "Unit-test" as permissionSetNameId
+      const duplicateInput: CreatePermissionInput = {
+        name: "duplicate test",
+        description: "Testing exact duplicate - should fail",
+        awsAccountId: targetAwsAccountId,
+        permissionSetNameId: "Unit-test", // Exact same name
+        managedIamPolicyNames: ["ReadOnlyAccess"],
+        customIamPolicyNames: [],
+        sessionDuration: "PT8H",
+      };
+
+      const duplicateResult = await createPermission(logger, config)(duplicateInput);
+
+      // This should fail because permission with same ID already exists
+      expect(duplicateResult.isErr()).toBe(true);
+      const error = duplicateResult._unsafeUnwrapErr();
+      expect(error.message).toContain("already exists");
+      expect(error.code).toBe("BAD_REQUEST");
     });
   },
   { timeout: 100000 }

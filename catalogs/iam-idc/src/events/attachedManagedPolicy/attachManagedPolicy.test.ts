@@ -113,7 +113,7 @@ describe("attachManagedPolicy", () => {
     expect.assertions(2);
     expect(result.isOk()).toBe(false);
     if (result.isErr()) {
-      expect(result.error.userMessage).toContain("Given managed policy ARN");
+      expect(result.error.message).toContain("managedPolicyArn");
     }
   });
 
@@ -133,7 +133,7 @@ describe("attachManagedPolicy", () => {
     expect.assertions(2);
     expect(result.isOk()).toBe(false);
     if (result.isErr()) {
-      expect(result.error.userMessage).toContain("Policy does not exist");
+      expect(result.error.message).toContain("Policy does not exist");
     }
   });
 

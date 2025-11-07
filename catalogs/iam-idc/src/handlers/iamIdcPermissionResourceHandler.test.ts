@@ -1,4 +1,4 @@
-import { expect, it, describe } from "vitest";
+import { expect, it, describe, beforeAll, afterAll } from "vitest";
 import { ResourceOutput } from "@stamp-lib/stamp-types/catalogInterface/handler";
 import { createIamIdcPermissionResourceHandler } from "./iamIdcPermissionResourceHandler";
 import { some } from "@stamp-lib/stamp-option";
@@ -48,6 +48,39 @@ describe(
       permissionIdPrefix: "ST",
     });
     let resourceId: string | null = null;
+
+    beforeAll(async () => {
+      // Clean up existing permission if it exists
+      const testPermissionId = `ST-${permissionSetNameId}-${targetAwsAccountId}`;
+      try {
+        const existingResource = await iamIdcPermissionResourceHandler.getResource({
+          resourceTypeId: resourceTypeId,
+          resourceId: testPermissionId,
+        });
+        if (existingResource.isOk()) {
+          console.log(`Cleaning up existing permission: ${testPermissionId}`);
+          await iamIdcPermissionResourceHandler.deleteResource({
+            resourceTypeId: resourceTypeId,
+            resourceId: testPermissionId,
+          });
+        }
+      } catch (error) {
+        console.warn(`Failed to cleanup permission ${testPermissionId}:`, error);
+      }
+    });
+
+    afterAll(async () => {
+      if (resourceId) {
+        try {
+          await iamIdcPermissionResourceHandler.deleteResource({
+            resourceTypeId: resourceTypeId,
+            resourceId: resourceId,
+          });
+        } catch (error) {
+          console.warn(`Failed to cleanup resourceId ${resourceId}:`, error);
+        }
+      }
+    });
 
     it("Testing the successful case of createResource in iamIdcPermissionResourceHandler", async () => {
       const resultAsync = iamIdcPermissionResourceHandler.createResource({
@@ -174,6 +207,26 @@ describe(
     });
     let resourceId: string | null = null;
 
+    beforeAll(async () => {
+      // Clean up existing permission if it exists
+      const testPermissionId = `ST-${permissionSetNameId}-${targetAwsAccountId}`;
+      try {
+        const existingResource = await iamIdcPermissionResourceHandler.getResource({
+          resourceTypeId: resourceTypeId,
+          resourceId: testPermissionId,
+        });
+        if (existingResource.isOk()) {
+          console.log(`Cleaning up existing permission: ${testPermissionId}`);
+          await iamIdcPermissionResourceHandler.deleteResource({
+            resourceTypeId: resourceTypeId,
+            resourceId: testPermissionId,
+          });
+        }
+      } catch (error) {
+        console.warn(`Failed to cleanup permission ${testPermissionId}:`, error);
+      }
+    });
+
     it("should fail to createResource when managedIamPolicyNames and customIamPolicyNames exceed 10", async () => {
       const excessiveManagedIamPolicyNames = Array(6).fill("ManagedPolicy");
       const excessiveCustomIamPolicyNames = Array(5).fill("CustomPolicy");
@@ -237,6 +290,26 @@ describe(
       permissionIdPrefix: "ST",
     });
     let resourceId: string | null = null;
+
+    beforeAll(async () => {
+      // Clean up existing permission if it exists
+      const testPermissionId = `ST-${permissionSetNameId}-${targetAwsAccountId}`;
+      try {
+        const existingResource = await iamIdcPermissionResourceHandler.getResource({
+          resourceTypeId: resourceTypeId,
+          resourceId: testPermissionId,
+        });
+        if (existingResource.isOk()) {
+          console.log(`Cleaning up existing permission: ${testPermissionId}`);
+          await iamIdcPermissionResourceHandler.deleteResource({
+            resourceTypeId: resourceTypeId,
+            resourceId: testPermissionId,
+          });
+        }
+      } catch (error) {
+        console.warn(`Failed to cleanup permission ${testPermissionId}:`, error);
+      }
+    });
 
     // Setup: Create a resource to update
     it("Setup: Create a permission resource for update testing", async () => {
@@ -492,6 +565,26 @@ describe(
       permissionTableName: permissionTableName,
       logLevel: "DEBUG",
       permissionIdPrefix: "ST",
+    });
+
+    beforeAll(async () => {
+      // Clean up existing permission if it exists
+      const testPermissionId = `ST-${permissionSetNameId}-${targetAwsAccountId}`;
+      try {
+        const existingResource = await iamIdcPermissionResourceHandler.getResource({
+          resourceTypeId: resourceTypeId,
+          resourceId: testPermissionId,
+        });
+        if (existingResource.isOk()) {
+          console.log(`Cleaning up existing permission: ${testPermissionId}`);
+          await iamIdcPermissionResourceHandler.deleteResource({
+            resourceTypeId: resourceTypeId,
+            resourceId: testPermissionId,
+          });
+        }
+      } catch (error) {
+        console.warn(`Failed to cleanup permission ${testPermissionId}:`, error);
+      }
     });
 
     it("Testing updateResource with empty update params", async () => {

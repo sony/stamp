@@ -11,5 +11,7 @@ export default defineConfig({
         singleThread: true,
       },
     },
+    maxConcurrency: 1,
+    pool: "threads",
   },
 });
