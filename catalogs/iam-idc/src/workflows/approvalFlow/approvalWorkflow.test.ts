@@ -4,6 +4,7 @@ import { revoked, RevokedInput } from "./revoked";
 import { validateApprovalRequest, ValidateApprovalRequestInput } from "./approvalRequestValidation";
 import { createPermission, CreatePermissionInput } from "../permission/createPermission";
 import { deletePermission, DeletePermissionInput } from "../permission/deletePermission";
+import { getPermission } from "../permission/getPermission";
 import { createLogger } from "@stamp-lib/stamp-logger";
 import { registerAwsAccount } from "../awsAccount/registerAwsAccount";
 import { unregisterAwsAccount } from "../awsAccount/unregisterAwsAccount";
@@ -25,6 +26,18 @@ describe(
     const targetAwsAccountId: string = process.env.TARGET_AWS_ACCOUNT_ID!;
 
     beforeAll(async () => {
+      // Clean up existing permission if it exists
+      const testPermissionId = `${config.permissionIdPrefix}-Unit-test-${targetAwsAccountId}`;
+      const existingPermission = await getPermission(logger, config)({ permissionId: testPermissionId });
+      if (existingPermission.isOk()) {
+        console.log(`Cleaning up existing permission: ${testPermissionId}`);
+        try {
+          await deletePermission(logger, config)({ permissionId: testPermissionId });
+        } catch (error) {
+          console.warn(`Failed to cleanup permission ${testPermissionId}:`, error);
+        }
+      }
+
       const resultAsync = registerAwsAccount(
         logger,
         config

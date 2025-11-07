@@ -43,6 +43,24 @@ describe(
     let resourceId: string | null = null;
 
     beforeAll(async () => {
+      // Clean up existing permission if it exists
+      const testPermissionId = `ST-${permissionSetNameId}-${targetAwsAccountId}`;
+      try {
+        const existingResource = await iamIdcPermissionResourceHandler.getResource({
+          resourceTypeId: resourceTypeIdIamIdcPermission,
+          resourceId: testPermissionId,
+        });
+        if (existingResource.isOk()) {
+          console.log(`Cleaning up existing permission: ${testPermissionId}`);
+          await iamIdcPermissionResourceHandler.deleteResource({
+            resourceTypeId: resourceTypeIdIamIdcPermission,
+            resourceId: testPermissionId,
+          });
+        }
+      } catch (error) {
+        console.warn(`Failed to cleanup permission ${testPermissionId}:`, error);
+      }
+
       const resultAsync = iamIdcPermissionResourceHandler.createResource({
         resourceTypeId: resourceTypeIdIamIdcPermission,
         inputParams: {
