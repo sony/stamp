@@ -28,7 +28,7 @@ export const formatAutoRevokeDuration = (autoRevokeDuration: string): string | n
     parts.push(`${hours} ${hours === 1 ? "hour" : "hours"}`);
   }
 
-  return parts.length > 0 ? parts.join(" and ") : null;
+  return parts.length > 0 ? parts.join(" and ") : "immediately";
 };
 
 // Calculate when access would be revoked if approved now
