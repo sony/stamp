@@ -5,40 +5,7 @@ import { Result, err, ok } from "neverthrow";
 import { ChatPostMessageResponse, SlackAPIClient } from "slack-web-api-client";
 import { GetStampHubUser } from "../stamp-hub/stampUser";
 import { ChannelConfigProperties } from "../stamp-notification-plugin/channelConfigProperties";
-
-// Parse ISO 8601 duration format (e.g., "P7D" for 7 days, "PT12H" for 12 hours, "P1DT2H" for 1 day 2 hours)
-const parseAutoRevokeDuration = (duration: string): { days: number; hours: number } | null => {
-  const durationMatch = duration.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?)?$/);
-  if (durationMatch) {
-    const days = durationMatch[1] ? parseInt(durationMatch[1]) : 0;
-    const hours = durationMatch[2] ? parseInt(durationMatch[2]) : 0;
-    return { days, hours };
-  }
-  return null;
-};
-
-// Calculate when access would be revoked if approved now
-const calculateAutoRevokeDate = (autoRevokeDuration: string): string | null => {
-  const parsed = parseAutoRevokeDuration(autoRevokeDuration);
-  if (!parsed) {
-    return null;
-  }
-
-  const { days, hours } = parsed;
-  const revokeTime = new Date();
-  revokeTime.setDate(revokeTime.getDate() + days);
-  revokeTime.setHours(revokeTime.getHours() + hours);
-
-  // Format the date for display in Slack (include timezone for clarity)
-  return revokeTime.toLocaleString("en-US", { 
-    timeZoneName: "short",
-    year: "numeric",
-    month: "2-digit", 
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-};
+import { formatAutoRevokeDuration } from "./autoRevokeUtils";
 
 export const notifyApprovalRequest =
   (logger: Logger, slackBotToken: string, getStampHubUser: GetStampHubUser) =>
@@ -166,12 +133,12 @@ const generateMessageFromPendingRequest = (logger: Logger, getStampHubUser: GetS
   const userName = user.value.value.userName;
 
   let messagePayload = `*Catalog*: ${pendingRequest.catalogId}\n*Approval Flow*: ${pendingRequest.approvalFlowId}\n*Requester*: ${userName}\n*Message*: ${pendingRequest.validationHandlerResult.message}`;
-  
+
   // Add auto-revoke information if available
   if (pendingRequest.autoRevokeDuration) {
-    const autoRevokeDate = calculateAutoRevokeDate(pendingRequest.autoRevokeDuration);
-    if (autoRevokeDate) {
-      messagePayload += `\n*Auto Revoke Date*: ${autoRevokeDate}`;
+    const duration = formatAutoRevokeDuration(pendingRequest.autoRevokeDuration);
+    if (duration) {
+      messagePayload += `\n*Auto-Revoke*: This approval will be automatically revoked after ${duration}`;
     }
   }
 

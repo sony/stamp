@@ -19,8 +19,9 @@
     "@stamp-lib/stamp-logger": "^0.7.4",
     "hono": "^4.2.7",
     "neverthrow": "^6.1.0",
-    "slack-edge": "^0.12.0",
-    "slack-web-api-client": "^0.11.1",
+    "slack-edge": "^1.3.12",
+    "slack-web-api-client": "^0.10.2",
+    "@slack/web-api": "^7.12.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
