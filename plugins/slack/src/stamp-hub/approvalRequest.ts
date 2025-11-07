@@ -7,14 +7,16 @@ import { Option, some, none } from "@stamp-lib/stamp-option";
 import { unwrapOr } from "../utils/stampHubClient";
 
 export type ApproveRequestInput = StampHubRouterInput["userRequest"]["approvalRequest"]["approve"];
-export type ApproveRequest = (approveRequestInput: ApproveRequestInput) => ResultAsync<undefined, NotificationError>;
+export type ApproveRequest = (
+  approveRequestInput: ApproveRequestInput
+) => ResultAsync<StampHubRouterOutput["userRequest"]["approvalRequest"]["approve"], NotificationError>;
 
 export const approveRequest =
   (logger: Logger, approveRequest: StampHubRouterClient["userRequest"]["approvalRequest"]["approve"]): ApproveRequest =>
   (input: ApproveRequestInput) => {
     const requestStampHub = async () => {
-      await approveRequest.mutate(input);
-      return undefined;
+      const approvedRequest = await approveRequest.mutate(input);
+      return approvedRequest;
     };
 
     return ResultAsync.fromPromise(requestStampHub(), (err) => {

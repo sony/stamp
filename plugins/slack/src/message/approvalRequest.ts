@@ -5,6 +5,7 @@ import { Result, err, ok } from "neverthrow";
 import { ChatPostMessageResponse, SlackAPIClient } from "slack-web-api-client";
 import { GetStampHubUser } from "../stamp-hub/stampUser";
 import { ChannelConfigProperties } from "../stamp-notification-plugin/channelConfigProperties";
+import { formatAutoRevokeDuration } from "./autoRevokeUtils";
 
 export const notifyApprovalRequest =
   (logger: Logger, slackBotToken: string, getStampHubUser: GetStampHubUser) =>
@@ -119,7 +120,7 @@ export async function notifySlack(
   return response;
 }
 
-const generateMessageFromPendingRequest = (logger: Logger, getStampHubUser: GetStampHubUser) => async (pendingRequest: PendingRequest) => {
+export const generateMessageFromPendingRequest = (logger: Logger, getStampHubUser: GetStampHubUser) => async (pendingRequest: PendingRequest) => {
   const user = await getStampHubUser(pendingRequest.requestUserId);
   if (user.isErr()) {
     logger.error(user.error);
@@ -131,6 +132,15 @@ const generateMessageFromPendingRequest = (logger: Logger, getStampHubUser: GetS
   }
   const userName = user.value.value.userName;
 
-  const messagePayload = `*Catalog*: ${pendingRequest.catalogId}\n*Approval Flow*: ${pendingRequest.approvalFlowId}\n*Requester*: ${userName}\n*Message*: ${pendingRequest.validationHandlerResult.message}`;
+  let messagePayload = `*Catalog*: ${pendingRequest.catalogId}\n*Approval Flow*: ${pendingRequest.approvalFlowId}\n*Requester*: ${userName}\n*Message*: ${pendingRequest.validationHandlerResult.message}`;
+
+  // Add auto-revoke information if available
+  if (pendingRequest.autoRevokeDuration) {
+    const duration = formatAutoRevokeDuration(pendingRequest.autoRevokeDuration);
+    if (duration) {
+      messagePayload += `\n*Auto-Revoke*: This approval will be automatically revoked in ${duration}`;
+    }
+  }
+
   return ok(messagePayload);
 };

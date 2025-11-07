@@ -69,16 +69,38 @@ const pluginRouter = createPluginRouter({
 
 ### How to execute test
 
-1. Set environment variables
+#### Required Environment Variables
+
+1. **Basic test environment variables**:
 
    ```bash
-   export SLACK_BOT_TOKEN=<Slack bot token>
-   export SLACK_CHANNEL_ID=<Slack channel ID>
+   export SLACK_BOT_TOKEN=<Slack bot token from your Slack app>
+   export SLACK_CHANNEL_ID=<Slack channel ID for posting test messages>
    export TABLE_NAME_PREFIX=<TableNamePrefix you specified in CloudFormation template>
    ```
 
-2. Execute command
-
+2. **Additional environment variables for integration tests** (e.g., `approveButton.test.ts`):
    ```bash
-   plugins/slack % npm run test
+   export SLACK_TEST_BOT_TOKEN=<Slack bot token from a separate test app>
    ```
+
+#### Slack App Token Configuration
+
+- **`SLACK_BOT_TOKEN`**: Token from Slack App defined in [manifest.yml](./manifest.yml)
+
+  - Required scopes (defined in manifest.yml):
+    - `channels:read`, `groups:read`, `usergroups:read`
+    - `im:write`, `chat:write`
+    - `app_mentions:read`, `im:history`
+    - `incoming-webhook`, `commands`
+
+- **`SLACK_TEST_BOT_TOKEN`**: Token from a separate test-only Slack App (optional, only for integration tests)
+  - Required scopes:
+    - `channels:history` (or `groups:history` for private channels)
+  - Used for: `conversations.history` to verify message content after updates
+
+#### Running Tests
+
+```bash
+plugins/slack % npm run test
+```
