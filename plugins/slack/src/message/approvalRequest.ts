@@ -120,7 +120,7 @@ export async function notifySlack(
   return response;
 }
 
-const generateMessageFromPendingRequest = (logger: Logger, getStampHubUser: GetStampHubUser) => async (pendingRequest: PendingRequest) => {
+export const generateMessageFromPendingRequest = (logger: Logger, getStampHubUser: GetStampHubUser) => async (pendingRequest: PendingRequest) => {
   const user = await getStampHubUser(pendingRequest.requestUserId);
   if (user.isErr()) {
     logger.error(user.error);
