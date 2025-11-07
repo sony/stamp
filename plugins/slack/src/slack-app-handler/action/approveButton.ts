@@ -23,7 +23,7 @@ const buildErrorHistoryMessage = (slackUserId: string, errorMessage: string, tim
  * Build an account not linked error message
  */
 const buildAccountNotLinkedMessage = (slackUserId: string, slackUserName: string, timeStamp: string): string => {
-  return `[History] <@${slackUserId}> approved request but ${slackUserName} is not link Stamp. Please link Stamp and retry. ${timeStamp}`;
+  return `[History] <@${slackUserId}> approved request but ${slackUserName} is not linked to Stamp. Please link Stamp and retry. ${timeStamp}`;
 };
 
 /**
