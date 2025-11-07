@@ -11,7 +11,7 @@ import { StampHubRouterClient } from "@stamp-lib/stamp-hub";
 import { createLogger, Logger, LogLevel } from "@stamp-lib/stamp-logger";
 import { ChannelConfigProperties } from "./channelConfigProperties";
 
-import { AnyMessageBlock, AnyRichTextBlockElement, ContextBlock, HeaderBlock, SectionBlock, SlackAPIClient } from "slack-web-api-client";
+import { AnyMessageBlock, ContextBlock, HeaderBlock, RichTextSection, SectionBlock, SlackAPIClient } from "slack-web-api-client";
 import { notifyApprovalRequest } from "../message/approvalRequest";
 import { getStampHubUser } from "../stamp-hub/stampUser";
 
@@ -94,7 +94,7 @@ export const sendResourceAudit =
       logLevel: "INFO",
     });
     const auditItemMessages: Array<AnyMessageBlock> = input.message.property.ResourceAuditItem.map((item) => {
-      const auditValueMessages: Array<AnyRichTextBlockElement> = item.values.map((value) => {
+      const auditValueMessages: Array<RichTextSection> = item.values.map((value) => {
         return {
           type: "rich_text_section",
           elements: [
