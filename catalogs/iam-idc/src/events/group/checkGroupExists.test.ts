@@ -60,7 +60,6 @@ describe("checkGroupExists", () => {
   it("should return error when group already exists", async () => {
     const input = {
       groupName: testGroupName,
-      permissionId: "test-permission-id",
     };
 
     const resultAsync = checkGroupExists(logger, config)(input);
@@ -78,7 +77,6 @@ describe("checkGroupExists", () => {
     const nonExistentGroupName = `Stamp-nonexistent-test-${Date.now()}`;
     const input = {
       groupName: nonExistentGroupName,
-      permissionId: "test-permission-id",
     };
 
     const resultAsync = checkGroupExists(logger, config)(input);
@@ -94,7 +92,6 @@ describe("checkGroupExists", () => {
     const upperCaseGroupName = testGroupName.toUpperCase();
     const input = {
       groupName: upperCaseGroupName,
-      permissionId: "test-permission-id",
     };
 
     const resultAsync = checkGroupExists(logger, config)(input);

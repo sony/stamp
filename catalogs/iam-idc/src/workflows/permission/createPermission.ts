@@ -42,7 +42,6 @@ export const createPermission =
       const groupName = `${config.permissionIdPrefix}-${validateResult.permissionSetNameId}-${validateResult.awsAccountId}`;
       return checkGroupExistsFunc({
         groupName,
-        permissionId: validateResult.permissionId,
       })
         .mapErr((error) => {
           // Convert GroupExistsError to HandlerError with appropriate error code
