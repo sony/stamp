@@ -48,11 +48,11 @@ export const createPermission =
           // Convert GroupExistsError to HandlerError with appropriate error code
           if (error.type === "GroupAlreadyExists") {
             const userMessage = `The Permission Set Name Id "${validateResult.permissionSetNameId}" cannot be used because a similar permission already exists (case-insensitive match). Please choose a different Permission Set Name Id.`;
-            return new HandlerError(userMessage, "BAD_REQUEST", error.message);
+            return new HandlerError(error.message, "BAD_REQUEST", userMessage);
           }
           // ListGroupsFailed case
           const userMessage = "Failed to verify group availability. Please try again later.";
-          return new HandlerError(userMessage, "INTERNAL_SERVER_ERROR", error.message);
+          return new HandlerError(error.message, "INTERNAL_SERVER_ERROR", userMessage);
         })
         .andThen(() => {
           return createPermissionSetFunc(validateResult)

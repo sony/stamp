@@ -67,13 +67,11 @@ describe("checkGroupExists", () => {
     const result = await resultAsync;
 
     expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      const error = result.error;
-      expect(error).toBeInstanceOf(GroupExistsError);
-      expect(error.type).toBe("GroupAlreadyExists");
-      expect(error.groupName).toBe(testGroupName);
-      expect(error.message).toContain(`Group "${testGroupName}" already exists`);
-    }
+    const error = result._unsafeUnwrapErr();
+    expect(error).toBeInstanceOf(GroupExistsError);
+    expect(error.type).toBe("GroupAlreadyExists");
+    expect(error.groupName).toBe(testGroupName);
+    expect(error.message).toContain(`Group "${testGroupName}" already exists`);
   });
 
   it("should succeed when group does not exist", async () => {
@@ -87,9 +85,8 @@ describe("checkGroupExists", () => {
     const result = await resultAsync;
 
     expect(result.isOk()).toBe(true);
-    if (result.isOk()) {
-      expect(result.value).toEqual(input);
-    }
+    const value = result._unsafeUnwrap();
+    expect(value).toEqual(input);
   });
 
   it("should be case-insensitive (detect existing group with different case)", async () => {
@@ -105,11 +102,9 @@ describe("checkGroupExists", () => {
 
     // Should return error because IAM IdC treats group names case-insensitively
     expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      const error = result.error;
-      expect(error).toBeInstanceOf(GroupExistsError);
-      expect(error.type).toBe("GroupAlreadyExists");
-      expect(error.message).toContain("already exists");
-    }
+    const error = result._unsafeUnwrapErr();
+    expect(error).toBeInstanceOf(GroupExistsError);
+    expect(error.type).toBe("GroupAlreadyExists");
+    expect(error.message).toContain("already exists");
   });
 });

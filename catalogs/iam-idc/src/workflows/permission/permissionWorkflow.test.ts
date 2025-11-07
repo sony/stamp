@@ -393,13 +393,15 @@ describe(
     });
 
     it("createPermission should fail when group with case-insensitive duplicate name exists", async () => {
-      // Try to create a permission with different case version of existing permission set name
-      // The existing permission has "Unit-test" as permissionSetNameId
+      // Test case-insensitive group name validation
+      // The existing permission has "Unit-test" as permissionSetNameId, creating group "ST-Unit-test-{accountId}"
+      // We try to create "unit-test" (different case) which would create group "ST-unit-test-{accountId}"
+      // IAM IdC treats group names case-insensitively, so checkGroupExists should detect the conflict
       const lowerCaseInput: CreatePermissionInput = {
         name: "case sensitivity test",
         description: "Testing case sensitivity - should fail",
         awsAccountId: targetAwsAccountId,
-        permissionSetNameId: "unit-test", // Same name but different case
+        permissionSetNameId: "unit-test", // Different case from "Unit-test"
         managedIamPolicyNames: ["ReadOnlyAccess"],
         customIamPolicyNames: [],
         sessionDuration: "PT8H",
@@ -407,16 +409,18 @@ describe(
 
       const lowerCaseResult = await createPermission(logger, config)(lowerCaseInput);
 
-      // This should fail because the group name would conflict (case-insensitive)
+      // Should fail at checkGroupExists due to case-insensitive group name conflict
       expect(lowerCaseResult.isErr()).toBe(true);
       const error = lowerCaseResult._unsafeUnwrapErr();
-      expect(error.message).toContain("cannot be used");
+      expect(error.userMessage).toContain("cannot be used");
       expect(error.code).toBe("BAD_REQUEST");
     });
 
-    it("createPermission should fail when exact same permission set name exists", async () => {
-      // Try to create another permission with the exact same permission set name
+    it("createPermission should fail when exact same permission set name exists (Permission ID duplicate)", async () => {
+      // Test Permission ID uniqueness validation
       // The existing permission has "Unit-test" as permissionSetNameId
+      // Trying to create the exact same name should fail at prepareRegisterPermission
+      // before reaching checkGroupExists
       const duplicateInput: CreatePermissionInput = {
         name: "duplicate test",
         description: "Testing exact duplicate - should fail",
@@ -429,10 +433,10 @@ describe(
 
       const duplicateResult = await createPermission(logger, config)(duplicateInput);
 
-      // This should fail because permission with same ID already exists
+      // Should fail at prepareRegisterPermission because Permission ID already exists
       expect(duplicateResult.isErr()).toBe(true);
       const error = duplicateResult._unsafeUnwrapErr();
-      expect(error.message).toContain("already exists");
+      expect(error.systemMessage).toContain("already exists");
       expect(error.code).toBe("BAD_REQUEST");
     });
   },
