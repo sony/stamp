@@ -1,0 +1,45 @@
+{
+  "name": "stamp Development",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        },
+        "[typescript]": {
+          "editor.formatOnSave": true
+        },
+        "[javascript]": {
+          "editor.formatOnSave": true
+        },
+        "[typescriptreact]": {
+          "editor.formatOnSave": true
+        },
+        "[javascriptreact]": {
+          "editor.formatOnSave": true
+        },
+        "[json]": {
+          "editor.formatOnSave": true
+        },
+        "[jsonc]": {
+          "editor.formatOnSave": true
+        },
+        "[yaml]": {
+          "editor.formatOnSave": true
+        },
+        "[markdown]": {
+          "editor.formatOnSave": true
+        }
+      },
+      "extensions": ["esbenp.prettier-vscode", "dbaeumer.vscode-eslint"]
+    }
+  },
+  "postCreateCommand": "npm ci && npm audit && npx playwright install --with-deps",
+  "forwardPorts": [3000],
+  "remoteUser": "node"
+}
