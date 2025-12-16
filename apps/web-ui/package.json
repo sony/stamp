@@ -37,7 +37,7 @@
     "@tanstack/react-table": "^8.17.3",
     "cmdk": "^1.0.0",
     "date-fns": "^3.3.1",
-    "next": "14.2.33",
+    "next": "14.2.35",
     "next-auth": "^4.24.5",
     "postcss-import": "^15.1.0",
     "radix-themes-tw": "^0.2.3",
