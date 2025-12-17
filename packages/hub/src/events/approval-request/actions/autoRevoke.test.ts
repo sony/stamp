@@ -95,6 +95,16 @@ describe("settingAutoRevoke", () => {
     const result = await settingAutoRevoke(mockCreateSchedulerEvent, logger)(input);
 
     expect(result.isOk()).toBeTruthy();
+    // formatDateForScheduler uses local timezone, so we calculate expected time accordingly
+    const expectedDate = new Date("2023-01-01T12:00:00Z");
+    expectedDate.setDate(expectedDate.getDate() + 5);
+    const expectedTime = `${expectedDate.getFullYear()}-${String(expectedDate.getMonth() + 1).padStart(2, "0")}-${String(expectedDate.getDate()).padStart(
+      2,
+      "0"
+    )}T${String(expectedDate.getHours()).padStart(2, "0")}:${String(expectedDate.getMinutes()).padStart(2, "0")}:${String(expectedDate.getSeconds()).padStart(
+      2,
+      "0"
+    )}`;
     expect(mockCreateSchedulerEvent).toHaveBeenCalledWith({
       eventType: "ApprovalRequestAutoRevoke",
       property: {
@@ -104,7 +114,7 @@ describe("settingAutoRevoke", () => {
       },
       schedulePattern: {
         type: "at",
-        time: "2023-01-06T21:00:00", // Add 5 days
+        time: expectedTime,
       },
     });
   });
@@ -122,6 +132,16 @@ describe("settingAutoRevoke", () => {
     const result = await settingAutoRevoke(mockCreateSchedulerEvent, logger)(input);
 
     expect(result.isOk()).toBeTruthy();
+    // formatDateForScheduler uses local timezone, so we calculate expected time accordingly
+    const expectedDate = new Date("2023-01-01T12:00:00Z");
+    expectedDate.setHours(expectedDate.getHours() + 8);
+    const expectedTime = `${expectedDate.getFullYear()}-${String(expectedDate.getMonth() + 1).padStart(2, "0")}-${String(expectedDate.getDate()).padStart(
+      2,
+      "0"
+    )}T${String(expectedDate.getHours()).padStart(2, "0")}:${String(expectedDate.getMinutes()).padStart(2, "0")}:${String(expectedDate.getSeconds()).padStart(
+      2,
+      "0"
+    )}`;
     expect(mockCreateSchedulerEvent).toHaveBeenCalledWith({
       eventType: "ApprovalRequestAutoRevoke",
       property: {
@@ -131,7 +151,7 @@ describe("settingAutoRevoke", () => {
       },
       schedulePattern: {
         type: "at",
-        time: "2023-01-02T05:00:00", // Add 8 hours
+        time: expectedTime,
       },
     });
   });
@@ -149,6 +169,17 @@ describe("settingAutoRevoke", () => {
     const result = await settingAutoRevoke(mockCreateSchedulerEvent, logger)(input);
 
     expect(result.isOk()).toBeTruthy();
+    // formatDateForScheduler uses local timezone, so we calculate expected time accordingly
+    const expectedDate = new Date("2023-01-01T12:00:00Z");
+    expectedDate.setDate(expectedDate.getDate() + 3);
+    expectedDate.setHours(expectedDate.getHours() + 12);
+    const expectedTime = `${expectedDate.getFullYear()}-${String(expectedDate.getMonth() + 1).padStart(2, "0")}-${String(expectedDate.getDate()).padStart(
+      2,
+      "0"
+    )}T${String(expectedDate.getHours()).padStart(2, "0")}:${String(expectedDate.getMinutes()).padStart(2, "0")}:${String(expectedDate.getSeconds()).padStart(
+      2,
+      "0"
+    )}`;
     expect(mockCreateSchedulerEvent).toHaveBeenCalledWith({
       eventType: "ApprovalRequestAutoRevoke",
       property: {
@@ -158,7 +189,7 @@ describe("settingAutoRevoke", () => {
       },
       schedulePattern: {
         type: "at",
-        time: "2023-01-05T09:00:00", // Add 3 days and 12 hours
+        time: expectedTime,
       },
     });
   });
