@@ -18,8 +18,8 @@
     "@stamp-lib/stamp-logger": "^0.7.6",
     "@stamp-lib/stamp-option": "^0.7.6",
     "@stamp-lib/stamp-types": "^0.7.6",
-    "@trpc/client": "^10.45.2",
-    "@trpc/server": "^10.45.2",
+    "@trpc/client": "^10.45.3",
+    "@trpc/server": "^10.45.3",
     "neverthrow": "^6.1.0",
     "uuidv7": "^0.6.3",
     "zod": "^3.22.4"
