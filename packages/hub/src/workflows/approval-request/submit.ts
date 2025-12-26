@@ -12,6 +12,7 @@ import { createGetCatalogConfig } from "../../events/catalog/catalogConfig";
 import { createSubmitApprovalRequest } from "../../events/approval-request/actions/submit";
 import { getApprovalFlowConfig } from "../../events/approval-flow/approvalFlowConfig";
 import { createValidateApprovalRequest } from "../../events/approval-request/actions/validate";
+import { enrichInputDataForNotification } from "../../events/approval-request/actions/enrichForNotification";
 import { GetGroup } from "@stamp-lib/stamp-types/pluginInterface/identity";
 import { Logger } from "@stamp-lib/stamp-logger";
 import { validateAutoRevokeDurationTime } from "../../events/approval-request/actions/autoRevoke";
@@ -171,42 +172,55 @@ export const submitWorkflow =
           extendSubmittedApprovalRequest.approvalFlowConfig.handlers.approvalRequestValidation,
           setApprovalRequestDBProvider
         );
-        return validateApprovalRequest(extendSubmittedApprovalRequest);
+        return validateApprovalRequest(extendSubmittedApprovalRequest).map((validatedRequest) => ({
+          validatedRequest,
+          catalogConfig: extendSubmittedApprovalRequest.catalogConfig,
+          approvalFlowConfig: extendSubmittedApprovalRequest.approvalFlowConfig,
+        }));
       })
-      .andThen((validatedRequest) => {
+      .andThen(({ validatedRequest, catalogConfig, approvalFlowConfig }) => {
         // If validation failed, not send notification.
         if (validatedRequest.status === "validationFailed") {
           return okAsync(validatedRequest);
         } else {
-          return getGroup({ groupId: validatedRequest.approverId }).andThen((group) => {
-            if (group.isNone()) {
-              logger.error("Group not found", { groupId: validatedRequest.approverId });
-              return okAsync(validatedRequest);
-            }
-            const notificationChannels = group.value.approvalRequestNotifications ?? [];
-            const sendNotificationResults = [];
-            for (const notificationChannel of notificationChannels) {
-              sendNotificationResults.push(
-                getNotificationPluginConfig(notificationChannel.notificationChannel.typeId).andThen((notificationConfig) => {
-                  if (notificationConfig.isNone()) {
-                    logger.error("NotificationConfig not found", { notificationChannel });
-                    return okAsync(undefined);
-                  }
-                  return notificationConfig.value.handlers.sendNotification({
-                    message: {
-                      type: "ApprovalRequestEvent",
-                      property: {
-                        request: validatedRequest,
+          // Enrich input data for notification
+          return enrichInputDataForNotification(
+            logger,
+            catalogConfig,
+            approvalFlowConfig
+          )(validatedRequest).andThen((enrichedData) => {
+            return getGroup({ groupId: validatedRequest.approverId }).andThen((group) => {
+              if (group.isNone()) {
+                logger.error("Group not found", { groupId: validatedRequest.approverId });
+                return okAsync(validatedRequest);
+              }
+              const notificationChannels = group.value.approvalRequestNotifications ?? [];
+              const sendNotificationResults = [];
+              for (const notificationChannel of notificationChannels) {
+                sendNotificationResults.push(
+                  getNotificationPluginConfig(notificationChannel.notificationChannel.typeId).andThen((notificationConfig) => {
+                    if (notificationConfig.isNone()) {
+                      logger.error("NotificationConfig not found", { notificationChannel });
+                      return okAsync(undefined);
+                    }
+                    return notificationConfig.value.handlers.sendNotification({
+                      message: {
+                        type: "ApprovalRequestEvent",
+                        property: {
+                          request: validatedRequest,
+                          inputParamsWithNames: enrichedData.inputParamsWithNames,
+                          inputResourcesWithNames: enrichedData.inputResourcesWithNames,
+                        },
                       },
-                    },
-                    channel: notificationChannel.notificationChannel,
-                  });
-                })
-              );
-            }
+                      channel: notificationChannel.notificationChannel,
+                    });
+                  })
+                );
+              }
 
-            return ResultAsync.combine(sendNotificationResults).map(() => {
-              return validatedRequest;
+              return ResultAsync.combine(sendNotificationResults).map(() => {
+                return validatedRequest;
+              });
             });
           });
         }

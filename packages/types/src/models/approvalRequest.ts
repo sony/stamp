@@ -2,15 +2,18 @@ import { z } from "zod";
 import { CatalogId } from "./id";
 import { ApprovalFlowId } from "./id";
 import { UserId } from "../pluginInterface/identity";
+import { ResourceId, ResourceName } from "./resource";
+import { ResourceTypeId, ResourceTypeConfig } from "./resourceType";
+import { ApprovalFlowInputParam } from "./approvalFlow";
 export const ApprovalRequestInputParam = z.object({
-  id: z.string().max(128),
+  id: ApprovalFlowInputParam.shape.id,
   value: z.union([z.string().max(4096), z.number(), z.boolean()]),
 });
 export type ApprovalRequestInputParam = z.infer<typeof ApprovalRequestInputParam>;
 
 export const ApprovalRequestInputResource = z.object({
-  resourceId: z.string(),
-  resourceTypeId: z.string(),
+  resourceId: ResourceId,
+  resourceTypeId: ResourceTypeId,
 });
 export type ApprovalRequestInputResource = z.infer<typeof ApprovalRequestInputResource>;
 
@@ -19,6 +22,23 @@ export type ApproverType = z.infer<typeof ApproverType>;
 
 export const AutoRevokeDuration = z.string().regex(/^P(?:(?:\d+D(?:T\d+H)?)|(?:T\d+H))$/, "Invalid ISO 8601 duration format. Expected format: PnDTnH");
 export type AutoRevokeDuration = z.infer<typeof AutoRevokeDuration>;
+
+// Define enriched input types for notification
+// These include display names for input parameters and resources
+export const InputParamWithName = z.object({
+  id: ApprovalRequestInputParam.shape.id,
+  name: ApprovalFlowInputParam.shape.name,
+  value: ApprovalRequestInputParam.shape.value,
+});
+export type InputParamWithName = z.infer<typeof InputParamWithName>;
+
+export const InputResourceWithName = z.object({
+  resourceTypeId: ResourceTypeId,
+  resourceTypeName: ResourceTypeConfig.shape.name,
+  resourceId: ResourceId,
+  resourceName: ResourceName,
+});
+export type InputResourceWithName = z.infer<typeof InputResourceWithName>;
 
 export const SubmittedRequest = z.object({
   requestId: z.string().uuid(),

@@ -356,6 +356,127 @@ describe("submitWorkflow", () => {
     expect(sendNotificationMock).toHaveBeenCalled();
   });
 
+  it("should send notification with enriched inputParamsWithNames and inputResourcesWithNames", async () => {
+    const sendNotificationMock = vi.fn().mockReturnValue(okAsync({}));
+    const getResourceMock = vi.fn().mockResolvedValue(
+      ok(
+        some({
+          resourceId: "res-123",
+          name: "Production Account",
+          params: {},
+        })
+      )
+    );
+
+    const mockProviders = {
+      ...defaultMockProviders,
+      getCatalogConfigProvider: vi.fn().mockReturnValue(
+        okAsync(
+          some({
+            id: "test-catalog-id",
+            name: "test-catalog",
+            description: "catalogDescription",
+            approvalFlows: [
+              {
+                id: "test-approval-flow-id",
+                name: "testApprovalFlowName",
+                description: "testApprovalFlowDescription",
+                inputParams: [
+                  { id: "param1", name: "Environment", type: "string", required: true },
+                  { id: "param2", name: "Duration (hours)", type: "number", required: false },
+                ],
+                handlers: testApprovalFlowHandler,
+                inputResources: [{ resourceTypeId: "account-type" }],
+                approver: { approverType: "approvalFlow" },
+              },
+            ],
+            resourceTypes: [
+              {
+                id: "account-type",
+                name: "AWS Account",
+                description: "AWS Account resource type",
+                createParams: [],
+                infoParams: [],
+                handlers: {
+                  getResource: getResourceMock,
+                  listResources: vi.fn(),
+                  createResource: vi.fn(),
+                  deleteResource: vi.fn(),
+                  updateResource: vi.fn(),
+                  listResourceAuditItem: vi.fn(),
+                },
+                isCreatable: true,
+                isUpdatable: true,
+                isDeletable: true,
+                ownerManagement: false,
+                approverManagement: false,
+              },
+            ],
+          })
+        )
+      ),
+      getGroup: vi.fn().mockReturnValue(
+        okAsync(
+          some({
+            id: "18578bed-c45d-4f67-b9f7-10daf4c85f3f",
+            name: "Test Group",
+            description: "Test Group Description",
+            approvalRequestNotifications: [
+              {
+                notificationChannel: {
+                  id: "notification-channel-id",
+                  typeId: "notification-type-id",
+                  properties: { channelId: "test-channel" },
+                },
+              },
+            ],
+          })
+        )
+      ),
+      getNotificationPluginConfig: vi.fn().mockReturnValue(
+        okAsync(
+          some({
+            id: "notification-type-id",
+            name: "Test Notification",
+            description: "Test Notification Description",
+            handlers: {
+              sendNotification: sendNotificationMock,
+            },
+          })
+        )
+      ),
+    };
+
+    const workflow = submitWorkflow(mockProviders, logger);
+
+    const input: SubmitWorkflowInput = {
+      approvalFlowId: "test-approval-flow-id",
+      requestUserId: "dbf33b00-8a5f-e045-4aa1-2d943cb659b6",
+      requestComment: "test request comment",
+      inputParams: [
+        { id: "param1", value: "production" },
+        { id: "param2", value: 24 },
+      ],
+      inputResources: [{ resourceTypeId: "account-type", resourceId: "res-123" }],
+      catalogId: "test-catalog-id",
+    };
+
+    const result = await workflow(input);
+    expect(result.isOk()).toBe(true);
+    expect(sendNotificationMock).toHaveBeenCalled();
+
+    // Verify the notification message contains enriched input data
+    const notificationCall = sendNotificationMock.mock.calls[0][0];
+    expect(notificationCall.message.type).toBe("ApprovalRequestEvent");
+    expect(notificationCall.message.property.inputParamsWithNames).toEqual([
+      { id: "param1", name: "Environment", value: "production" },
+      { id: "param2", name: "Duration (hours)", value: 24 },
+    ]);
+    expect(notificationCall.message.property.inputResourcesWithNames).toEqual([
+      { resourceTypeId: "account-type", resourceTypeName: "AWS Account", resourceId: "res-123", resourceName: "Production Account" },
+    ]);
+  });
+
   it("should use default maxDuration when autoRevoke.defaultSettings.maxDuration is not specified", async () => {
     const mockProviders = {
       ...defaultMockProviders,
