@@ -1,22 +1,29 @@
 import { describe, expect, it, vi } from "vitest";
-import { notifySlack, generateMessageFromPendingRequest, generateRequesterInputBlocks } from "./approvalRequest";
+import { notifySlack, buildApprovalRequestBlocks, buildRequesterInputBlocks, notifyApprovalRequest } from "./approvalRequest";
 import { InputParamWithName, InputResourceWithName, PendingRequest } from "@stamp-lib/stamp-types/models";
 
 import { createLogger } from "@stamp-lib/stamp-logger";
 import { ok } from "neverthrow";
-import { some } from "@stamp-lib/stamp-option";
+import { some, none } from "@stamp-lib/stamp-option";
 
 describe("notifySlack", () => {
   const slackBotToken = process.env.SLACK_BOT_TOKEN!;
   const slackChannelId = process.env.SLACK_CHANNEL_ID!;
-  const customMessage = `Unit Test`;
-  const messagePayload = `*Message:* This is a unit test notification, please ignore it.`;
-  const requestComment = `*Request Comment*\nIt's a unit test`;
-  const requestId = "1234567890";
-  const emptyRequesterInputBlocks: Parameters<typeof notifySlack>[6] = [];
 
   it("Success case with valid token and existing channel", async () => {
-    const result = await notifySlack(slackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId, emptyRequesterInputBlocks);
+    const blocks = buildApprovalRequestBlocks({
+      customMessage: "Unit Test",
+      catalogId: "test-catalog",
+      approvalFlowId: "test-approval-flow",
+      requesterName: "Test User",
+      validationMessage: "This is a unit test notification, please ignore it.",
+      requestComment: "It's a unit test",
+      requestId: "1234567890",
+      inputParamsWithNames: [],
+      inputResourcesWithNames: [],
+    });
+
+    const result = await notifySlack(slackBotToken, slackChannelId, blocks);
     expect(result.isOk()).toBe(true);
   });
 
@@ -30,17 +37,39 @@ describe("notifySlack", () => {
       { resourceTypeId: "account-type", resourceTypeName: "Account", resourceId: "acc-123", resourceName: "Production Account" },
       { resourceTypeId: "role-type", resourceTypeName: "Role", resourceId: "role-456", resourceName: "Admin Role" },
     ];
-    const requesterInputBlocks = generateRequesterInputBlocks(inputParamsWithNames, inputResourcesWithNames);
 
-    const result = await notifySlack(slackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId, requesterInputBlocks);
+    const blocks = buildApprovalRequestBlocks({
+      customMessage: "Unit Test",
+      catalogId: "test-catalog",
+      approvalFlowId: "test-approval-flow",
+      requesterName: "Test User",
+      validationMessage: "This is a unit test notification, please ignore it.",
+      requestComment: "It's a unit test",
+      requestId: "1234567890",
+      inputParamsWithNames,
+      inputResourcesWithNames,
+    });
+
+    const result = await notifySlack(slackBotToken, slackChannelId, blocks);
     expect(result.isOk()).toBe(true);
   });
 
   it("Success case with only inputParams", async () => {
-    const inputParamsWithNames: InputParamWithName[] = [{ id: "reason", name: "Request Reason", value: "Need access for deployment" }];
-    const requesterInputBlocks = generateRequesterInputBlocks(inputParamsWithNames, []);
+    const inputParamsWithNames: InputParamWithName[] = [{ id: "ticketNumber", name: "Ticket Number", value: "1234" }];
 
-    const result = await notifySlack(slackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId, requesterInputBlocks);
+    const blocks = buildApprovalRequestBlocks({
+      customMessage: "Unit Test",
+      catalogId: "test-catalog",
+      approvalFlowId: "test-approval-flow",
+      requesterName: "Test User",
+      validationMessage: "This is a unit test notification, please ignore it.",
+      requestComment: "It's a unit test",
+      requestId: "1234567890",
+      inputParamsWithNames,
+      inputResourcesWithNames: [],
+    });
+
+    const result = await notifySlack(slackBotToken, slackChannelId, blocks);
     expect(result.isOk()).toBe(true);
   });
 
@@ -48,32 +77,43 @@ describe("notifySlack", () => {
     const inputResourcesWithNames: InputResourceWithName[] = [
       { resourceTypeId: "storage-bucket", resourceTypeName: "Storage Bucket", resourceId: "bucket-789", resourceName: "Data Backup Bucket" },
     ];
-    const requesterInputBlocks = generateRequesterInputBlocks([], inputResourcesWithNames);
 
-    const result = await notifySlack(slackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId, requesterInputBlocks);
+    const blocks = buildApprovalRequestBlocks({
+      customMessage: "Unit Test",
+      catalogId: "test-catalog",
+      approvalFlowId: "test-approval-flow",
+      requesterName: "Test User",
+      validationMessage: "This is a unit test notification, please ignore it.",
+      requestComment: "It's a unit test",
+      requestId: "1234567890",
+      inputParamsWithNames: [],
+      inputResourcesWithNames,
+    });
+
+    const result = await notifySlack(slackBotToken, slackChannelId, blocks);
     expect(result.isOk()).toBe(true);
   });
 
-  it("Success case with auto-revoke as separate section", async () => {
-    const autoRevokeMessage = `*Auto-Revoke*: This approval will be automatically revoked in 7 days`;
-    const result = await notifySlack(
-      slackBotToken,
-      slackChannelId,
-      customMessage,
-      messagePayload,
-      requestComment,
-      requestId,
-      emptyRequesterInputBlocks,
-      autoRevokeMessage
-    );
+  it("Success case with auto-revoke", async () => {
+    const blocks = buildApprovalRequestBlocks({
+      customMessage: "Unit Test",
+      catalogId: "test-catalog",
+      approvalFlowId: "test-approval-flow",
+      requesterName: "Test User",
+      validationMessage: "This is a unit test notification, please ignore it.",
+      requestComment: "It's a unit test",
+      requestId: "1234567890",
+      inputParamsWithNames: [],
+      inputResourcesWithNames: [],
+      autoRevokeDuration: "P7D",
+    });
+
+    const result = await notifySlack(slackBotToken, slackChannelId, blocks);
     expect(result.isOk()).toBe(true);
   });
 
   it("Success case with auto-revoke and max requester input fields", async () => {
-    // Test the maximum realistic scenario: auto-revoke + many input params and resources
-    const autoRevokeMessage = `*Auto-Revoke*: This approval will be automatically revoked in 30 days`;
-
-    // Create 10 input params and 10 input resources (20 fields total = 2 sections)
+    // Test the maximum block payload scenario with all fields
     const inputParamsWithNames: InputParamWithName[] = Array.from({ length: 10 }, (_, i) => ({
       id: `param${i}`,
       name: `Parameter ${i}`,
@@ -85,40 +125,203 @@ describe("notifySlack", () => {
       resourceId: `res-${i}`,
       resourceName: `Resource ${i}`,
     }));
-    const requesterInputBlocks = generateRequesterInputBlocks(inputParamsWithNames, inputResourcesWithNames);
 
-    const result = await notifySlack(
-      slackBotToken,
-      slackChannelId,
-      customMessage,
-      messagePayload,
-      requestComment,
-      requestId,
-      requesterInputBlocks,
-      autoRevokeMessage
-    );
+    const blocks = buildApprovalRequestBlocks({
+      customMessage: "Please review the following approval request and take appropriate action.",
+      catalogId: "iam-idc-catalog",
+      approvalFlowId: "aws-account-access-approval-flow",
+      requesterName: "John Doe",
+      validationMessage: "Requesting access to production AWS account for deployment activities.",
+      requestComment: "I need access to the production environment to deploy the latest release.",
+      requestId: "1234567890",
+      inputParamsWithNames,
+      inputResourcesWithNames,
+      autoRevokeDuration: "P30D",
+    });
+
+    const result = await notifySlack(slackBotToken, slackChannelId, blocks);
     expect(result.isOk()).toBe(true);
   });
 
   it("Failure case with invalid token", async () => {
-    const errorSlackBotToken = "invalid-token";
-    const result = await notifySlack(errorSlackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId, emptyRequesterInputBlocks);
+    const blocks = buildApprovalRequestBlocks({
+      customMessage: "Unit Test",
+      catalogId: "test-catalog",
+      approvalFlowId: "test-approval-flow",
+      requesterName: "Test User",
+      validationMessage: "This is a unit test notification, please ignore it.",
+      requestComment: "It's a unit test",
+      requestId: "1234567890",
+      inputParamsWithNames: [],
+      inputResourcesWithNames: [],
+    });
+
+    const result = await notifySlack("invalid-token", slackChannelId, blocks);
     expect(result.isErr()).toBe(true);
     const error = result._unsafeUnwrapErr();
     expect(error.message.includes("invalid_auth")).toBe(true);
   });
 
   it("Failure case specifying not exist channel", async () => {
-    const errorSlackChannelId = "#not-exist";
-    const result = await notifySlack(slackBotToken, errorSlackChannelId, customMessage, messagePayload, requestComment, requestId, emptyRequesterInputBlocks);
+    const blocks = buildApprovalRequestBlocks({
+      customMessage: "Unit Test",
+      catalogId: "test-catalog",
+      approvalFlowId: "test-approval-flow",
+      requesterName: "Test User",
+      validationMessage: "This is a unit test notification, please ignore it.",
+      requestComment: "It's a unit test",
+      requestId: "1234567890",
+      inputParamsWithNames: [],
+      inputResourcesWithNames: [],
+    });
+
+    const result = await notifySlack(slackBotToken, "#not-exist", blocks);
     expect(result.isErr()).toBe(true);
     const error = result._unsafeUnwrapErr();
     expect(error.message.includes("channel_not_found")).toBe(true);
   });
 });
 
-describe("generateMessageFromPendingRequest", () => {
+describe("buildApprovalRequestBlocks", () => {
+  it("should build blocks with all required fields", () => {
+    const blocks = buildApprovalRequestBlocks({
+      customMessage: "Please review",
+      catalogId: "test-catalog",
+      approvalFlowId: "test-approval-flow",
+      requesterName: "Test User",
+      validationMessage: "Validation passed",
+      requestComment: "Test comment",
+      requestId: "req-123",
+      inputParamsWithNames: [],
+      inputResourcesWithNames: [],
+    });
+
+    // Should have: header, custom message, catalog, approval flow, requester, message, request comment, input, actions = 9 blocks
+    expect(blocks.length).toBe(9);
+    expect(blocks[0]).toHaveProperty("type", "header");
+    expect(blocks[1]).toHaveProperty("type", "section"); // custom message
+    expect(blocks[2]).toHaveProperty("type", "section"); // catalog
+    expect(blocks[3]).toHaveProperty("type", "section"); // approval flow
+    expect(blocks[4]).toHaveProperty("type", "section"); // requester
+    expect(blocks[5]).toHaveProperty("type", "section"); // message
+    expect(blocks[6]).toHaveProperty("type", "section"); // request comment
+    expect(blocks[7]).toHaveProperty("type", "input");
+    expect(blocks[8]).toHaveProperty("type", "actions");
+  });
+
+  it("should include auto-revoke block when autoRevokeDuration is provided", () => {
+    const blocks = buildApprovalRequestBlocks({
+      customMessage: "Please review",
+      catalogId: "test-catalog",
+      approvalFlowId: "test-approval-flow",
+      requesterName: "Test User",
+      validationMessage: "Validation passed",
+      requestComment: "Test comment",
+      requestId: "req-123",
+      inputParamsWithNames: [],
+      inputResourcesWithNames: [],
+      autoRevokeDuration: "P7D",
+    });
+
+    // Should have: header, custom message, catalog, approval flow, requester, message, auto-revoke, request comment, input, actions = 10 blocks
+    expect(blocks.length).toBe(10);
+
+    // Check auto-revoke block content (after message block, before request comment)
+    const autoRevokeBlock = blocks[6] as { text: { text: string } };
+    expect(autoRevokeBlock.text.text).toContain("*Auto-Revoke*");
+    expect(autoRevokeBlock.text.text).toContain("7 days");
+  });
+
+  it("should include requester input blocks when inputParams and inputResources are provided", () => {
+    const inputParamsWithNames: InputParamWithName[] = [{ id: "param1", name: "Environment", value: "production" }];
+    const inputResourcesWithNames: InputResourceWithName[] = [
+      { resourceTypeId: "account-type", resourceTypeName: "Account", resourceId: "acc-123", resourceName: "Production Account" },
+    ];
+
+    const blocks = buildApprovalRequestBlocks({
+      customMessage: "Please review",
+      catalogId: "test-catalog",
+      approvalFlowId: "test-approval-flow",
+      requesterName: "Test User",
+      validationMessage: "Validation passed",
+      requestComment: "Test comment",
+      requestId: "req-123",
+      inputParamsWithNames,
+      inputResourcesWithNames,
+    });
+
+    // Should have: header, custom message, catalog, approval flow, requester, requester input (1 section), message, request comment, input, actions = 10 blocks
+    expect(blocks.length).toBe(10);
+  });
+
+  it("should format request info blocks correctly", () => {
+    const blocks = buildApprovalRequestBlocks({
+      customMessage: "Please review",
+      catalogId: "my-catalog",
+      approvalFlowId: "my-approval-flow",
+      requesterName: "John Doe",
+      validationMessage: "Request is valid",
+      requestComment: "Test comment",
+      requestId: "req-123",
+      inputParamsWithNames: [],
+      inputResourcesWithNames: [],
+    });
+
+    const catalogBlock = blocks[2] as { text: { text: string } };
+    const approvalFlowBlock = blocks[3] as { text: { text: string } };
+    const requesterBlock = blocks[4] as { text: { text: string } };
+    const messageBlock = blocks[5] as { text: { text: string } };
+
+    expect(catalogBlock.text.text).toBe("*Catalog*: my-catalog");
+    expect(approvalFlowBlock.text.text).toBe("*Approval Flow*: my-approval-flow");
+    expect(requesterBlock.text.text).toBe("*Requester*: John Doe");
+    expect(messageBlock.text.text).toBe("*Message*: Request is valid");
+  });
+
+  it("should format request comment block correctly", () => {
+    const blocks = buildApprovalRequestBlocks({
+      customMessage: "Please review",
+      catalogId: "test-catalog",
+      approvalFlowId: "test-approval-flow",
+      requesterName: "Test User",
+      validationMessage: "Validation passed",
+      requestComment: "This is my comment",
+      requestId: "req-123",
+      inputParamsWithNames: [],
+      inputResourcesWithNames: [],
+    });
+
+    // Request comment is at index 6 (after message block)
+    const requestCommentBlock = blocks[6] as { text: { text: string } };
+    expect(requestCommentBlock.text.text).toBe("*Request Comment*\nThis is my comment");
+  });
+
+  it("should skip custom message block when customMessage is empty string", () => {
+    const blocks = buildApprovalRequestBlocks({
+      customMessage: "",
+      catalogId: "test-catalog",
+      approvalFlowId: "test-approval-flow",
+      requesterName: "Test User",
+      validationMessage: "Validation passed",
+      requestComment: "Test comment",
+      requestId: "req-123",
+      inputParamsWithNames: [],
+      inputResourcesWithNames: [],
+    });
+
+    // Should have: header, catalog, approval flow, requester, message, request comment, input, actions = 8 blocks (no custom message)
+    expect(blocks.length).toBe(8);
+    expect(blocks[0]).toHaveProperty("type", "header");
+    expect(blocks[1]).toHaveProperty("type", "section"); // catalog (not custom message)
+
+    const catalogBlock = blocks[1] as { text: { text: string } };
+    expect(catalogBlock.text.text).toBe("*Catalog*: test-catalog");
+  });
+});
+
+describe("notifyApprovalRequest", () => {
   const logger = createLogger("DEBUG", { moduleName: "test" });
+  const slackBotToken = process.env.SLACK_BOT_TOKEN!;
 
   const basePendingRequest: PendingRequest = {
     requestId: "test-request-id",
@@ -139,12 +342,7 @@ describe("generateMessageFromPendingRequest", () => {
     },
   };
 
-  it("should include auto-revoke information when autoRevokeDuration is provided", async () => {
-    const pendingRequestWithAutoRevoke: PendingRequest = {
-      ...basePendingRequest,
-      autoRevokeDuration: "P7D", // 7 days
-    };
-
+  it("should send notification successfully with valid inputs", async () => {
     const mockGetStampHubUser = vi.fn().mockReturnValue(
       ok(
         some({
@@ -156,19 +354,22 @@ describe("generateMessageFromPendingRequest", () => {
       )
     );
 
-    const generateMessageFn = generateMessageFromPendingRequest(logger, mockGetStampHubUser);
-    const result = await generateMessageFn(pendingRequestWithAutoRevoke);
+    const notifyFn = notifyApprovalRequest(logger, slackBotToken, mockGetStampHubUser);
+    const result = await notifyFn({
+      channelConfigProperties: {
+        channelId: process.env.SLACK_CHANNEL_ID!,
+        customMessage: "Please review this request",
+      },
+      request: basePendingRequest,
+      inputParamsWithNames: [],
+      inputResourcesWithNames: [],
+    });
 
     expect(result.isOk()).toBe(true);
-    const { messagePayload, autoRevokeMessage } = result._unsafeUnwrap();
-    expect(messagePayload).toContain("*Catalog*");
-    expect(autoRevokeMessage).toBeDefined();
-    expect(autoRevokeMessage).toContain("*Auto-Revoke*");
-    expect(autoRevokeMessage).toContain("7 days");
     expect(mockGetStampHubUser).toHaveBeenCalledWith("test-user-id");
   });
 
-  it("should not include auto-revoke information when autoRevokeDuration is not provided", async () => {
+  it("should send notification with auto-revoke duration", async () => {
     const mockGetStampHubUser = vi.fn().mockReturnValue(
       ok(
         some({
@@ -180,23 +381,21 @@ describe("generateMessageFromPendingRequest", () => {
       )
     );
 
-    const generateMessageFn = generateMessageFromPendingRequest(logger, mockGetStampHubUser);
-    const result = await generateMessageFn(basePendingRequest);
+    const notifyFn = notifyApprovalRequest(logger, slackBotToken, mockGetStampHubUser);
+    const result = await notifyFn({
+      channelConfigProperties: {
+        channelId: process.env.SLACK_CHANNEL_ID!,
+        customMessage: "Please review this request",
+      },
+      request: { ...basePendingRequest, autoRevokeDuration: "P7D" },
+      inputParamsWithNames: [],
+      inputResourcesWithNames: [],
+    });
 
     expect(result.isOk()).toBe(true);
-    const { messagePayload, autoRevokeMessage } = result._unsafeUnwrap();
-    expect(messagePayload).not.toContain("*Auto-Revoke*");
-    expect(autoRevokeMessage).toBeUndefined();
-
-    expect(mockGetStampHubUser).toHaveBeenCalledWith("test-user-id");
   });
 
-  it("should include auto-revoke information with complex duration", async () => {
-    const pendingRequestWithComplexDuration: PendingRequest = {
-      ...basePendingRequest,
-      autoRevokeDuration: "P1DT12H", // 1 day and 12 hours
-    };
-
+  it("should send notification with input params and resources", async () => {
     const mockGetStampHubUser = vi.fn().mockReturnValue(
       ok(
         some({
@@ -208,20 +407,69 @@ describe("generateMessageFromPendingRequest", () => {
       )
     );
 
-    const generateMessageFn = generateMessageFromPendingRequest(logger, mockGetStampHubUser);
-    const result = await generateMessageFn(pendingRequestWithComplexDuration);
+    const notifyFn = notifyApprovalRequest(logger, slackBotToken, mockGetStampHubUser);
+    const result = await notifyFn({
+      channelConfigProperties: {
+        channelId: process.env.SLACK_CHANNEL_ID!,
+        customMessage: "Please review this request",
+      },
+      request: basePendingRequest,
+      inputParamsWithNames: [{ id: "env", name: "Environment", value: "production" }],
+      inputResourcesWithNames: [{ resourceTypeId: "account", resourceTypeName: "Account", resourceId: "acc-123", resourceName: "Prod Account" }],
+    });
 
     expect(result.isOk()).toBe(true);
-    const { autoRevokeMessage } = result._unsafeUnwrap();
-    expect(autoRevokeMessage).toBeDefined();
-    expect(autoRevokeMessage).toContain("*Auto-Revoke*");
-    expect(autoRevokeMessage).toContain("1 day and 12 hours");
+  });
+
+  it("should return error when user is not found", async () => {
+    const mockGetStampHubUser = vi.fn().mockReturnValue(ok(none));
+
+    const notifyFn = notifyApprovalRequest(logger, slackBotToken, mockGetStampHubUser);
+    const result = await notifyFn({
+      channelConfigProperties: {
+        channelId: process.env.SLACK_CHANNEL_ID!,
+        customMessage: "Please review this request",
+      },
+      request: basePendingRequest,
+      inputParamsWithNames: [],
+      inputResourcesWithNames: [],
+    });
+
+    expect(result.isErr()).toBe(true);
+    const error = result._unsafeUnwrapErr();
+    expect(error.message).toBe("user is not found");
+  });
+
+  it("should use empty string when customMessage is not provided", async () => {
+    const mockGetStampHubUser = vi.fn().mockReturnValue(
+      ok(
+        some({
+          userId: "test-user-id",
+          userName: "Test User",
+          email: "test@example.com",
+          groups: [],
+        })
+      )
+    );
+
+    const notifyFn = notifyApprovalRequest(logger, slackBotToken, mockGetStampHubUser);
+    const result = await notifyFn({
+      channelConfigProperties: {
+        channelId: process.env.SLACK_CHANNEL_ID!,
+        customMessage: undefined,
+      },
+      request: basePendingRequest,
+      inputParamsWithNames: [],
+      inputResourcesWithNames: [],
+    });
+
+    expect(result.isOk()).toBe(true);
   });
 });
 
-describe("generateRequesterInputBlocks", () => {
+describe("buildRequesterInputBlocks", () => {
   it("should return empty array when both inputParamsWithNames and inputResourcesWithNames are empty", () => {
-    const blocks = generateRequesterInputBlocks([], []);
+    const blocks = buildRequesterInputBlocks([], []);
     expect(blocks).toEqual([]);
   });
 
@@ -230,7 +478,7 @@ describe("generateRequesterInputBlocks", () => {
       { id: "param1", name: "Parameter 1", value: "value1" },
       { id: "param2", name: "Parameter 2", value: 123 },
     ];
-    const blocks = generateRequesterInputBlocks(inputParamsWithNames, []);
+    const blocks = buildRequesterInputBlocks(inputParamsWithNames, []);
 
     // Should have: section with fields
     expect(blocks.length).toBe(1);
@@ -246,7 +494,7 @@ describe("generateRequesterInputBlocks", () => {
     const inputResourcesWithNames: InputResourceWithName[] = [
       { resourceTypeId: "rt1", resourceTypeName: "Resource Type 1", resourceId: "res1", resourceName: "Resource 1" },
     ];
-    const blocks = generateRequesterInputBlocks([], inputResourcesWithNames);
+    const blocks = buildRequesterInputBlocks([], inputResourcesWithNames);
 
     // Should have: section with fields
     expect(blocks.length).toBe(1);
@@ -261,7 +509,7 @@ describe("generateRequesterInputBlocks", () => {
     const inputResourcesWithNames: InputResourceWithName[] = [
       { resourceTypeId: "rt1", resourceTypeName: "Resource Type 1", resourceId: "res1", resourceName: "Resource 1" },
     ];
-    const blocks = generateRequesterInputBlocks(inputParamsWithNames, inputResourcesWithNames);
+    const blocks = buildRequesterInputBlocks(inputParamsWithNames, inputResourcesWithNames);
 
     // Should have: single section with all fields
     expect(blocks.length).toBe(1);
@@ -272,7 +520,7 @@ describe("generateRequesterInputBlocks", () => {
 
   it("should handle boolean values in input parameters", () => {
     const inputParamsWithNames: InputParamWithName[] = [{ id: "param1", name: "Boolean Param", value: true }];
-    const blocks = generateRequesterInputBlocks(inputParamsWithNames, []);
+    const blocks = buildRequesterInputBlocks(inputParamsWithNames, []);
 
     expect(blocks.length).toBe(1);
     const section = blocks[0] as { fields: Array<{ type: string; text: string }> };
@@ -286,7 +534,7 @@ describe("generateRequesterInputBlocks", () => {
       name: `Parameter ${i}`,
       value: `value${i}`,
     }));
-    const blocks = generateRequesterInputBlocks(inputParamsWithNames, []);
+    const blocks = buildRequesterInputBlocks(inputParamsWithNames, []);
 
     // Should have: 2 sections (10 fields + 2 fields)
     expect(blocks.length).toBe(2);
@@ -300,7 +548,7 @@ describe("generateRequesterInputBlocks", () => {
     const inputResourcesWithNames: InputResourceWithName[] = [
       { resourceTypeId: "account-type", resourceTypeName: "Account", resourceId: "acc-123", resourceName: "Production Account" },
     ];
-    const blocks = generateRequesterInputBlocks([], inputResourcesWithNames);
+    const blocks = buildRequesterInputBlocks([], inputResourcesWithNames);
 
     const section = blocks[0] as { fields: Array<{ type: string; text: string }> };
     expect(section.fields[0].text).toBe("*Account:*\nProduction Account (acc-123)");
@@ -308,7 +556,7 @@ describe("generateRequesterInputBlocks", () => {
 
   it("should display only resource ID when resourceName is undefined", () => {
     const inputResourcesWithNames: InputResourceWithName[] = [{ resourceTypeId: "account-type", resourceTypeName: "Account", resourceId: "acc-123" }];
-    const blocks = generateRequesterInputBlocks([], inputResourcesWithNames);
+    const blocks = buildRequesterInputBlocks([], inputResourcesWithNames);
 
     const section = blocks[0] as { fields: Array<{ type: string; text: string }> };
     expect(section.fields[0].text).toBe("*Account:*\nacc-123");
@@ -320,7 +568,7 @@ describe("generateRequesterInputBlocks", () => {
       name: `Parameter ${i}`,
       value: `value${i}`,
     }));
-    const blocks = generateRequesterInputBlocks(inputParamsWithNames, []);
+    const blocks = buildRequesterInputBlocks(inputParamsWithNames, []);
     expect(blocks.length).toBe(1);
     const section = blocks[0] as { fields: Array<{ type: string; text: string }> };
     expect(section.fields.length).toBe(10);
@@ -338,7 +586,7 @@ describe("generateRequesterInputBlocks", () => {
       resourceId: `res${i}`,
       resourceName: `Resource ${i}`,
     }));
-    const blocks = generateRequesterInputBlocks(inputParamsWithNames, inputResourcesWithNames);
+    const blocks = buildRequesterInputBlocks(inputParamsWithNames, inputResourcesWithNames);
     expect(blocks.length).toBe(3);
     const first = blocks[0] as { fields: Array<{ type: string; text: string }> };
     const second = blocks[1] as { fields: Array<{ type: string; text: string }> };
@@ -349,9 +597,10 @@ describe("generateRequesterInputBlocks", () => {
   });
 
   it("should stay within Slack's 50 block limit with auto-revoke and max fields", () => {
-    // Fixed blocks used elsewhere in the message: header, custom message, message payload, request comment, input, actions
-    const fixedBlocks = 6;
-    const maxSections = 50 - fixedBlocks; // 44 sections available for requester input
+    // Fixed blocks used elsewhere in the message:
+    // header, custom message, catalog, approval flow, requester, message, auto-revoke, request comment, input, actions = 10 blocks
+    const fixedBlocks = 10;
+    const maxSections = 50 - fixedBlocks; // 40 sections available for requester input
     const maxFields = maxSections * 10; // 10 fields per section
 
     // Split evenly between params and resources
@@ -368,7 +617,7 @@ describe("generateRequesterInputBlocks", () => {
       resourceName: `Resource ${i}`,
     }));
 
-    const requesterBlocks = generateRequesterInputBlocks(inputParamsWithNames, inputResourcesWithNames);
+    const requesterBlocks = buildRequesterInputBlocks(inputParamsWithNames, inputResourcesWithNames);
     expect(requesterBlocks.length).toBe(maxSections);
 
     // Total message blocks must be exactly 50
