@@ -4,7 +4,7 @@ import { ApprovalFlowDBProvider, ApprovalRequestDBProvider, ResourceDBProvider }
 import { GetNotificationPluginConfig } from "@stamp-lib/stamp-types/configInterface";
 import { z } from "zod";
 import { parseZodObjectAsync } from "../../utils/neverthrow";
-import { ResultAsync, errAsync, okAsync } from "neverthrow";
+import { ResultAsync, errAsync, okAsync, Result, ok, err } from "neverthrow";
 
 import { CatalogConfigProvider } from "@stamp-lib/stamp-types/configInterface";
 import { createGetCatalogConfig } from "../../events/catalog/catalogConfig";
@@ -17,6 +17,7 @@ import { GetGroup } from "@stamp-lib/stamp-types/pluginInterface/identity";
 import { Logger } from "@stamp-lib/stamp-logger";
 import { validateAutoRevokeDurationTime } from "../../events/approval-request/actions/autoRevoke";
 import { CreateSchedulerEvent } from "@stamp-lib/stamp-types/pluginInterface/scheduler";
+import type { CatalogConfig, ApprovalFlowConfig } from "@stamp-lib/stamp-types/models";
 
 export const SubmitWorkflowInput = SubmittedRequest.omit({ requestId: true, status: true, requestDate: true }).extend({
   approverType: ApproverType.optional(),
@@ -183,47 +184,101 @@ export const submitWorkflow =
         if (validatedRequest.status === "validationFailed") {
           return okAsync(validatedRequest);
         } else {
-          // Enrich input data for notification
-          return enrichInputDataForNotification(
-            logger,
-            catalogConfig,
-            approvalFlowConfig
-          )(validatedRequest).andThen((enrichedData) => {
-            return getGroup({ groupId: validatedRequest.approverId }).andThen((group) => {
-              if (group.isNone()) {
-                logger.error("Group not found", { groupId: validatedRequest.approverId });
-                return okAsync(validatedRequest);
-              }
-              const notificationChannels = group.value.approvalRequestNotifications ?? [];
-              const sendNotificationResults = [];
-              for (const notificationChannel of notificationChannels) {
-                sendNotificationResults.push(
-                  getNotificationPluginConfig(notificationChannel.notificationChannel.typeId).andThen((notificationConfig) => {
-                    if (notificationConfig.isNone()) {
-                      logger.error("NotificationConfig not found", { notificationChannel });
-                      return okAsync(undefined);
-                    }
-                    return notificationConfig.value.handlers.sendNotification({
-                      message: {
-                        type: "ApprovalRequestEvent",
-                        property: {
-                          request: validatedRequest,
-                          inputParamsWithNames: enrichedData.inputParamsWithNames,
-                          inputResourcesWithNames: enrichedData.inputResourcesWithNames,
-                        },
-                      },
-                      channel: notificationChannel.notificationChannel,
-                    });
-                  })
-                );
-              }
-
-              return ResultAsync.combine(sendNotificationResults).map(() => {
-                return validatedRequest;
-              });
-            });
-          });
+          // Enrich input data and send notifications
+          return new ResultAsync(
+            enrichAndSendNotifications(logger, catalogConfig, approvalFlowConfig, validatedRequest, getGroup, getNotificationPluginConfig)
+          ).mapErr(convertStampHubError);
         }
       })
       .mapErr(convertStampHubError);
   };
+
+/**
+ * Enriches input data for notification and sends notifications to approval request channels.
+ * Uses procedural style (async/await with early return) to avoid andThen nesting.
+ */
+const enrichAndSendNotifications = async (
+  logger: Logger,
+  catalogConfig: CatalogConfig,
+  approvalFlowConfig: ApprovalFlowConfig,
+  validatedRequest: PendingRequest,
+  getGroup: GetGroup,
+  getNotificationPluginConfig: GetNotificationPluginConfig
+): Promise<Result<PendingRequest, StampHubError>> => {
+  // Step 1: Enrich input data for notification
+  const enrichedDataResult = await enrichInputDataForNotification(logger, catalogConfig, approvalFlowConfig)(validatedRequest);
+
+  if (enrichedDataResult.isErr()) {
+    const enrichmentError = enrichedDataResult.error;
+    switch (enrichmentError.type) {
+      case "ResourceFetchError":
+        return err(
+          new StampHubError(
+            `Failed to fetch resource: ${enrichmentError.resourceId}`,
+            `Failed to fetch resource information for notification`,
+            "INTERNAL_SERVER_ERROR"
+          )
+        );
+    }
+  }
+
+  const enrichedData = enrichedDataResult.value;
+
+  // Step 2: Get approver group
+  const groupResult = await getGroup({ groupId: validatedRequest.approverId });
+
+  if (groupResult.isErr()) {
+    return err(convertStampHubError(groupResult.error));
+  }
+
+  if (groupResult.value.isNone()) {
+    logger.error("Group not found", { groupId: validatedRequest.approverId });
+    return ok(validatedRequest);
+  }
+
+  const group = groupResult.value.value;
+  const notificationChannels = group.approvalRequestNotifications ?? [];
+
+  // Step 3: Send notifications to all channels
+  // Note: Notification failures are logged but don't fail the entire workflow
+  const sendNotificationTasks = notificationChannels.map(async (notificationChannel) => {
+    const notificationConfigResult = await getNotificationPluginConfig(notificationChannel.notificationChannel.typeId);
+
+    if (notificationConfigResult.isErr()) {
+      logger.error("Failed to get notification config", {
+        notificationChannel,
+        error: notificationConfigResult.error,
+      });
+      return;
+    }
+
+    if (notificationConfigResult.value.isNone()) {
+      logger.error("NotificationConfig not found", { notificationChannel });
+      return;
+    }
+
+    const notificationConfig = notificationConfigResult.value.value;
+    const sendResult = await notificationConfig.handlers.sendNotification({
+      message: {
+        type: "ApprovalRequestEvent",
+        property: {
+          request: validatedRequest,
+          inputParamsWithNames: enrichedData.inputParamsWithNames,
+          inputResourcesWithNames: enrichedData.inputResourcesWithNames,
+        },
+      },
+      channel: notificationChannel.notificationChannel,
+    });
+
+    if (sendResult.isErr()) {
+      logger.error("Failed to send notification", {
+        notificationChannel,
+        error: sendResult.error,
+      });
+    }
+  });
+
+  await Promise.all(sendNotificationTasks);
+
+  return ok(validatedRequest);
+};

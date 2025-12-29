@@ -1,11 +1,19 @@
 import { Logger } from "@stamp-lib/stamp-logger";
-import { PendingRequest } from "@stamp-lib/stamp-types/models";
-import { InputParamWithName, InputResourceWithName, NotificationError } from "@stamp-lib/stamp-types/pluginInterface/notification";
+import { InputParamWithName, InputResourceWithName, PendingRequest } from "@stamp-lib/stamp-types/models";
+import { NotificationError } from "@stamp-lib/stamp-types/pluginInterface/notification";
 import { Result, err, ok } from "neverthrow";
-import { AnyMessageBlock, ChatPostMessageResponse, SlackAPIClient } from "slack-web-api-client";
+import { AnyMessageBlock, SlackAPIClient, SlackAPIError } from "slack-web-api-client";
 import { GetStampHubUser } from "../stamp-hub/stampUser";
 import { ChannelConfigProperties } from "../stamp-notification-plugin/channelConfigProperties";
 import { formatAutoRevokeDuration } from "./autoRevokeUtils";
+
+/**
+ * Result type for generateMessageFromPendingRequest
+ */
+export type MessagePayloadResult = {
+  messagePayload: string;
+  autoRevokeMessage?: string;
+};
 
 /**
  * Input for notifyApprovalRequest function
@@ -37,7 +45,7 @@ export const notifyApprovalRequest =
     // Generate requester input blocks
     const requesterInputBlocks = generateRequesterInputBlocks(inputParamsWithNames, inputResourcesWithNames);
 
-    const response = await notifySlack(
+    const slackResult = await notifySlack(
       slackBotToken,
       slackChannelId,
       customMessage,
@@ -47,10 +55,20 @@ export const notifyApprovalRequest =
       requesterInputBlocks,
       autoRevokeMessage
     );
-    logger.info(response);
+
+    if (slackResult.isErr()) {
+      logger.error("Failed to send Slack notification", { error: slackResult.error });
+      return err(slackResult.error);
+    }
+
+    logger.info("Slack notification sent successfully", { response: slackResult.value });
     return ok(undefined);
   };
 
+/**
+ * Sends a notification message to Slack.
+ * Returns a Result type to handle errors explicitly instead of throwing exceptions.
+ */
 export async function notifySlack(
   slackBotToken: string,
   slackChannelId: string,
@@ -60,7 +78,7 @@ export async function notifySlack(
   requestId: string,
   requesterInputBlocks: AnyMessageBlock[],
   autoRevokeMessage?: string
-): Promise<ChatPostMessageResponse> {
+): Promise<Result<void, NotificationError>> {
   const client = new SlackAPIClient(slackBotToken, {
     logLevel: "INFO",
   });
@@ -157,39 +175,60 @@ export async function notifySlack(
     ],
   });
 
-  const response = await client.chat.postMessage({
-    channel: slackChannelId,
-    text: "Stamp Approval request",
-    blocks: blocks,
-  });
-  return response;
+  try {
+    await client.chat.postMessage({
+      channel: slackChannelId,
+      text: "Stamp Approval request",
+      blocks: blocks,
+    });
+    return ok(undefined);
+  } catch (error) {
+    // SlackAPIError contains the error code in result.error (e.g., "invalid_auth", "channel_not_found")
+    const slackError = error as SlackAPIError;
+    const errorCode = slackError?.result?.error;
+
+    // Build error message with cause chain for better debugging (e.g., SSL certificate errors)
+    let message: string;
+    if (errorCode) {
+      message = errorCode;
+    } else if (error instanceof Error) {
+      // Include cause if available (e.g., "fetch failed" -> "self-signed certificate in certificate chain")
+      const causeMessage = error.cause instanceof Error ? `: ${error.cause.message}` : "";
+      message = `${error.message}${causeMessage}`;
+    } else {
+      message = "Failed to send Slack message";
+    }
+    return err(new NotificationError(message));
+  }
 }
 
-export const generateMessageFromPendingRequest = (logger: Logger, getStampHubUser: GetStampHubUser) => async (pendingRequest: PendingRequest) => {
-  const user = await getStampHubUser(pendingRequest.requestUserId);
-  if (user.isErr()) {
-    logger.error(user.error);
-    return err(user.error);
-  }
-  if (user.value.isNone()) {
-    logger.error("user is not found");
-    return err(new NotificationError("user is not found"));
-  }
-  const userName = user.value.value.userName;
-
-  const messagePayload = `*Catalog*: ${pendingRequest.catalogId}\n*Approval Flow*: ${pendingRequest.approvalFlowId}\n*Requester*: ${userName}\n*Message*: ${pendingRequest.validationHandlerResult.message}`;
-
-  // Generate auto-revoke message if available (will be displayed in a separate section)
-  let autoRevokeMessage: string | undefined;
-  if (pendingRequest.autoRevokeDuration) {
-    const duration = formatAutoRevokeDuration(pendingRequest.autoRevokeDuration);
-    if (duration) {
-      autoRevokeMessage = `*Auto-Revoke*: This approval will be automatically revoked in ${duration}`;
+export const generateMessageFromPendingRequest =
+  (logger: Logger, getStampHubUser: GetStampHubUser) =>
+  async (pendingRequest: PendingRequest): Promise<Result<MessagePayloadResult, NotificationError>> => {
+    const user = await getStampHubUser(pendingRequest.requestUserId);
+    if (user.isErr()) {
+      logger.error(user.error);
+      return err(user.error);
     }
-  }
+    if (user.value.isNone()) {
+      logger.error("user is not found");
+      return err(new NotificationError("user is not found"));
+    }
+    const userName = user.value.value.userName;
 
-  return ok({ messagePayload, autoRevokeMessage });
-};
+    const messagePayload = `*Catalog*: ${pendingRequest.catalogId}\n*Approval Flow*: ${pendingRequest.approvalFlowId}\n*Requester*: ${userName}\n*Message*: ${pendingRequest.validationHandlerResult.message}`;
+
+    // Generate auto-revoke message if available (will be displayed in a separate section)
+    let autoRevokeMessage: string | undefined;
+    if (pendingRequest.autoRevokeDuration) {
+      const duration = formatAutoRevokeDuration(pendingRequest.autoRevokeDuration);
+      if (duration) {
+        autoRevokeMessage = `*Auto-Revoke*: This approval will be automatically revoked in ${duration}`;
+      }
+    }
+
+    return ok({ messagePayload, autoRevokeMessage });
+  };
 
 /**
  * Generates Slack Block Kit blocks for displaying requester input data.

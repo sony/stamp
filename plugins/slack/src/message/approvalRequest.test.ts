@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { notifySlack, generateMessageFromPendingRequest, generateRequesterInputBlocks } from "./approvalRequest";
-import { PendingRequest } from "@stamp-lib/stamp-types/models";
-import { InputParamWithName, InputResourceWithName } from "@stamp-lib/stamp-types/pluginInterface/notification";
+import { InputParamWithName, InputResourceWithName, PendingRequest } from "@stamp-lib/stamp-types/models";
+
 import { createLogger } from "@stamp-lib/stamp-logger";
 import { ok } from "neverthrow";
 import { some } from "@stamp-lib/stamp-option";
@@ -16,8 +16,8 @@ describe("notifySlack", () => {
   const emptyRequesterInputBlocks: Parameters<typeof notifySlack>[6] = [];
 
   it("Success case with valid token and existing channel", async () => {
-    const response = await notifySlack(slackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId, emptyRequesterInputBlocks);
-    expect(response.ok).toBe(true);
+    const result = await notifySlack(slackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId, emptyRequesterInputBlocks);
+    expect(result.isOk()).toBe(true);
   });
 
   it("Success case with requester input blocks (inputParams and inputResources)", async () => {
@@ -32,16 +32,16 @@ describe("notifySlack", () => {
     ];
     const requesterInputBlocks = generateRequesterInputBlocks(inputParamsWithNames, inputResourcesWithNames);
 
-    const response = await notifySlack(slackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId, requesterInputBlocks);
-    expect(response.ok).toBe(true);
+    const result = await notifySlack(slackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId, requesterInputBlocks);
+    expect(result.isOk()).toBe(true);
   });
 
   it("Success case with only inputParams", async () => {
     const inputParamsWithNames: InputParamWithName[] = [{ id: "reason", name: "Request Reason", value: "Need access for deployment" }];
     const requesterInputBlocks = generateRequesterInputBlocks(inputParamsWithNames, []);
 
-    const response = await notifySlack(slackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId, requesterInputBlocks);
-    expect(response.ok).toBe(true);
+    const result = await notifySlack(slackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId, requesterInputBlocks);
+    expect(result.isOk()).toBe(true);
   });
 
   it("Success case with only inputResources", async () => {
@@ -50,13 +50,13 @@ describe("notifySlack", () => {
     ];
     const requesterInputBlocks = generateRequesterInputBlocks([], inputResourcesWithNames);
 
-    const response = await notifySlack(slackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId, requesterInputBlocks);
-    expect(response.ok).toBe(true);
+    const result = await notifySlack(slackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId, requesterInputBlocks);
+    expect(result.isOk()).toBe(true);
   });
 
   it("Success case with auto-revoke as separate section", async () => {
     const autoRevokeMessage = `*Auto-Revoke*: This approval will be automatically revoked in 7 days`;
-    const response = await notifySlack(
+    const result = await notifySlack(
       slackBotToken,
       slackChannelId,
       customMessage,
@@ -66,7 +66,7 @@ describe("notifySlack", () => {
       emptyRequesterInputBlocks,
       autoRevokeMessage
     );
-    expect(response.ok).toBe(true);
+    expect(result.isOk()).toBe(true);
   });
 
   it("Success case with auto-revoke and max requester input fields", async () => {
@@ -87,7 +87,7 @@ describe("notifySlack", () => {
     }));
     const requesterInputBlocks = generateRequesterInputBlocks(inputParamsWithNames, inputResourcesWithNames);
 
-    const response = await notifySlack(
+    const result = await notifySlack(
       slackBotToken,
       slackChannelId,
       customMessage,
@@ -97,27 +97,23 @@ describe("notifySlack", () => {
       requesterInputBlocks,
       autoRevokeMessage
     );
-    expect(response.ok).toBe(true);
+    expect(result.isOk()).toBe(true);
   });
 
   it("Failure case with invalid token", async () => {
     const errorSlackBotToken = "invalid-token";
-    try {
-      await notifySlack(errorSlackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId, emptyRequesterInputBlocks);
-    } catch (error) {
-      // An error occurred with the content: Failed to call chat.postMessage due to invalid_auth
-      expect((error as Error).message.includes("invalid_auth")).toBe(true);
-    }
+    const result = await notifySlack(errorSlackBotToken, slackChannelId, customMessage, messagePayload, requestComment, requestId, emptyRequesterInputBlocks);
+    expect(result.isErr()).toBe(true);
+    const error = result._unsafeUnwrapErr();
+    expect(error.message.includes("invalid_auth")).toBe(true);
   });
 
   it("Failure case specifying not exist channel", async () => {
     const errorSlackChannelId = "#not-exist";
-    try {
-      await notifySlack(slackBotToken, errorSlackChannelId, customMessage, messagePayload, requestComment, requestId, emptyRequesterInputBlocks);
-    } catch (error) {
-      // An error occurred with the content: Failed to call chat.postMessage due to channel_not_found
-      expect((error as Error).message.includes("channel_not_found")).toBe(true);
-    }
+    const result = await notifySlack(slackBotToken, errorSlackChannelId, customMessage, messagePayload, requestComment, requestId, emptyRequesterInputBlocks);
+    expect(result.isErr()).toBe(true);
+    const error = result._unsafeUnwrapErr();
+    expect(error.message.includes("channel_not_found")).toBe(true);
   });
 });
 

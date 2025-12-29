@@ -1,6 +1,6 @@
 import { none, some } from "@stamp-lib/stamp-option";
-import { ApprovalFlowHandler } from "@stamp-lib/stamp-types/catalogInterface/handler";
-import { ok, okAsync } from "neverthrow";
+import { ApprovalFlowHandler, HandlerError } from "@stamp-lib/stamp-types/catalogInterface/handler";
+import { ok, okAsync, errAsync } from "neverthrow";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { createLogger } from "@stamp-lib/stamp-logger";
 import { submitWorkflow, SubmitWorkflowInput } from "./submit";
@@ -770,5 +770,82 @@ describe("submitWorkflow", () => {
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr().message).toBe("ApproverType and ApproverId must be set");
     expect(mockProviders.setApprovalRequestDBProvider).not.toHaveBeenCalled();
+  });
+
+  it("should continue successfully even when sendNotification fails", async () => {
+    const sendNotificationMock = vi.fn().mockReturnValue(errAsync(new HandlerError("Slack API error", "INTERNAL_SERVER_ERROR", "Failed to send notification")));
+
+    const mockProviders = {
+      ...defaultMockProviders,
+      getCatalogConfigProvider: vi.fn().mockReturnValue(
+        okAsync(
+          some({
+            id: "test-catalog-id",
+            name: "test-catalog",
+            description: "catalogDescription",
+            approvalFlows: [
+              {
+                id: "test-approval-flow-id",
+                name: "testApprovalFlowName",
+                description: "testApprovalFlowDescription",
+                inputParams: [],
+                handlers: testApprovalFlowHandler,
+                inputResources: [],
+                approver: { approverType: "approvalFlow" },
+              },
+            ],
+            resourceTypes: [],
+          })
+        )
+      ),
+      getGroup: vi.fn().mockReturnValue(
+        okAsync(
+          some({
+            id: "18578bed-c45d-4f67-b9f7-10daf4c85f3f",
+            name: "Test Group",
+            description: "Test Group Description",
+            approvalRequestNotifications: [
+              {
+                notificationChannel: {
+                  id: "notification-channel-id",
+                  typeId: "notification-type-id",
+                  properties: { channelId: "test-channel" },
+                },
+              },
+            ],
+          })
+        )
+      ),
+      getNotificationPluginConfig: vi.fn().mockReturnValue(
+        okAsync(
+          some({
+            id: "notification-type-id",
+            name: "Test Notification",
+            description: "Test Notification Description",
+            handlers: {
+              sendNotification: sendNotificationMock,
+            },
+          })
+        )
+      ),
+    };
+
+    const workflow = submitWorkflow(mockProviders, logger);
+
+    const input: SubmitWorkflowInput = {
+      approvalFlowId: "test-approval-flow-id",
+      requestUserId: "dbf33b00-8a5f-e045-4aa1-2d943cb659b6",
+      requestComment: "test request comment",
+      inputParams: [],
+      inputResources: [],
+      catalogId: "test-catalog-id",
+    };
+
+    const result = await workflow(input);
+
+    // Even though sendNotification failed, the workflow should succeed
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap().status).toBe("pending");
+    expect(sendNotificationMock).toHaveBeenCalled();
   });
 });
