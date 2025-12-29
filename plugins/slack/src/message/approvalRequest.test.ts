@@ -55,7 +55,7 @@ describe("notifySlack", () => {
   });
 
   it("Success case with only inputParams", async () => {
-    const inputParamsWithNames: InputParamWithName[] = [{ id: "reason", name: "Request Reason", value: "Need access for deployment" }];
+    const inputParamsWithNames: InputParamWithName[] = [{ id: "ticketNumber", name: "Ticket Number", value: "1234" }];
 
     const blocks = buildApprovalRequestBlocks({
       customMessage: "Unit Test",
