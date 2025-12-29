@@ -262,9 +262,11 @@ export function generateRequesterInputBlocks(inputParamsWithNames: InputParamWit
   // Add input resources with ID information
   if (inputResourcesWithNames.length > 0) {
     for (const resource of inputResourcesWithNames) {
+      // Display resourceName with ID if available, otherwise just ID
+      const resourceDisplay = resource.resourceName ? `${resource.resourceName} (${resource.resourceId})` : resource.resourceId;
       fields.push({
         type: "mrkdwn",
-        text: `*${resource.resourceTypeName}:*\n${resource.resourceName} (${resource.resourceId})`,
+        text: `*${resource.resourceTypeName}:*\n${resourceDisplay}`,
       });
     }
   }

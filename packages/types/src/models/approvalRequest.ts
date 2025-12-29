@@ -36,7 +36,7 @@ export const InputResourceWithName = z.object({
   resourceTypeId: ResourceTypeId,
   resourceTypeName: ResourceTypeConfig.shape.name,
   resourceId: ResourceId,
-  resourceName: ResourceName,
+  resourceName: ResourceName.optional(), // resourceName may be undefined if not found.
 });
 export type InputResourceWithName = z.infer<typeof InputResourceWithName>;
 

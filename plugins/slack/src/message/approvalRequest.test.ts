@@ -306,6 +306,14 @@ describe("generateRequesterInputBlocks", () => {
     expect(section.fields[0].text).toBe("*Account:*\nProduction Account (acc-123)");
   });
 
+  it("should display only resource ID when resourceName is undefined", () => {
+    const inputResourcesWithNames: InputResourceWithName[] = [{ resourceTypeId: "account-type", resourceTypeName: "Account", resourceId: "acc-123" }];
+    const blocks = generateRequesterInputBlocks([], inputResourcesWithNames);
+
+    const section = blocks[0] as { fields: Array<{ type: string; text: string }> };
+    expect(section.fields[0].text).toBe("*Account:*\nacc-123");
+  });
+
   it("should create a single section with exactly 10 fields", () => {
     const inputParamsWithNames: InputParamWithName[] = Array.from({ length: 10 }, (_, i) => ({
       id: `param${i}`,

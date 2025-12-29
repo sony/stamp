@@ -205,24 +205,9 @@ const enrichAndSendNotifications = async (
   getGroup: GetGroup,
   getNotificationPluginConfig: GetNotificationPluginConfig
 ): Promise<Result<PendingRequest, StampHubError>> => {
-  // Step 1: Enrich input data for notification
+  // Step 1: Enrich input data for notification (never fails, falls back to IDs)
   const enrichedDataResult = await enrichInputDataForNotification(logger, catalogConfig, approvalFlowConfig)(validatedRequest);
-
-  if (enrichedDataResult.isErr()) {
-    const enrichmentError = enrichedDataResult.error;
-    switch (enrichmentError.type) {
-      case "ResourceFetchError":
-        return err(
-          new StampHubError(
-            `Failed to fetch resource: ${enrichmentError.resourceId}`,
-            `Failed to fetch resource information for notification`,
-            "INTERNAL_SERVER_ERROR"
-          )
-        );
-    }
-  }
-
-  const enrichedData = enrichedDataResult.value;
+  const enrichedData = enrichedDataResult._unsafeUnwrap();
 
   // Step 2: Get approver group
   const groupResult = await getGroup({ groupId: validatedRequest.approverId });

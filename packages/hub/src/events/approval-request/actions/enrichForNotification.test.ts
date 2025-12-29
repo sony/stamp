@@ -3,7 +3,8 @@ import { enrichInputDataForNotification } from "./enrichForNotification";
 import { PendingRequest, ApprovalFlowConfig, CatalogConfig } from "@stamp-lib/stamp-types/models";
 import { createLogger } from "@stamp-lib/stamp-logger";
 import { some, none } from "@stamp-lib/stamp-option";
-import { ok } from "neverthrow";
+import { ok, err } from "neverthrow";
+import { HandlerError } from "@stamp-lib/stamp-types/catalogInterface/handler";
 
 describe("enrichInputDataForNotification", () => {
   const logger = createLogger("DEBUG", { moduleName: "test" });
@@ -225,7 +226,6 @@ describe("enrichInputDataForNotification", () => {
           resourceTypeId: "resource-type-1",
           resourceTypeName: "Resource Type One",
           resourceId: "not-found-id",
-          resourceName: "not-found-id",
         },
       ]);
     });
@@ -245,7 +245,54 @@ describe("enrichInputDataForNotification", () => {
           resourceTypeId: "unknown-type",
           resourceTypeName: "unknown-type",
           resourceId: "res1",
-          resourceName: "res1",
+        },
+      ]);
+    });
+
+    it("should fallback to ID when getResource handler returns an error", async () => {
+      const handlerError = new HandlerError("Database connection failed", "INTERNAL_SERVER_ERROR", "Failed to fetch resource");
+      const mockGetResource = vi.fn().mockResolvedValue(err(handlerError));
+
+      const catalogConfig: CatalogConfig = {
+        ...baseCatalogConfig,
+        resourceTypes: [
+          {
+            id: "resource-type-1",
+            name: "Resource Type One",
+            description: "Test resource type",
+            createParams: [],
+            infoParams: [],
+            handlers: {
+              getResource: mockGetResource,
+              listResources: vi.fn(),
+              createResource: vi.fn(),
+              deleteResource: vi.fn(),
+              updateResource: vi.fn(),
+              listResourceAuditItem: vi.fn(),
+            },
+            isCreatable: true,
+            isUpdatable: true,
+            isDeletable: true,
+            ownerManagement: false,
+            approverManagement: false,
+          },
+        ],
+      };
+
+      const pendingRequest: PendingRequest = {
+        ...basePendingRequest,
+        inputResources: [{ resourceTypeId: "resource-type-1", resourceId: "res1" }],
+      };
+
+      const result = await enrichInputDataForNotification(logger, catalogConfig, baseApprovalFlowConfig)(pendingRequest);
+
+      expect(result.isOk()).toBe(true);
+      const data = result._unsafeUnwrap();
+      expect(data.inputResourcesWithNames).toEqual([
+        {
+          resourceTypeId: "resource-type-1",
+          resourceTypeName: "Resource Type One",
+          resourceId: "res1",
         },
       ]);
     });

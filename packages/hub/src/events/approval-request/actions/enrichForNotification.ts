@@ -1,17 +1,6 @@
-import { ok, err, Result } from "neverthrow";
+import { ok, Result } from "neverthrow";
 import { PendingRequest, ApprovalFlowConfig, CatalogConfig, InputParamWithName, InputResourceWithName } from "@stamp-lib/stamp-types/models";
 import { Logger } from "@stamp-lib/stamp-logger";
-import { HandlerError } from "@stamp-lib/stamp-types/catalogInterface/handler";
-
-// Error types for enrichment operations
-export type ResourceFetchError = {
-  type: "ResourceFetchError";
-  resourceId: string;
-  resourceTypeId: string;
-  cause: HandlerError;
-};
-
-export type EnrichmentError = ResourceFetchError;
 
 export type EnrichedInputData = {
   inputParamsWithNames: InputParamWithName[];
@@ -25,20 +14,16 @@ export type EnrichedInputData = {
  */
 export const enrichInputDataForNotification =
   (logger: Logger, catalogConfig: CatalogConfig, approvalFlowConfig: ApprovalFlowConfig) =>
-  async (pendingRequest: PendingRequest): Promise<Result<EnrichedInputData, EnrichmentError>> => {
+  async (pendingRequest: PendingRequest): Promise<Result<EnrichedInputData, never>> => {
     // Enrich input params with names (pure function, no errors)
     const inputParamsWithNames = enrichInputParamsWithNames(pendingRequest, approvalFlowConfig);
 
     // Enrich input resources with names
-    const inputResourcesWithNamesResult = await enrichInputResourcesWithNames(logger, catalogConfig, pendingRequest);
-
-    if (inputResourcesWithNamesResult.isErr()) {
-      return err(inputResourcesWithNamesResult.error);
-    }
+    const inputResourcesWithNames = await enrichInputResourcesWithNames(logger, catalogConfig, pendingRequest);
 
     return ok({
       inputParamsWithNames,
-      inputResourcesWithNames: inputResourcesWithNamesResult.value,
+      inputResourcesWithNames,
     });
   };
 
@@ -66,23 +51,14 @@ const enrichInputResourcesWithNames = async (
   logger: Logger,
   catalogConfig: CatalogConfig,
   pendingRequest: PendingRequest
-): Promise<Result<InputResourceWithName[], EnrichmentError>> => {
+): Promise<InputResourceWithName[]> => {
   if (pendingRequest.inputResources.length === 0) {
-    return ok([]);
+    return [];
   }
 
-  const enrichmentResults = await Promise.all(pendingRequest.inputResources.map((inputResource) => enrichSingleResource(logger, catalogConfig, inputResource)));
+  const enrichedResources = await Promise.all(pendingRequest.inputResources.map((inputResource) => enrichSingleResource(logger, catalogConfig, inputResource)));
 
-  // Check for errors
-  for (const result of enrichmentResults) {
-    if (result.isErr()) {
-      return err(result.error);
-    }
-  }
-
-  // All succeeded, extract values
-  const enrichedResources = enrichmentResults.map((result) => result._unsafeUnwrap());
-  return ok(enrichedResources);
+  return enrichedResources;
 };
 
 /**
@@ -93,7 +69,7 @@ const enrichSingleResource = async (
   logger: Logger,
   catalogConfig: CatalogConfig,
   inputResource: { resourceId: string; resourceTypeId: string }
-): Promise<Result<InputResourceWithName, EnrichmentError>> => {
+): Promise<InputResourceWithName> => {
   // Find resource type config from catalog config
   const resourceTypeConfig = catalogConfig.resourceTypes.find((rt) => rt.id === inputResource.resourceTypeId);
   const resourceTypeName = resourceTypeConfig?.name ?? inputResource.resourceTypeId;
@@ -104,12 +80,12 @@ const enrichSingleResource = async (
       resourceId: inputResource.resourceId,
       resourceTypeId: inputResource.resourceTypeId,
     });
-    return ok({
+    return {
       resourceTypeId: inputResource.resourceTypeId,
-      resourceTypeName,
+      resourceTypeName: inputResource.resourceTypeId,
       resourceId: inputResource.resourceId,
-      resourceName: inputResource.resourceId,
-    });
+      // resourceName is undefined when we can't fetch it
+    };
   }
 
   // Fetch resource info from catalog handler
@@ -119,17 +95,17 @@ const enrichSingleResource = async (
   });
 
   if (getResourceResult.isErr()) {
-    logger.error("Failed to fetch resource for enrichment", {
+    logger.warn("Failed to fetch resource for enrichment, using ID as name", {
       resourceId: inputResource.resourceId,
       resourceTypeId: inputResource.resourceTypeId,
       error: getResourceResult.error,
     });
-    return err({
-      type: "ResourceFetchError" as const,
-      resourceId: inputResource.resourceId,
+    // resourceName is undefined when we can't fetch it
+    return {
       resourceTypeId: inputResource.resourceTypeId,
-      cause: getResourceResult.error,
-    });
+      resourceTypeName,
+      resourceId: inputResource.resourceId,
+    };
   }
 
   const resourceOption = getResourceResult.value;
@@ -139,19 +115,18 @@ const enrichSingleResource = async (
       resourceId: inputResource.resourceId,
       resourceTypeId: inputResource.resourceTypeId,
     });
-    // Fallback to using ID as name
-    return ok({
+    // resourceName is undefined when resource not found
+    return {
       resourceTypeId: inputResource.resourceTypeId,
       resourceTypeName,
       resourceId: inputResource.resourceId,
-      resourceName: inputResource.resourceId,
-    });
+    };
   }
 
-  return ok({
+  return {
     resourceTypeId: inputResource.resourceTypeId,
     resourceTypeName,
     resourceId: inputResource.resourceId,
     resourceName: resourceOption.value.name,
-  });
+  };
 };
