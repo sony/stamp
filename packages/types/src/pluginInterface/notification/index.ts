@@ -4,7 +4,7 @@ import { z } from "zod";
 import { NotificationChannel } from "../../models/notificationChannel";
 import { NotificationType, ResourceAuditItem } from "../../models";
 import { PendingRequest } from "../../models";
-
+import { InputParamWithName, InputResourceWithName } from "../../models/approvalRequest";
 // Define NotificationMessage types
 
 export const ResourceAuditMessage = z.object({
@@ -39,6 +39,8 @@ export const ApprovalRequestEventMessage = z.object({
   type: z.literal("ApprovalRequestEvent"),
   property: z.object({
     request: PendingRequest,
+    inputParamsWithNames: z.array(InputParamWithName),
+    inputResourcesWithNames: z.array(InputResourceWithName),
   }),
 });
 export type ApprovalRequestEventMessage = z.infer<typeof ApprovalRequestEventMessage>;

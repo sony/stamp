@@ -243,6 +243,11 @@ export const sendApprovalRequestNotification =
         logger,
         slackBotToken,
         getStampHubUser(logger, getStampHubUserClient)
-      )({ channelConfigProperties, request: message.property.request })
+      )({
+        channelConfigProperties,
+        request: message.property.request,
+        inputParamsWithNames: message.property.inputParamsWithNames,
+        inputResourcesWithNames: message.property.inputResourcesWithNames,
+      })
     );
   };

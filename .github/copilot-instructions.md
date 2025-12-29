@@ -16,6 +16,190 @@
 - **Type Safety**: Leverage TypeScript's type system to ensure correctness and prevent runtime errors.
 - **Coding Style**: Follow the [TypeScript Deep Dive Styleguide](https://github.com/basarat/typescript-book/blob/master/docs/styleguide/styleguide.md) for naming, structure, and idioms.
 
+## Neverthrow Usage Guidelines
+
+### Choosing Between Procedural and Functional Styles
+
+**Procedural style (async/await with early return)** is preferred when:
+- Logic has many sequential steps that depend on each other
+- You need clear, readable control flow without deep nesting
+- The code would become "andThen chain hell" if written functionally
+
+**Functional style (andThen/map chains)** is preferred when:
+- You have simple transformations or compositions
+- Parallel operations that can be combined with `Result.combine` or `ResultAsync.combine`
+- Short chains (2-3 operations) that are easy to read
+
+### Procedural Style Pattern (Recommended for Complex Flows)
+
+Use `async/await` with early return (Go-style error handling) to avoid deep nesting:
+
+```typescript
+import { Result, ResultAsync, ok, err } from 'neverthrow';
+
+// Return type is Promise<Result<T, E>> for procedural async functions
+async function complexWorkflow(id: string): Promise<Result<ProcessedData, WorkflowError>> {
+  // Step 1: Fetch user
+  const userResult = await getUser(id);
+  if (userResult.isErr()) {
+    return err(userResult.error);
+  }
+  const user = userResult.value;
+
+  // Step 2: Check permission
+  const permResult = await checkPermission(user);
+  if (permResult.isErr()) {
+    return err(permResult.error);
+  }
+
+  // Step 3: Process data
+  const processResult = await processData(user, permResult.value);
+  if (processResult.isErr()) {
+    return err(processResult.error);
+  }
+
+  return ok(processResult.value);
+}
+```
+
+### Converting Between Promise<Result<>> and ResultAsync
+
+When you need to use a procedural function in a `ResultAsync` chain:
+
+```typescript
+// Procedural function returning Promise<Result<>>
+async function myProcess(): Promise<Result<number, MyError>> {
+  // ... procedural implementation
+}
+
+// Convert to ResultAsync for chaining
+const resultAsync = new ResultAsync(myProcess());
+
+// Now you can use map, mapErr, andThen, etc.
+resultAsync
+  .map(val => val * 2)
+  .mapErr(convertToDisplayError);
+```
+
+### Explicit Error Types
+
+**Always define specific error types** for each function or module. This enables callers to handle errors explicitly.
+
+#### Discriminated Union vs Error Class
+
+**Prefer discriminated unions** (plain objects with `type` field) for business logic errors:
+
+```typescript
+// ✅ Recommended: Discriminated union
+type UserNotFoundError = { type: 'UserNotFoundError'; userId: string };
+type PermissionDeniedError = { type: 'PermissionDeniedError'; reason: string };
+type ValidationError = { type: 'ValidationError'; field: string; message: string };
+```
+
+**When including a `cause` field**, always use a specific type instead of `unknown`:
+
+```typescript
+// ✅ Good: Specific cause type
+type ResourceFetchError = {
+  type: 'ResourceFetchError';
+  resourceId: string;
+  cause: HandlerError;  // Specific error type from the handler
+};
+
+// ❌ Bad: Avoid unknown cause
+type ResourceFetchError = {
+  type: 'ResourceFetchError';
+  resourceId: string;
+  cause: unknown;  // Loses type safety, avoid this
+};
+```
+
+**Why discriminated unions?**
+- Lightweight and simple
+- TypeScript's `switch` provides exhaustiveness checking
+- Easy to serialize to JSON (useful for logging and API responses)
+- Works well with neverthrow's functional patterns
+
+**When to use Error classes:**
+- Wrapping unexpected errors from external sources (API failures, DB errors)
+- When stack traces are needed for debugging infrastructure issues
+
+```typescript
+// For wrapping external/unexpected errors only
+class ExternalServiceError extends Error {
+  readonly type = 'ExternalServiceError' as const;
+  constructor(public readonly service: string, public readonly cause: Error) {
+    super(`External service failed: ${service}`);
+    this.name = 'ExternalServiceError';
+  }
+}
+```
+
+#### Defining Error Types
+
+```typescript
+// Define specific error types for the module
+type UserNotFoundError = { type: 'UserNotFoundError'; userId: string };
+type PermissionDeniedError = { type: 'PermissionDeniedError'; reason: string };
+type ValidationError = { type: 'ValidationError'; field: string; message: string };
+
+// Union type for all possible errors from this function
+type GetUserError = UserNotFoundError | PermissionDeniedError;
+
+function getUser(id: string): ResultAsync<User, GetUserError> {
+  // implementation
+}
+
+// Caller can handle each error type explicitly using stamp logger
+import { createLogger } from '@stamp-lib/stamp-logger';
+const logger = createLogger('INFO', { moduleName: 'guidelines-example' });
+
+const result = await getUser("123");
+if (result.isErr()) {
+  switch (result.error.type) {
+    case 'UserNotFoundError':
+      logger.warn('User not found', { userId: result.error.userId });
+      break;
+    case 'PermissionDeniedError':
+      logger.error('Access denied', { reason: result.error.reason });
+      break;
+  }
+}
+```
+
+### Error Type Conversion at Boundaries
+
+When composing functions with different error types, convert errors at the boundary:
+
+```typescript
+type ModuleAError = { type: 'ModuleAError'; detail: string };
+type ModuleBError = { type: 'ModuleBError'; code: number };
+type CombinedError = ModuleAError | ModuleBError;
+
+async function composedWorkflow(): Promise<Result<Data, CombinedError>> {
+  const resultA = await moduleAFunction();
+  if (resultA.isErr()) {
+    return err(resultA.error); // Already ModuleAError
+  }
+
+  const resultB = await moduleBFunction(resultA.value);
+  if (resultB.isErr()) {
+    return err(resultB.error); // Already ModuleBError
+  }
+
+  return ok(resultB.value);
+}
+```
+
+### Summary of Neverthrow Best Practices
+
+1. **Prefer procedural style** for complex multi-step workflows to avoid "andThen hell"
+2. **Use functional style** for simple transformations and parallel operations
+3. **Always define explicit error types** with discriminated unions (`type` field)
+4. **Document possible errors** in function return types so callers know what to handle
+5. **Convert errors at boundaries** when composing modules with different error types
+6. **Use `new ResultAsync(promiseResult)`** to convert `Promise<Result<>>` back to `ResultAsync` when needed
+
 ## Testing Guidelines
 
 - **Unit Tests for Pure Functions**: Write comprehensive unit tests for all pure functions (validation, transformation, etc.).
