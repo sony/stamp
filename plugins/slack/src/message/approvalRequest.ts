@@ -21,7 +21,7 @@ export type NotifyApprovalRequestInput = {
  * Input for buildApprovalRequestBlocks function
  */
 export type BuildApprovalRequestBlocksInput = {
-  customMessage: string;
+  customMessage?: string;
   catalogId: string;
   approvalFlowId: string;
   requesterName: string;
@@ -115,7 +115,34 @@ export async function notifySlack(slackBotToken: string, slackChannelId: string,
 }
 
 /**
- * Builds all Slack blocks for an approval request message.
+ * Builds all Slack message blocks for an approval request.
+ *
+ * The function assembles a complete Slack message for approvers, including:
+ * - A header indicating an approval request.
+ * - An optional custom message from the requester (only if non-empty).
+ * - Catalog, approval flow, and requester information.
+ * - The requested parameters and resources.
+ * - Any validation message associated with the request.
+ * - An optional auto-revoke notice if a duration is provided.
+ * - The requester's comment, a comment input hint, and action buttons.
+ *
+ * Empty or missing `customMessage` values are skipped and do not produce a block
+ * in the returned array.
+ *
+ * @param input - Structured data used to build the approval request blocks:
+ *   - `customMessage`: Additional free-text message from the requester. If this is
+ *     an empty string or undefined, no custom message block is added.
+ *   - `catalogId`: Identifier of the catalog to which the request belongs.
+ *   - `approvalFlowId`: Identifier of the approval flow handling this request.
+ *   - `requesterName`: Human-readable name of the user who created the request.
+ *   - `validationMessage`: Text describing validation results or constraints for the request.
+ *   - `requestComment`: Comment provided by the requester explaining the context of the request.
+ *   - `requestId`: Unique identifier of the pending request, used by action buttons.
+ *   - `inputParamsWithNames`: List of input parameters (with resolved display names) included in the request.
+ *   - `inputResourcesWithNames`: List of input resources (with resolved display names) included in the request.
+ *   - `autoRevokeDuration`: Optional human-readable duration after which the granted access will be revoked.
+ *
+ * @returns An ordered array of Slack blocks representing the approval request message.
  */
 export function buildApprovalRequestBlocks(input: BuildApprovalRequestBlocksInput): AnyMessageBlock[] {
   const blocks: AnyMessageBlock[] = [];

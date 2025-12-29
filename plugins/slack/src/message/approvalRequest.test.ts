@@ -295,6 +295,28 @@ describe("buildApprovalRequestBlocks", () => {
     const requestCommentBlock = blocks[6] as { text: { text: string } };
     expect(requestCommentBlock.text.text).toBe("*Request Comment*\nThis is my comment");
   });
+
+  it("should skip custom message block when customMessage is empty string", () => {
+    const blocks = buildApprovalRequestBlocks({
+      customMessage: "",
+      catalogId: "test-catalog",
+      approvalFlowId: "test-approval-flow",
+      requesterName: "Test User",
+      validationMessage: "Validation passed",
+      requestComment: "Test comment",
+      requestId: "req-123",
+      inputParamsWithNames: [],
+      inputResourcesWithNames: [],
+    });
+
+    // Should have: header, catalog, approval flow, requester, message, request comment, input, actions = 8 blocks (no custom message)
+    expect(blocks.length).toBe(8);
+    expect(blocks[0]).toHaveProperty("type", "header");
+    expect(blocks[1]).toHaveProperty("type", "section"); // catalog (not custom message)
+
+    const catalogBlock = blocks[1] as { text: { text: string } };
+    expect(catalogBlock.text.text).toBe("*Catalog*: test-catalog");
+  });
 });
 
 describe("notifyApprovalRequest", () => {
