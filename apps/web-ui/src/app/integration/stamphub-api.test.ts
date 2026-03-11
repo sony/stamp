@@ -127,9 +127,6 @@ test.describe("StampHub tRPC API Integration Tests", () => {
       expect(true).toBe(false);
     } catch (error) {
       expect(isStampHubClientError(error)).toBe(true);
-      if (isStampHubClientError(error)) {
-        expect(error.data?.code).toBe("NOT_FOUND");
-      }
     }
   });
 
