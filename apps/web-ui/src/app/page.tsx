@@ -4,6 +4,7 @@ import Markdown, { ExtraProps } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import fs from "fs/promises";
 import path from "path";
+import React from "react";
 
 export default async function Page() {
   return (
@@ -45,7 +46,7 @@ async function TopCard() {
 }
 
 type HeadingSize = "1" | "2" | "3" | "4" | "5" | "6";
-const markdownHeading = (size: HeadingSize, props: JSX.IntrinsicElements["h1"] & ExtraProps) => {
+const markdownHeading = (size: HeadingSize, props: React.JSX.IntrinsicElements["h1"] & ExtraProps) => {
   return (
     <Heading size={size} my="16px">
       {props.children}

@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 
 import { getSessionUser } from "@/utils/sessionUser";
 
-export default async function Page({ params }: { params: { groupId: string } }) {
+export default async function Page() {
   return (
     <Flex direction="column" gap="4">
       <Box pt="4" pb="6" px="6" className="bg-gray-2">

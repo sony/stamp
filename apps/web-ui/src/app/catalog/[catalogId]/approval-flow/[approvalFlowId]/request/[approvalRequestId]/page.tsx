@@ -14,18 +14,19 @@ import { Logger } from "@stamp-lib/stamp-logger";
 
 type ResourceInfos = { resourceId: string; resourceName: string; resourceTypeId: string; resourceTypeName: string }[];
 
-export default async function Page({ params }: { params: { approvalFlowId: string; catalogId: string; approvalRequestId: string } }) {
+export default async function Page({ params }: { params: Promise<{ approvalFlowId: string; catalogId: string; approvalRequestId: string }> }) {
+  const resolvedParams = await params;
   const userSession = await getSessionUser();
   const logger = createServerLogger();
 
-  const catalogId = decodeURIComponent(params.catalogId);
-  const approvalFlowId = decodeURIComponent(params.approvalFlowId);
+  const catalogId = decodeURIComponent(resolvedParams.catalogId);
+  const approvalFlowId = decodeURIComponent(resolvedParams.approvalFlowId);
   const catalog = await unwrapOr(stampHubClient.userRequest.catalog.get.query(catalogId), undefined);
   if (!catalog) return notFound();
   const approvalFlow = await unwrapOr(stampHubClient.userRequest.approvalFlow.get.query({ catalogId: catalogId, approvalFlowId: approvalFlowId }), undefined);
   if (!approvalFlow) return notFound();
   const approvalRequests = await unwrapOr(
-    stampHubClient.userRequest.approvalRequest.get.query({ approvalRequestId: params.approvalRequestId, requestUserId: userSession.stampUserId }),
+    stampHubClient.userRequest.approvalRequest.get.query({ approvalRequestId: resolvedParams.approvalRequestId, requestUserId: userSession.stampUserId }),
     undefined
   );
   if (!approvalRequests) return notFound();

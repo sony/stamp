@@ -14,27 +14,35 @@ import { listGroups } from "@/server-lib/hub-clients/group/group";
 
 const MAX_DISPLAY_ITEMS = 200;
 
-export default async function Page({ params, searchParams }: { params: { userId: string }; searchParams: { [key: string]: string | string[] | undefined } }) {
+export default async function Page({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ userId: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
   const logger = createServerLogger();
-  logger.info("params", params);
-  const user = await getUser(params.userId);
-  const start = typeof searchParams["start"] === "string" ? searchParams["start"] : new Date(Date.now() - 1000 * 60 * 60 * 24 * 14).toISOString(); // default 14 days ago
-  const end = typeof searchParams["end"] === "string" ? searchParams["end"] : new Date(Date.now()).toISOString();
+  logger.info("params", resolvedParams);
+  const user = await getUser(resolvedParams.userId);
+  const start = typeof resolvedSearchParams["start"] === "string" ? resolvedSearchParams["start"] : new Date(Date.now() - 1000 * 60 * 60 * 24 * 14).toISOString(); // default 14 days ago
+  const end = typeof resolvedSearchParams["end"] === "string" ? resolvedSearchParams["end"] : new Date(Date.now()).toISOString();
 
-  const status = getParamAsString(searchParams, "status");
-  const approverId = getParamAsString(searchParams, "approverId");
-  const requestUserId = getParamAsString(searchParams, "requestUserId");
-  const catalogId = getParamAsString(searchParams, "catalogId");
-  const approvalFlowId = getParamAsString(searchParams, "approvalFlowId");
+  const status = getParamAsString(resolvedSearchParams, "status");
+  const approverId = getParamAsString(resolvedSearchParams, "approverId");
+  const requestUserId = getParamAsString(resolvedSearchParams, "requestUserId");
+  const catalogId = getParamAsString(resolvedSearchParams, "catalogId");
+  const approvalFlowId = getParamAsString(resolvedSearchParams, "approvalFlowId");
   const approvalRequests = await listApprovalRequestsByUser(
     stampHubClient.userRequest.approvalRequest.listByRequestUserId,
-    params.userId,
+    resolvedParams.userId,
     { start, end },
     MAX_DISPLAY_ITEMS,
     filterApprovalRequests({
       status: parseStatusType(status),
-      inputParams: parseInputParams(searchParams),
-      inputResources: parseInputResources(searchParams),
+      inputParams: parseInputParams(resolvedSearchParams),
+      inputResources: parseInputResources(resolvedSearchParams),
       approverId: approverId,
       requestUserId: requestUserId,
       catalogId: catalogId,
@@ -75,7 +83,7 @@ export default async function Page({ params, searchParams }: { params: { userId:
                 <Container>
                   <Flex align="start" px="2">
                     <ApprovalRequestFilter
-                      userId={params.userId}
+                      userId={resolvedParams.userId}
                       dateRange={{ from: new Date(start), to: new Date(end) }}
                       groups={groups}
                       catalogs={catalogs}
