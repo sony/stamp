@@ -15,7 +15,7 @@ if (process.env.COGNITO_CLIENT_ID) {
     })
   );
 }
-if (process.env.NEXTAUTH_CREDENTIALS_ENABLE === "true") {
+if (process.env.NEXTAUTH_CREDENTIALS_ENABLE === "true" && process.env.NODE_ENV !== "production") {
   providers.push(
     CredentialsProvider({
       name: "Credentials",
@@ -24,7 +24,7 @@ if (process.env.NEXTAUTH_CREDENTIALS_ENABLE === "true") {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        // In development/testing mode, accept any non-empty credentials
+        // Only for development/testing: accept any non-empty credentials
         if (credentials?.username && credentials?.password) {
           return {
             id: credentials.username,
