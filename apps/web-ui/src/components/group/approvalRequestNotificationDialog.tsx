@@ -1,7 +1,8 @@
 "use client";
 import { Button, Dialog, Flex, RadioGroup, Section, Select, Spinner, Text, TextField, useThemeContext } from "@radix-ui/themes";
 import { useRouter } from "next/navigation";
-import { useFormState, useFormStatus } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 
 import { deleteApprovalRequestNotificationSubmit } from "@/server-actions/group/deleteApprovalRequestNotification";
 import { updateApprovalRequestNotificationSubmit } from "@/server-actions/group/updateApprovalRequestNotification";
@@ -18,8 +19,8 @@ async function listNotificationTypes() {
 export function ApprovalRequestNotificationSettingModal({ group }: { group: Group }) {
   const router = useRouter();
 
-  const [updateNotificationState, updateNotificationFormAction] = useFormState(updateApprovalRequestNotificationSubmit, undefined);
-  const [deleteNotificationState, deleteNotificationFormAction] = useFormState(deleteApprovalRequestNotificationSubmit, undefined);
+  const [updateNotificationState, updateNotificationFormAction] = useActionState(updateApprovalRequestNotificationSubmit, undefined);
+  const [deleteNotificationState, deleteNotificationFormAction] = useActionState(deleteApprovalRequestNotificationSubmit, undefined);
 
   const [notificationTypes, setNotificationTypes] = useState<StampHubRouterOutput["systemRequest"]["notification"]["listNotificationTypes"]>();
 

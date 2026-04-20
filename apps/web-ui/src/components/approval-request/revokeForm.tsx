@@ -2,14 +2,15 @@
 import { revokeSubmit } from "@/server-actions/approval-request/revoke";
 import { ApprovalRequest } from "@/type";
 import { Button, Card, Container, Flex, Heading, Text, TextArea } from "@radix-ui/themes";
-import { useFormState, useFormStatus } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 
 import { useRouter } from "next/navigation";
 import React, { useEffect } from "react";
 
 export function RevokeForm({ approvalRequest, enableRevoke }: { approvalRequest: ApprovalRequest; enableRevoke: boolean }) {
   const router = useRouter();
-  const [revokeSubmitState, revokeSubmitFormAction] = useFormState(revokeSubmit, undefined);
+  const [revokeSubmitState, revokeSubmitFormAction] = useActionState(revokeSubmit, undefined);
 
   useEffect(() => {
     if (revokeSubmitState?.isSuccess === true) {

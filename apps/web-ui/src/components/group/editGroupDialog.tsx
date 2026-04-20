@@ -1,7 +1,8 @@
 "use client";
 import { Flex, Text, Button, Grid, Box, Card, Container, Link, Heading, Separator, TextField, TextArea, Dialog, Select } from "@radix-ui/themes";
 import { CreateParamFormInput } from "@/components/resource/createParam";
-import { useFormStatus, useFormState } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 import { Group, ResourceType } from "@/type";
 import { editGroupSubmit } from "@/server-actions/group/editGroup";
 import { useRouter } from "next/navigation";
@@ -10,7 +11,7 @@ import { useEffect, useState } from "react";
 export function EditGroupDialog({ group }: { group: Group }) {
   const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
-  const [state, formAction] = useFormState(editGroupSubmit, undefined);
+  const [state, formAction] = useActionState(editGroupSubmit, undefined);
 
   useEffect(() => {
     console.log(state);

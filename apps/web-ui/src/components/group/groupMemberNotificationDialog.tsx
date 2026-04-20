@@ -1,7 +1,8 @@
 "use client";
 import { Button, Dialog, Flex, RadioGroup, Section, Select, Spinner, Text, TextField, useThemeContext } from "@radix-ui/themes";
 import { useRouter } from "next/navigation";
-import { useFormState, useFormStatus } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 
 import { deleteGroupMemberNotificationSubmit } from "@/server-actions/group/deleteGroupMemberNotification";
 import { updateGroupMemberNotificationSubmit } from "@/server-actions/group/updateGroupMemberNotification";
@@ -18,8 +19,8 @@ async function listNotificationTypes() {
 export function GroupMemberNotificationSettingModal({ group }: { group: Group }) {
   const router = useRouter();
 
-  const [updateNotificationState, updateNotificationFormAction] = useFormState(updateGroupMemberNotificationSubmit, undefined);
-  const [deleteNotificationState, deleteNotificationFormAction] = useFormState(deleteGroupMemberNotificationSubmit, undefined);
+  const [updateNotificationState, updateNotificationFormAction] = useActionState(updateGroupMemberNotificationSubmit, undefined);
+  const [deleteNotificationState, deleteNotificationFormAction] = useActionState(deleteGroupMemberNotificationSubmit, undefined);
 
   const [notificationTypes, setNotificationTypes] = useState<StampHubRouterOutput["systemRequest"]["notification"]["listNotificationTypes"]>();
 

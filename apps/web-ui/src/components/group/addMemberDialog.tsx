@@ -6,12 +6,13 @@ import { Group } from "@/type";
 import { Button, Dialog, Flex, Select, Text } from "@radix-ui/themes";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useFormState, useFormStatus } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 
 export function AddMemberDialog({ group }: { group: Group }) {
   const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
-  const [state, formAction] = useFormState(addMemberSubmit, undefined);
+  const [state, formAction] = useActionState(addMemberSubmit, undefined);
 
   useEffect(() => {
     console.log(state);

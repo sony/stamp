@@ -1,12 +1,13 @@
 "use client";
 import { Flex, Text, Button, Grid, Box, Card, Container, Link, Heading, Separator, TextField, TextArea, Dialog } from "@radix-ui/themes";
 import { createGroupSubmit } from "@/server-actions/group/createGroup";
-import { useFormStatus, useFormState } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 
 import React, { use } from "react";
 
 export function CreateGroup() {
-  const [state, formAction] = useFormState(createGroupSubmit, undefined);
+  const [state, formAction] = useActionState(createGroupSubmit, undefined);
 
   return (
     <Dialog.Root>

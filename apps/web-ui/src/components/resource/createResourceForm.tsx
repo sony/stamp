@@ -1,7 +1,8 @@
 "use client";
 import { Flex, Text, Button, Grid, Box, Card, Container, Link, Heading, Separator, TextField, TextArea, Dialog, Checkbox } from "@radix-ui/themes";
 import { CreateParamFormInput } from "@/components/resource/createParam";
-import { useFormStatus, useFormState } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 import { ResourceType } from "@/type";
 import { createResourceSubmit } from "@/server-actions/resource/createResource";
 import { useRouter } from "next/navigation";
@@ -11,7 +12,7 @@ import { useEffect, useState } from "react";
 export function CreateResourceForm({ resourceType }: { resourceType: ResourceType }) {
   const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
-  const [state, formAction] = useFormState(createResourceSubmit, undefined);
+  const [state, formAction] = useActionState(createResourceSubmit, undefined);
 
   useEffect(() => {
     console.log(state);
