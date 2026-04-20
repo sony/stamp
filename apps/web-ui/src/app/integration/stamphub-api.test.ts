@@ -5,10 +5,8 @@ import { createEphemeralDBPlugin } from "@stamp-lib/stamp-ephemeral-db-plugin";
 import { ephemeralIdentityPluginForAllUserAdmin } from "@stamp-lib/stamp-ephemeral-identity-plugin";
 import { unicornRentalCatalog } from "@stamp-lib/stamp-example-catalog";
 
-// These tests require a running StampHub server on port 4001.
-// They are designed to directly test the tRPC API against a real StampHub instance
-// (not mocked), to verify end-to-end functional correctness.
-test.describe.configure({ mode: "serial", timeout: 1000000 });
+// Increase timeout for integration tests
+test.describe.configure({ mode: "serial", timeout: 120000 });
 
 test.describe("StampHub tRPC API Integration Tests", () => {
   test("Create and retrieve a user via systemRequest", async () => {
