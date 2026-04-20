@@ -65,9 +65,6 @@
     "vitest": "^1.6.1"
   },
   "overrides": {
-    "next-auth": {
-      "next": "$next"
-    },
     "react-day-picker": {
       "react": "$react"
     }
