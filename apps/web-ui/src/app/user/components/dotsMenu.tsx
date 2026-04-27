@@ -1,6 +1,7 @@
 "use client";
 import { Flex, Text, Button, Strong, Dialog, AlertDialog, DropdownMenu, IconButton } from "@radix-ui/themes";
-import { useFormStatus, useFormState } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -63,7 +64,7 @@ function UserDeleteModal({
   setModalOpen: Dispatch<SetStateAction<boolean>>;
 }) {
   const router = useRouter();
-  const [state, formAction] = useFormState(DeleteUserSubmit, undefined);
+  const [state, formAction] = useActionState(DeleteUserSubmit, undefined);
 
   useEffect(() => {
     if (state?.isSuccess === true) {

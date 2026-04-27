@@ -1,7 +1,8 @@
 "use client";
 import { Flex, Text, Button, Grid, Box, Card, Container, Link, Heading, Separator, TextField, TextArea, Dialog, Checkbox, AlertDialog } from "@radix-ui/themes";
 import { CreateParamFormInput } from "@/components/resource/createParam";
-import { useFormStatus, useFormState } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 import { Group, ResourceType } from "@/type";
 import { deleteGroupSubmit } from "@/server-actions/group/deleteGroup";
 import { useRouter } from "next/navigation";
@@ -9,7 +10,7 @@ import { useEffect, useState } from "react";
 
 export function DeleteGroupDialog({ group }: { group: Group }) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [state, formAction] = useFormState(deleteGroupSubmit, undefined);
+  const [state, formAction] = useActionState(deleteGroupSubmit, undefined);
 
   return (
     <AlertDialog.Root open={modalOpen} onOpenChange={setModalOpen}>

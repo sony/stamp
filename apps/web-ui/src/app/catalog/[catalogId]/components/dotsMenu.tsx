@@ -15,7 +15,8 @@ import {
   DropdownMenu,
   IconButton,
 } from "@radix-ui/themes";
-import { useFormStatus, useFormState } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 import { Catalog, ApprovalFlow } from "@/type";
 import { useRouter } from "next/navigation";
 
@@ -79,7 +80,7 @@ function ApproverSettingModal({
   setModalOpen: Dispatch<SetStateAction<boolean>>;
 }) {
   const router = useRouter();
-  const [state, formAction] = useFormState(updateApproverGroup, undefined);
+  const [state, formAction] = useActionState(updateApproverGroup, undefined);
 
   useEffect(() => {
     if (state?.isSuccess === true) {

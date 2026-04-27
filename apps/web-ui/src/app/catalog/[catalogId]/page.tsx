@@ -7,8 +7,9 @@ import React from "react";
 import { getSessionUser } from "@/utils/sessionUser";
 import { GroupLink } from "@/server-components/group/groupLink";
 import { DotsMenu } from "./components/dotsMenu";
-export default async function Page({ params }: { params: { catalogId: string } }) {
-  const catalogId = decodeURIComponent(params.catalogId);
+export default async function Page({ params }: { params: Promise<{ catalogId: string }> }) {
+  const { catalogId: rawCatalogId } = await params;
+  const catalogId = decodeURIComponent(rawCatalogId);
   const catalog = await unwrapOr(stampHubClient.userRequest.catalog.get.query(catalogId), undefined);
 
   if (!catalog) return notFound();

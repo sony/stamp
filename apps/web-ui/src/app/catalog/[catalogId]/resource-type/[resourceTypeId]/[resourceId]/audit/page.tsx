@@ -7,11 +7,12 @@ import { getSessionUser } from "@/utils/sessionUser";
 import React from "react";
 import { createServerLogger } from "@/logger";
 
-export default async function Page({ params }: { params: { catalogId: string; resourceTypeId: string; resourceId: string } }) {
+export default async function Page({ params }: { params: Promise<{ catalogId: string; resourceTypeId: string; resourceId: string }> }) {
+  const resolvedParams = await params;
   const logger = createServerLogger();
-  logger.info("params", params);
-  const catalogId = decodeURIComponent(params.catalogId);
-  const resourceTypeId = decodeURIComponent(params.resourceTypeId);
+  logger.info("params", resolvedParams);
+  const catalogId = decodeURIComponent(resolvedParams.catalogId);
+  const resourceTypeId = decodeURIComponent(resolvedParams.resourceTypeId);
   const catalog = await unwrapOr(stampHubClient.userRequest.catalog.get.query(catalogId), undefined);
   if (!catalog) return notFound();
   const userSession = await getSessionUser();
@@ -19,7 +20,7 @@ export default async function Page({ params }: { params: { catalogId: string; re
   const resourceType = await unwrapOr(stampHubClient.userRequest.resourceType.get.query({ catalogId, resourceTypeId, requestUserId: userSession.stampUserId }), undefined);
   if (!resourceType) return notFound();
 
-  const resourceId = decodeURIComponent(params.resourceId);
+  const resourceId = decodeURIComponent(resolvedParams.resourceId);
 
   const resourceItem = await unwrapOr(
     stampHubClient.userRequest.resource.get.query({

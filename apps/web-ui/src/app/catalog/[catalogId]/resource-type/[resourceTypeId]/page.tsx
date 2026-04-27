@@ -10,10 +10,11 @@ import { columns } from "@/components/resource/columns";
 import { DataTableWithFilters } from "@/components/table/dataTableWithFilters";
 import { listResources } from "@/server-lib/hub-clients/resource/resource";
 
-export default async function Page({ params }: { params: { resourceTypeId: string; catalogId: string } }) {
+export default async function Page({ params }: { params: Promise<{ resourceTypeId: string; catalogId: string }> }) {
+  const { catalogId: rawCatalogId, resourceTypeId: rawResourceTypeId } = await params;
   const userSession = await getSessionUser();
-  const catalogId = decodeURIComponent(params.catalogId);
-  const resourceTypeId = decodeURIComponent(params.resourceTypeId);
+  const catalogId = decodeURIComponent(rawCatalogId);
+  const resourceTypeId = decodeURIComponent(rawResourceTypeId);
   const catalog = await unwrapOr(stampHubClient.userRequest.catalog.get.query(catalogId), undefined);
   if (!catalog) return notFound();
   const resourceType = await unwrapOr(stampHubClient.userRequest.resourceType.get.query({ catalogId, resourceTypeId, requestUserId: userSession.stampUserId }), undefined);

@@ -2,6 +2,7 @@ import { cacheStampHubClient, stampHubClient, unwrapOr } from "@/utils/stampHubC
 import { ChevronRightIcon } from "@radix-ui/react-icons";
 import { Box, Card, Container, Flex, Grid, Heading, Link, Separator, Table, Text } from "@radix-ui/themes";
 import { notFound } from "next/navigation";
+import React from "react";
 
 import { AddMemberDialog } from "@/components/group/addMemberDialog";
 import { DeleteGroupDialog } from "@/components/group/deleteGroupDialog";
@@ -33,9 +34,10 @@ async function getUser(userId: string) {
   return res;
 }
 
-export default async function Page({ params }: { params: { groupId: string } }) {
+export default async function Page({ params }: { params: Promise<{ groupId: string }> }) {
+  const { groupId } = await params;
   const userSession = await getSessionUser();
-  const group = await unwrapOr(stampHubClient.userRequest.group.get.query({ groupId: params.groupId, requestUserId: userSession.stampUserId }), undefined);
+  const group = await unwrapOr(stampHubClient.userRequest.group.get.query({ groupId, requestUserId: userSession.stampUserId }), undefined);
   if (!group) return notFound();
 
   return (
@@ -112,7 +114,7 @@ async function GroupMemberTable({ group }: { group: Group }) {
   // Review the UI when the specified number of groups is exceeded
   const groupMembers = await listGroupMember(group.groupId, 200);
 
-  const groupMemberRows = [] as JSX.Element[];
+  const groupMemberRows = [] as React.JSX.Element[];
   for (const groupMember of groupMembers) {
     groupMemberRows.push(<GroupMemberTableRow key={groupMember.userId} group={group} groupMember={groupMember} />);
   }

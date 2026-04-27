@@ -1,6 +1,7 @@
 "use client";
 import { Flex, Text, Button, Card, Container, Link, Heading, Separator, TextField, TextArea, Dialog, AlertDialog, DropdownMenu } from "@radix-ui/themes";
-import { useFormStatus, useFormState } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 import { ResourceType, ResourceOutline } from "@/type";
 import { createResourceSubmit } from "@/server-actions/resource/createResource";
 import { useRouter } from "next/navigation";
@@ -123,7 +124,7 @@ function OwnerSettingModal({
   setModalOpen: Dispatch<SetStateAction<boolean>>;
 }) {
   const router = useRouter();
-  const [state, formAction] = useFormState(updateOwnerGroup, undefined);
+  const [state, formAction] = useActionState(updateOwnerGroup, undefined);
 
   useEffect(() => {
     if (state?.isSuccess === true) {
@@ -187,7 +188,7 @@ function ApproverSettingModal({
   setModalOpen: Dispatch<SetStateAction<boolean>>;
 }) {
   const router = useRouter();
-  const [state, formAction] = useFormState(updateApproverGroup, undefined);
+  const [state, formAction] = useActionState(updateApproverGroup, undefined);
 
   useEffect(() => {
     if (state?.isSuccess === true) {
@@ -251,7 +252,7 @@ function DeleteModal({
   setModalOpen: Dispatch<SetStateAction<boolean>>;
 }) {
   const router = useRouter();
-  const [state, formAction] = useFormState(deleteResource, undefined);
+  const [state, formAction] = useActionState(deleteResource, undefined);
 
   useEffect(() => {
     if (state?.isSuccess === true) {

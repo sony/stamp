@@ -8,11 +8,12 @@ import { getSessionUser } from "@/utils/sessionUser";
 import { ResourceType } from "@/type";
 import { createServerLogger } from "@/logger";
 
-export default async function Page({ params }: { params: { approvalFlowId: string; catalogId: string } }) {
+export default async function Page({ params }: { params: Promise<{ approvalFlowId: string; catalogId: string }> }) {
+  const { catalogId: rawCatalogId, approvalFlowId: rawApprovalFlowId } = await params;
   const logger = createServerLogger();
   const userSession = await getSessionUser();
-  const catalogId = decodeURIComponent(params.catalogId);
-  const approvalFlowId = decodeURIComponent(params.approvalFlowId);
+  const catalogId = decodeURIComponent(rawCatalogId);
+  const approvalFlowId = decodeURIComponent(rawApprovalFlowId);
   const catalog = await unwrapOr(stampHubClient.userRequest.catalog.get.query(catalogId), undefined);
   if (!catalog) return notFound();
   const approvalFlow = await unwrapOr(stampHubClient.userRequest.approvalFlow.get.query({ catalogId, approvalFlowId }), undefined);

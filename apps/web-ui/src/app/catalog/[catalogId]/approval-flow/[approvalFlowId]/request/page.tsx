@@ -20,24 +20,26 @@ export default async function Page({
   params,
   searchParams,
 }: {
-  params: { approvalFlowId: string; catalogId: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ approvalFlowId: string; catalogId: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const catalogId = decodeURIComponent(params.catalogId);
-  const approvalFlowId = decodeURIComponent(params.approvalFlowId);
+  const { catalogId: rawCatalogId, approvalFlowId: rawApprovalFlowId } = await params;
+  const resolvedSearchParams = await searchParams;
+  const catalogId = decodeURIComponent(rawCatalogId);
+  const approvalFlowId = decodeURIComponent(rawApprovalFlowId);
   const catalog = await unwrapOr(stampHubClient.userRequest.catalog.get.query(catalogId), undefined);
   if (!catalog) return notFound();
   const approvalFlow = await unwrapOr(stampHubClient.userRequest.approvalFlow.get.query({ catalogId, approvalFlowId }), undefined);
   if (!approvalFlow) return notFound();
 
-  const start = typeof searchParams["start"] === "string" ? searchParams["start"] : new Date(Date.now() - 1000 * 60 * 60 * 24 * 14).toISOString(); // default 14 days ago
-  const end = typeof searchParams["end"] === "string" ? searchParams["end"] : new Date(Date.now()).toISOString();
+  const start = typeof resolvedSearchParams["start"] === "string" ? resolvedSearchParams["start"] : new Date(Date.now() - 1000 * 60 * 60 * 24 * 14).toISOString(); // default 14 days ago
+  const end = typeof resolvedSearchParams["end"] === "string" ? resolvedSearchParams["end"] : new Date(Date.now()).toISOString();
 
   const userSession = await getSessionUser();
 
-  const status = getParamAsString(searchParams, "status");
-  const approverId = getParamAsString(searchParams, "approverId");
-  const requestUserId = getParamAsString(searchParams, "requestUserId");
+  const status = getParamAsString(resolvedSearchParams, "status");
+  const approverId = getParamAsString(resolvedSearchParams, "approverId");
+  const requestUserId = getParamAsString(resolvedSearchParams, "requestUserId");
   const approvalRequests = await listApprovalRequestsByCatalog(
     stampHubClient.userRequest.approvalRequest.listByApprovalFlowId,
     userSession.stampUserId,
@@ -46,8 +48,8 @@ export default async function Page({
     { start, end },
     filterApprovalRequests({
       status: parseStatusType(status),
-      inputParams: parseInputParams(searchParams),
-      inputResources: parseInputResources(searchParams),
+      inputParams: parseInputParams(resolvedSearchParams),
+      inputResources: parseInputResources(resolvedSearchParams),
       approverId: approverId,
       requestUserId: requestUserId,
     })

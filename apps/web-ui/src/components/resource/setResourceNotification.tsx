@@ -3,7 +3,8 @@ import { ResourceOutline } from "@/type";
 import { StampHubRouterOutput } from "@stamp-lib/stamp-hub";
 import { Button, Dialog, Flex, RadioGroup, Section, Select, Spinner, Text, TextField, useThemeContext } from "@radix-ui/themes";
 import { useRouter } from "next/navigation";
-import { useFormState, useFormStatus } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 
 import { deleteResourceNotification } from "@/server-actions/resource/deleteResourceNotification";
 import { setResourceNotification } from "@/server-actions/resource/setResourceNotification";
@@ -34,8 +35,8 @@ export function NotificationSettingModal({
   setModalOpen: Dispatch<SetStateAction<boolean>>;
 }) {
   const router = useRouter();
-  const [setResourceNotificationState, setResourceNotificationFormAction] = useFormState(setResourceNotification, undefined);
-  const [deleteResourceNotificationState, deleteResourceNotificationFormAction] = useFormState(deleteResourceNotification, undefined);
+  const [setResourceNotificationState, setResourceNotificationFormAction] = useActionState(setResourceNotification, undefined);
+  const [deleteResourceNotificationState, deleteResourceNotificationFormAction] = useActionState(deleteResourceNotification, undefined);
 
   const [notificationTypes, setNotificationTypes] = useState<StampHubRouterOutput["systemRequest"]["notification"]["listNotificationTypes"]>();
 

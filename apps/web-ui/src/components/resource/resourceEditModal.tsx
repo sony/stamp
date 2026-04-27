@@ -4,7 +4,8 @@ import { PlusIcon, TrashIcon } from "@radix-ui/react-icons";
 import { ResourceType, ResourceOutline } from "@/type";
 import React, { useEffect, useState, Dispatch, SetStateAction } from "react";
 import { StampHubRouterOutput } from "@stamp-lib/stamp-hub";
-import { useFormState, useFormStatus } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 
 import { GroupLink } from "@/components/group/clientGroupLink";
@@ -78,9 +79,9 @@ export function ResourceEditModal({
   setModalOpen: Dispatch<SetStateAction<boolean>>;
 }) {
   const router = useRouter();
-  const [updateInfoParamsState, updateInfoParamsFormAction] = useFormState(updateResourceInfoParamsSubmit, undefined);
-  const [updateInfoParamsWithApprovalState, updateInfoParamsWithApprovalFormAction] = useFormState(updateResourceInfoParamsWithApprovalSubmit, undefined);
-  const [cancelUpdateParamsState, cancelUpdateParamsFormAction] = useFormState(cancelUpdateResourceInfoParamsSubmit, undefined);
+  const [updateInfoParamsState, updateInfoParamsFormAction] = useActionState(updateResourceInfoParamsSubmit, undefined);
+  const [updateInfoParamsWithApprovalState, updateInfoParamsWithApprovalFormAction] = useActionState(updateResourceInfoParamsWithApprovalSubmit, undefined);
+  const [cancelUpdateParamsState, cancelUpdateParamsFormAction] = useActionState(cancelUpdateResourceInfoParamsSubmit, undefined);
   const [resource, setResource] = useState<StampHubRouterOutput["userRequest"]["resource"]["get"] | undefined>(undefined);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [parentResource, setParentResource] = useState<StampHubRouterOutput["userRequest"]["resource"]["get"] | undefined>(undefined);

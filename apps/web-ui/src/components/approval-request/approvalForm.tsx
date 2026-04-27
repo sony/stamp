@@ -2,7 +2,8 @@
 import { approveSubmit } from "@/server-actions/approval-request/approve";
 import { rejectSubmit } from "@/server-actions/approval-request/reject";
 import { Flex, Text, Button, Grid, Box, Card, Container, Link, Heading, Separator, Table, TextField, TextArea, Select } from "@radix-ui/themes";
-import { useFormState, useFormStatus } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 import { ApprovalRequest } from "@/type";
 
 import React, { useEffect } from "react";
@@ -10,8 +11,8 @@ import { useRouter } from "next/navigation";
 
 export function ApprovalForm({ approvalRequest }: { approvalRequest: ApprovalRequest }) {
   const router = useRouter();
-  const [approveSubmitState, approveSubmitFormAction] = useFormState(approveSubmit, undefined);
-  const [rejectSubmitState, rejectSubmitFormAction] = useFormState(rejectSubmit, undefined);
+  const [approveSubmitState, approveSubmitFormAction] = useActionState(approveSubmit, undefined);
+  const [rejectSubmitState, rejectSubmitFormAction] = useActionState(rejectSubmit, undefined);
 
   useEffect(() => {
     if (rejectSubmitState?.isSuccess === true || approveSubmitState?.isSuccess === true) {

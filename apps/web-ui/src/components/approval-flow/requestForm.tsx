@@ -18,7 +18,8 @@ import {
   Badge,
   Checkbox,
 } from "@radix-ui/themes";
-import { useFormState, useFormStatus } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 import { ApprovalFlow } from "@/type";
 import { InputParamsFormInput } from "./inputParam";
 import { InputResourceSelectorList, InputResourceSelectorItems } from "./inputResource";
@@ -176,7 +177,7 @@ export function RequestForm({
   inputResourceSelectorItems: InputResourceSelectorItems;
 }) {
   console.log(approvalFlow);
-  const [state, formAction] = useFormState(approvalRequestSubmit, undefined);
+  const [state, formAction] = useActionState(approvalRequestSubmit, undefined);
 
   const formInputs = [];
   for (const inputParam of approvalFlow.inputParams) {
