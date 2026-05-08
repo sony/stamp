@@ -46,7 +46,23 @@
   },
   "overrides": {
     "axios": "1.16.0",
-    "brace-expansion": "5.0.5",
+    "minimatch@3.1.4": {
+      "brace-expansion": "1.1.14"
+    },
+    "minimatch@3.1.5": {
+      "brace-expansion": "1.1.14"
+    },
+    "minimatch@9.0.9": {
+      "brace-expansion": "2.1.0"
+    },
+    "minimatch@10.2.4": {
+      "brace-expansion": "5.0.5"
+    },
+    "minimatch@10.2.5": {
+      "brace-expansion": "5.0.5"
+    },
+    "nx": "22.6.3",
+    "@nx/devkit": "22.6.3",
     "follow-redirects": "1.16.0",
     "yaml": "2.8.4"
   }
