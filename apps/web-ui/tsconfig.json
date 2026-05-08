@@ -38,6 +38,7 @@
   "exclude": [
     "node_modules",
     "cdk",
-    "custom-server"
+    "custom-server",
+    "**/*.test.ts"
   ]
 }

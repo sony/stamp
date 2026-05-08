@@ -128,7 +128,7 @@ describe("approve", () => {
 
       const result = await checkCanApproveRequestForFlow(getGroupMemberShipProvider)(input);
 
-      expect(result).toEqual(err(new StampHubError("test error", "test error", "INTERNAL_SERVER_ERROR")));
+      expect(result).toEqual(err(new StampHubError("test error", "Unexpected error occurred", "INTERNAL_SERVER_ERROR")));
       expect(getGroupMemberShipProvider).toHaveBeenCalledWith({
         groupId: "8204a484-c5da-4648-810a-c095e2d473a3",
         userId: "05bf84b9-f92b-4312-a1e4-9557ad854054",
@@ -305,7 +305,7 @@ describe("approve", () => {
       const input = { ...baseInput };
       const getGroupMemberShipProvider: GroupMemberShipProvider["get"] = vi.fn().mockReturnValue(errAsync(new Error("test error")));
       const result = await checkCanApproveRequestForRequestSpecified(getGroupMemberShipProvider)(input);
-      expect(result).toEqual(err(new StampHubError("test error", "test error", "INTERNAL_SERVER_ERROR")));
+      expect(result).toEqual(err(new StampHubError("test error", "Unexpected error occurred", "INTERNAL_SERVER_ERROR")));
       expect(getGroupMemberShipProvider).toHaveBeenCalledWith({
         groupId: "8204a484-c5da-4648-810a-c095e2d473a3",
         userId: "05bf84b9-f92b-4312-a1e4-9557ad854054",

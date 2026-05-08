@@ -1,8 +1,8 @@
 import { groupRouter, notificationRouter, publicProcedure, router, userRouter } from "@stamp-lib/stamp-hub";
 import { NotificationError } from "@stamp-lib/stamp-types/pluginInterface/notification";
 import { expect, test } from "@playwright/test";
+import { TRPCError } from "@trpc/server";
 import { okAsync } from "neverthrow";
-import { StampHubError } from "../../../../../../packages/hub/src/error";
 import { createMockProcedure } from "../../../../tests/mocks/router/mockProcedures";
 import { createMockStampHubRouter } from "../../../../tests/mocks/router/stampHubRouter";
 import { runTestWithMockServers } from "../../../../tests/mocks/testEnvironmentSetup";
@@ -33,6 +33,11 @@ const mockUserRouter = router({
 });
 
 const listNotificationTypesIsEmpty = publicProcedure.query(createMockProcedure<typeof notificationRouter.listNotificationTypes>([]));
+
+const createInternalServerErrorProcedure = (message: string) =>
+  publicProcedure.mutation(() => {
+    throw new TRPCError({ message, code: "INTERNAL_SERVER_ERROR" });
+  });
 
 const listNotificationTypes = publicProcedure.query(
   createMockProcedure<typeof notificationRouter.listNotificationTypes>([
@@ -268,13 +273,7 @@ test.describe("Group Member Notification", () => {
   );
 
   // create group member notification (failure)
-  const createGroupMemberNotificationIsFailure = publicProcedure.mutation(() => {
-    throw new StampHubError(
-      "An error occurred in createGroupMemberNotification.",
-      "An error occurred in createGroupMemberNotification.",
-      "INTERNAL_SERVER_ERROR"
-    );
-  });
+  const createGroupMemberNotificationIsFailure = createInternalServerErrorProcedure("An error occurred in createGroupMemberNotification.");
 
   // update group member notification
   const updateGroupMemberNotification = publicProcedure.mutation(
@@ -298,13 +297,7 @@ test.describe("Group Member Notification", () => {
   );
 
   // update group member notification (failure)
-  const updateGroupMemberNotificationIsFailure = publicProcedure.mutation(() => {
-    throw new StampHubError(
-      "An error occurred in updateGroupMemberNotification.",
-      "An error occurred in updateGroupMemberNotification.",
-      "INTERNAL_SERVER_ERROR"
-    );
-  });
+  const updateGroupMemberNotificationIsFailure = createInternalServerErrorProcedure("An error occurred in updateGroupMemberNotification.");
 
   // delete group member notification
   const deleteGroupMemberNotificationSuccess = publicProcedure.mutation(
@@ -319,13 +312,7 @@ test.describe("Group Member Notification", () => {
   );
 
   // delete group member notification (failure)
-  const deleteGroupMemberNotificationIsFailure = publicProcedure.mutation(() => {
-    throw new StampHubError(
-      "An error occurred in deleteGroupMemberNotification.",
-      "An error occurred in deleteGroupMemberNotification.",
-      "INTERNAL_SERVER_ERROR"
-    );
-  });
+  const deleteGroupMemberNotificationIsFailure = createInternalServerErrorProcedure("An error occurred in deleteGroupMemberNotification.");
 
   test("Verify that the Group Member Notification dialog is displayed even when no notification types are available", async ({ page, context }) => {
     const customRouter = createMockStampHubRouter({
@@ -805,13 +792,7 @@ test.describe("Approval request notification", () => {
   );
 
   // create approval request notification (failure)
-  const createApprovalRequestNotificationIsFailure = publicProcedure.mutation(() => {
-    throw new StampHubError(
-      "An error occurred in createApprovalRequestNotification.",
-      "An error occurred in createApprovalRequestNotification.",
-      "INTERNAL_SERVER_ERROR"
-    );
-  });
+  const createApprovalRequestNotificationIsFailure = createInternalServerErrorProcedure("An error occurred in createApprovalRequestNotification.");
 
   // update approval request notification
   const updateApprovalRequestNotification = publicProcedure.mutation(
@@ -835,13 +816,7 @@ test.describe("Approval request notification", () => {
   );
 
   // update approval request notification (failure)
-  const updateApprovalRequestNotificationIsFailure = publicProcedure.mutation(() => {
-    throw new StampHubError(
-      "An error occurred in updateApprovalRequestNotification.",
-      "An error occurred in updateApprovalRequestNotification.",
-      "INTERNAL_SERVER_ERROR"
-    );
-  });
+  const updateApprovalRequestNotificationIsFailure = createInternalServerErrorProcedure("An error occurred in updateApprovalRequestNotification.");
 
   // delete approval request notification
   const deleteApprovalRequestNotificationSuccess = publicProcedure.mutation(
@@ -857,13 +832,7 @@ test.describe("Approval request notification", () => {
   );
 
   // delete approval request notification (failure)
-  const deleteApprovalRequestNotificationIsFailure = publicProcedure.mutation(() => {
-    throw new StampHubError(
-      "An error occurred in deleteApprovalRequestNotification.",
-      "An error occurred in deleteApprovalRequestNotification.",
-      "INTERNAL_SERVER_ERROR"
-    );
-  });
+  const deleteApprovalRequestNotificationIsFailure = createInternalServerErrorProcedure("An error occurred in deleteApprovalRequestNotification.");
 
   // Approval Request Notification Dialog
   test("Verify that the Approval Request Notification dialog is displayed even when no notification types are available", async ({ page, context }) => {
