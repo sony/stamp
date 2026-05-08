@@ -6,7 +6,7 @@
   },
   "description": "",
   "scripts": {
-    "lint": "eslint . --ext .ts,.js --ignore-path .gitignore",
+    "lint": "eslint . --ext .ts,.js --ignore-path .gitignore --ignore-pattern apps/web-ui/",
     "versionup": "lerna version --force-publish --no-push",
     "versionup:patch": "lerna version patch --force-publish --no-push",
     "versionup:minor": "lerna version minor --force-publish --no-push",
