@@ -152,7 +152,7 @@ async function updateCustomPolicies(
       );
       logger.info("Deleted existing inline policy", { permissionSetArn });
     }
-  } catch (error) {
+  } catch {
     // If there's no existing inline policy, that's fine - we'll just create a new one
     logger.debug("No existing inline policy found", { permissionSetArn });
   }
