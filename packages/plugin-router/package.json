@@ -13,6 +13,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
+    "hono": "^4.12.4",
     "neverthrow": "^6.1.0",
     "zod": "^3.22.4"
   },
