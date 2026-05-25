@@ -15,11 +15,15 @@ const tableNameForJumpIamRole = `${process.env.IAM_ROLE_DYNAMO_TABLE_PREFIX}-iam
 
 const iamRoleFactoryAccountId = process.env.IAM_ROLE_FACTORY_AWS_ACCOUNT_ID!;
 const githubOrgName = process.env.GITHUB_ORG_NAME!;
+const repositoryName = "stamp-testRepository-promote";
+const repositoryName2 = "stamp-testRepository-promote2";
+const repositoryResourceId = `${githubOrgName}/${repositoryName}`;
+const repositoryResourceId2 = `${githubOrgName}/${repositoryName2}`;
 const config: IamRoleCatalogConfig = {
   region: "us-west-2",
   iamRoleFactoryAccountId: iamRoleFactoryAccountId,
   iamRoleFactoryAccountRoleArn: `arn:aws:iam::${iamRoleFactoryAccountId}:role/stamp-execute-role`,
-  gitHubOrgName: githubOrgName,
+  gitHubOrgNames: [githubOrgName],
   policyNamePrefix: "test",
   roleNamePrefix: "test",
   awsAccountResourceTableName: tableNameForAWSAccount,
@@ -42,7 +46,7 @@ const approvedInput: ApprovedInput = {
   },
   inputResources: {
     "github-iam-role": {
-      resourceId: "stamp-testRepository-promote",
+      resourceId: repositoryResourceId,
       resourceTypeId: "test-resource-type",
     },
     "aws-account": {
@@ -78,11 +82,33 @@ describe("Testing iamRolePromoteRequest", () => {
     });
     await gitHubIamRoleResourceHandler.deleteResource({
       resourceTypeId: "test-resource-type",
-      resourceId: "stamp-testRepository-promote",
+      resourceId: repositoryResourceId,
+    });
+    // Also clean a possibly-leaked legacy record (bare repo name as PK) from
+    // earlier runs predating multi-org support; otherwise the createResource
+    // below is rejected by the legacy duplicate-PK guard.
+    await gitHubIamRoleResourceHandler.deleteResource({
+      resourceTypeId: "test-resource-type",
+      resourceId: repositoryName,
+    });
+    // Also clean leftover `promote2` records (compound + legacy) from prior
+    // runs of the multi-item pagination scenario; otherwise the single-item
+    // AwsAccountResource audit assertion sees two attached roles.
+    await gitHubIamRoleResourceHandler.deleteResource({
+      resourceTypeId: "test-resource-type",
+      resourceId: repositoryResourceId2,
+    });
+    await gitHubIamRoleResourceHandler.deleteResource({
+      resourceTypeId: "test-resource-type",
+      resourceId: repositoryName2,
     });
     await targetIamRoleResourceHandler.deleteResource({
       resourceTypeId: "test-resource-type",
       resourceId: "222233334444#stamp-test-iam-role-promote",
+    });
+    await targetIamRoleResourceHandler.deleteResource({
+      resourceTypeId: "test-resource-type",
+      resourceId: "222233334444#stamp-test-iam-role-promote2",
     });
     await createAwsAccountDBItem(
       logger,
@@ -95,7 +121,8 @@ describe("Testing iamRolePromoteRequest", () => {
     await gitHubIamRoleResourceHandler.createResource({
       resourceTypeId: "test-resource-type",
       inputParams: {
-        repositoryName: "stamp-testRepository-promote",
+        repositoryName: repositoryName,
+        gitHubOrgName: githubOrgName,
       },
     });
     await targetIamRoleResourceHandler.createResource({
@@ -117,7 +144,7 @@ describe("Testing iamRolePromoteRequest", () => {
     });
     await gitHubIamRoleResourceHandler.deleteResource({
       resourceTypeId: "test-resource-type",
-      resourceId: "stamp-testRepository-promote",
+      resourceId: repositoryResourceId,
     });
     await targetIamRoleResourceHandler.deleteResource({
       resourceTypeId: "test-resource-type",
@@ -204,7 +231,7 @@ describe("Testing iamRolePromoteRequest", () => {
           },
           inputResources: {
             "github-iam-role": {
-              resourceId: "stamp-testRepository-promote2",
+              resourceId: repositoryResourceId2,
               resourceTypeId: "test-resource-type",
             },
             "aws-account": {
@@ -231,7 +258,8 @@ describe("Testing iamRolePromoteRequest", () => {
         await gitHubIamRoleResourceHandler.createResource({
           resourceTypeId: "test-resource-type",
           inputParams: {
-            repositoryName: "stamp-testRepository-promote2",
+            repositoryName: repositoryName2,
+            gitHubOrgName: githubOrgName,
           },
         });
         await targetIamRoleResourceHandler.createResource({
@@ -329,7 +357,7 @@ describe("Testing iamRolePromoteRequest", () => {
         });
         await gitHubIamRoleResourceHandler.deleteResource({
           resourceTypeId: "test-resource-type",
-          resourceId: "stamp-testRepository-promote2",
+          resourceId: repositoryResourceId2,
         });
       });
     },
@@ -340,7 +368,7 @@ describe("Testing iamRolePromoteRequest", () => {
     it("returns successful result", async () => {
       const input: ListResourceAuditItemInput = {
         resourceTypeId: "test-resource-type",
-        resourceId: "stamp-testRepository-promote",
+        resourceId: repositoryResourceId,
       };
       const expected = [
         {

@@ -21,12 +21,14 @@ const tableNameForJumpIamRole = `${process.env.IAM_ROLE_DYNAMO_TABLE_PREFIX}-iam
 
 const iamRoleFactoryAccountId = process.env.IAM_ROLE_FACTORY_AWS_ACCOUNT_ID!;
 const githubOrgName = process.env.GITHUB_ORG_NAME!;
+const repositoryName = "stamp-testRepository-promote";
+const repositoryResourceId = `${githubOrgName}/${repositoryName}`;
 
 const config: IamRoleCatalogConfig = {
   region: "us-west-2",
   iamRoleFactoryAccountId: iamRoleFactoryAccountId,
   iamRoleFactoryAccountRoleArn: `arn:aws:iam::${iamRoleFactoryAccountId}:role/stamp-execute-role`,
-  gitHubOrgName: githubOrgName,
+  gitHubOrgNames: [githubOrgName],
   policyNamePrefix: "test",
   roleNamePrefix: "test",
   awsAccountResourceTableName: tableNameForAWSAccount,
@@ -49,7 +51,7 @@ function createApprovedValidationInput(suffix: number): ApprovalRequestValidatio
     },
     inputResources: {
       "github-iam-role": {
-        resourceId: "stamp-testRepository-promote",
+        resourceId: repositoryResourceId,
         resourceTypeId: "test-resource-type",
       },
       "aws-account": {
@@ -83,7 +85,7 @@ describe(
       });
       await gitHubIamRoleResourceHandler.deleteResource({
         resourceTypeId: "test-resource-type",
-        resourceId: "stamp-testRepository-promote",
+        resourceId: repositoryResourceId,
       });
       for (let suffix = 1; suffix <= 11; suffix++) {
         await targetIamRoleResourceHandler.deleteResource({
@@ -102,7 +104,8 @@ describe(
       await gitHubIamRoleResourceHandler.createResource({
         resourceTypeId: "test-resource-type",
         inputParams: {
-          repositoryName: "stamp-testRepository-promote",
+          repositoryName: repositoryName,
+          gitHubOrgName: githubOrgName,
         },
       });
       for (let suffix = 1; suffix <= 11; suffix++) {
@@ -168,7 +171,7 @@ describe(
       });
       await gitHubIamRoleResourceHandler.deleteResource({
         resourceTypeId: "test-resource-type",
-        resourceId: "stamp-testRepository-promote",
+        resourceId: repositoryResourceId,
       });
     }, 300000); // Set timeout to 300 seconds
 

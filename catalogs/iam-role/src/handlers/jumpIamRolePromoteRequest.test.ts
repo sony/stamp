@@ -39,7 +39,7 @@ const config: IamRoleCatalogConfig = {
   region: "us-west-2",
   iamRoleFactoryAccountId: iamRoleFactoryAccountId,
   iamRoleFactoryAccountRoleArn: `arn:aws:iam::${iamRoleFactoryAccountId}:role/stamp-execute-role`,
-  gitHubOrgName: githubOrgName,
+  gitHubOrgNames: [githubOrgName],
   policyNamePrefix: "test",
   roleNamePrefix: "test",
   awsAccountResourceTableName: tableNameForAWSAccount,
@@ -124,7 +124,7 @@ describe("Testing iamRolePromoteRequest", () => {
     await targetIamRoleResourceHandler.createResource({
       resourceTypeId: resourceTypeId,
       inputParams: {
-        iamRoleName: "common-deployment-test",
+        iamRoleName: "deployment-test",
       },
       parentResourceId: accountId,
     });

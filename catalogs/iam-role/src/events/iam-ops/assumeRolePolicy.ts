@@ -73,11 +73,28 @@ export const deleteAssumeRolePolicy =
       PolicyArn: parsedInput.assumeRolePolicyArn,
     });
 
-    return ResultAsync.fromPromise(iamClient.send(deletePolicy), (error) => {
-      const errorMessage = `Failed to delete policy: ${error}`;
-      logger.error(errorMessage);
-      return new HandlerError(errorMessage, "INTERNAL_SERVER_ERROR");
-    }).map(() => {});
+    return ResultAsync.fromPromise(
+      iamClient.send(deletePolicy).then(
+        () => ({ ok: true as const }),
+        (error: unknown) => {
+          // Treat a missing IAM policy as success: the desired post-condition
+          // (policy no longer exists) already holds. Without this branch an
+          // orphaned DB record (where the IAM policy was deleted out-of-band)
+          // can never be cleaned up via the normal deleteResource path.
+          const name = (error as { name?: string } | undefined)?.name;
+          if (name === "NoSuchEntity" || name === "NoSuchEntityException") {
+            logger.info(`IAM policy ${parsedInput.assumeRolePolicyArn} already absent; treating delete as success`);
+            return { ok: true as const };
+          }
+          throw error;
+        }
+      ),
+      (error) => {
+        const errorMessage = `Failed to delete policy: ${error}`;
+        logger.error(errorMessage);
+        return new HandlerError(errorMessage, "INTERNAL_SERVER_ERROR");
+      }
+    ).map(() => {});
   };
 
 export const ListIamRoleAttachedAssumeRolePolicyCommand = z.object({

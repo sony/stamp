@@ -45,8 +45,12 @@ export function createIamRoleCatalog(iamRoleCatalogConfigInput: IamRoleCatalogCo
     id: "github-iam-role",
     name: "GitHub IAM Role",
     description: "GitHub IAM Role",
-    createParams: [{ type: "string", id: "repositoryName", name: "Repository Name", required: true }],
+    createParams: [
+      { type: "string", id: "gitHubOrgName", name: "GitHub Organization", required: true },
+      { type: "string", id: "repositoryName", name: "Repository Name", required: true },
+    ],
     infoParams: [
+      { type: "string", id: "gitHubOrgName", name: "GitHub Organization", edit: false },
       { type: "string", id: "repositoryName", name: "Repository Name", edit: false },
       { type: "string", id: "iamRoleArn", name: "IAM Role Arn", edit: false },
     ],

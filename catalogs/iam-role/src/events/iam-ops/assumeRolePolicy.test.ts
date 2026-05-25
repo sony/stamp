@@ -85,7 +85,7 @@ describe("AssumeRolePolicy", () => {
     expect(createAssumeRoleResult.isErr()).toBe(true);
   });
 
-  it("deleteAssumeRolePolicy event should return error if not created assume role policy.", async () => {
+  it("deleteAssumeRolePolicy event should be idempotent when policy does not exist", async () => {
     const iamClient = new IAMClient({ region: "us-west-2" });
     const deleteAssumeRoleResult = await deleteAssumeRolePolicy(
       logger,
@@ -93,7 +93,8 @@ describe("AssumeRolePolicy", () => {
     )({
       assumeRolePolicyArn: `arn:aws:iam::${testInput.targetAWSAccountId}:policy/this-is-not-exist`,
     });
-    expect(deleteAssumeRoleResult.isOk()).toBe(false);
+    // The policy does not exist on AWS; the delete should be a no-op.
+    expect(deleteAssumeRoleResult.isOk()).toBe(true);
   });
 
   it("listIamRoleAttachedAssumeRolePolicy should return empty array if not attached assume role policy.", async () => {

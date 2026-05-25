@@ -20,7 +20,7 @@ const config: IamRoleCatalogConfig = {
   region: "us-west-2",
   iamRoleFactoryAccountId: accountId,
   iamRoleFactoryAccountRoleArn: "test-arn",
-  gitHubOrgName: githubOrgName,
+  gitHubOrgNames: [githubOrgName],
   policyNamePrefix: "test",
   roleNamePrefix: "test",
   awsAccountResourceTableName: `${process.env.IAM_ROLE_DYNAMO_TABLE_PREFIX}-iam-role-AWSAccountResource`,
@@ -33,8 +33,9 @@ const config: IamRoleCatalogConfig = {
 const deleteGitHubIamRoleForTest = async (logger: Logger) => {
   const iamClient = new IAMClient({ region: "us-west-2" });
   const input: GitHubIamRole = {
+    gitHubOrgName: githubOrgName,
     repositoryName: "test-Repository",
-    iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgName}-test-Repository`,
+    iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-test-Repository`,
     iamRoleArn: "test-arn",
     createdAt: "2024-01-02T03:04:05.006Z",
   };
@@ -54,11 +55,13 @@ describe("Testing gitHubIamRole", () => {
   describe("createGitHubIamRoleName", () => {
     it("creates GitHub iam role name if iam role name is 64 character or under", async () => {
       const input: CreateGitHubIamRoleNameCommand = {
+        gitHubOrgName: githubOrgName,
         repositoryName: "1".repeat(44), // number of characters within range excluding prefix etc
       };
       const expected: CreatedGitHubIamRoleName = {
+        gitHubOrgName: githubOrgName,
         repositoryName: "1".repeat(44), // number of characters within range excluding prefix etc
-        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgName}-` + "1".repeat(44),
+        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-` + "1".repeat(44),
       };
       const result = createGitHubIamRoleName(config)(input);
       if (result.isErr()) {
@@ -69,6 +72,7 @@ describe("Testing gitHubIamRole", () => {
 
     it("returns failed result if iam role name is over 64 character", async () => {
       const input: CreateGitHubIamRoleNameCommand = {
+        gitHubOrgName: githubOrgName,
         repositoryName: "1".repeat(44) + "a", // number of characters exceeding range limit
       };
       const result = createGitHubIamRoleName(config)(input);
@@ -77,6 +81,7 @@ describe("Testing gitHubIamRole", () => {
 
     it("returns successful result even if repository name is empty", async () => {
       const input: CreateGitHubIamRoleNameCommand = {
+        gitHubOrgName: githubOrgName,
         repositoryName: "",
       };
       const result = createGitHubIamRoleName(config)(input);
@@ -89,12 +94,14 @@ describe("Testing gitHubIamRole", () => {
     it("creates GitHub iam role in AWS", async () => {
       const iamClient = new IAMClient({ region: "us-west-2" });
       const input: CreateGitHubIamRoleCommand = {
+        gitHubOrgName: githubOrgName,
         repositoryName: "test-Repository",
-        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgName}-test-Repository`,
+        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-test-Repository`,
       };
       const expected: CreatedGitHubIamRole = {
+        gitHubOrgName: githubOrgName,
         repositoryName: "test-Repository",
-        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgName}-test-Repository`,
+        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-test-Repository`,
         iamRoleArn: expect.any(String),
         createdAt: expect.any(String),
       };
@@ -109,8 +116,9 @@ describe("Testing gitHubIamRole", () => {
     it("returns failed result if repository name is invalid", async () => {
       const iamClient = new IAMClient({ region: "us-west-2" });
       const input: CreateGitHubIamRoleCommand = {
+        gitHubOrgName: githubOrgName,
         repositoryName: "",
-        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgName}-test-Repository`,
+        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-test-Repository`,
       };
       const resultAsync = createGitHubIamRoleInAws(logger, config, iamClient)(input);
       const result = await resultAsync;
@@ -120,6 +128,7 @@ describe("Testing gitHubIamRole", () => {
     it("returns failed result if iam role name is invalid", async () => {
       const iamClient = new IAMClient({ region: "us-west-2" });
       const input: CreateGitHubIamRoleCommand = {
+        gitHubOrgName: githubOrgName,
         repositoryName: "test-Repository",
         iamRoleName: "",
       };
@@ -167,8 +176,9 @@ describe("Testing gitHubIamRole", () => {
     it("deletes GitHub iam role in AWS", async () => {
       const iamClient = new IAMClient({ region: "us-west-2" });
       const input: GitHubIamRole = {
+        gitHubOrgName: githubOrgName,
         repositoryName: "test-Repository",
-        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgName}-test-Repository`,
+        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-test-Repository`,
         iamRoleArn: "test-arn",
         createdAt: "2024-01-02T03:04:05.006Z",
       };
@@ -181,22 +191,25 @@ describe("Testing gitHubIamRole", () => {
       expect(result.value).toEqual(expected);
     });
 
-    it("returns failed result if repository name is invalid", async () => {
+    it("returns ok when the IAM role for an invalid repository name does not exist (idempotent)", async () => {
       const iamClient = new IAMClient({ region: "us-west-2" });
       const input: GitHubIamRole = {
+        gitHubOrgName: githubOrgName,
         repositoryName: "",
-        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgName}-test-Repository`,
+        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-test-Repository`,
         iamRoleArn: "test-arn",
         createdAt: "2024-01-02T03:04:05.006Z",
       };
       const resultAsync = deleteGitHubIamRoleInAws(logger, iamClient)(input);
       const result = await resultAsync;
-      expect(result.isErr()).toBe(true);
+      // The IAM role does not exist on AWS; the delete should be a no-op.
+      expect(result.isOk()).toBe(true);
     });
 
     it("returns failed result if iam role name is invalid", async () => {
       const iamClient = new IAMClient({ region: "us-west-2" });
       const input: GitHubIamRole = {
+        gitHubOrgName: githubOrgName,
         repositoryName: "test-Repository",
         iamRoleName: "",
         iamRoleArn: "test-arn",
@@ -207,30 +220,32 @@ describe("Testing gitHubIamRole", () => {
       expect(result.isErr()).toBe(true);
     });
 
-    it("returns failed result if iam role arn is invalid", async () => {
+    it("returns ok when the IAM role for an invalid iam role arn does not exist (idempotent)", async () => {
       const iamClient = new IAMClient({ region: "us-west-2" });
       const input: GitHubIamRole = {
+        gitHubOrgName: githubOrgName,
         repositoryName: "test-Repository",
-        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgName}-test-Repository`,
+        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-test-Repository`,
         iamRoleArn: "",
         createdAt: "2024-01-02T03:04:05.006Z",
       };
       const resultAsync = deleteGitHubIamRoleInAws(logger, iamClient)(input);
       const result = await resultAsync;
-      expect(result.isErr()).toBe(true);
+      expect(result.isOk()).toBe(true);
     });
 
-    it("returns failed result if created date is invalid", async () => {
+    it("returns ok when the IAM role for an invalid created date does not exist (idempotent)", async () => {
       const iamClient = new IAMClient({ region: "us-west-2" });
       const input: GitHubIamRole = {
+        gitHubOrgName: githubOrgName,
         repositoryName: "test-Repository",
-        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgName}-test-Repository`,
+        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-test-Repository`,
         iamRoleArn: "test-arn",
         createdAt: "",
       };
       const resultAsync = deleteGitHubIamRoleInAws(logger, iamClient)(input);
       const result = await resultAsync;
-      expect(result.isErr()).toBe(true);
+      expect(result.isOk()).toBe(true);
     });
   });
 });

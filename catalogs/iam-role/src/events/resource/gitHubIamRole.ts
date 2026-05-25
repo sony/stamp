@@ -17,18 +17,23 @@ export type CreateGitHubIamRoleName = (input: CreateGitHubIamRoleNameCommand) =>
 export const createGitHubIamRoleName =
   (config: IamRoleCatalogConfig): CreateGitHubIamRoleName =>
   (input) => {
-    const iamRoleName = `${config.roleNamePrefix}-github-${config.gitHubOrgName}-${input.repositoryName}`;
+    if (!config.gitHubOrgNames.includes(input.gitHubOrgName)) {
+      const message = `GitHub organization "${input.gitHubOrgName}" is not allowed. Allowed organizations: ${config.gitHubOrgNames.join(", ")}.`;
+      return err(new HandlerError(message, "BAD_REQUEST", message));
+    }
+    const iamRoleName = `${config.roleNamePrefix}-github-${input.gitHubOrgName}-${input.repositoryName}`;
     if (iamRoleName.length > 64) {
       return err(
         new HandlerError(
           `Failed to create role name. ${iamRoleName} is over 64 character.`,
           "BAD_REQUEST",
-          `Failed to create role name. ${iamRoleName} is over 64 character. Please change repository name to short one.`
+          `Failed to create role name. ${iamRoleName} is over 64 character. Please use a shorter repository name or a GitHub organization with a shorter name.`
         )
       );
     }
     return ok({
       repositoryName: input.repositoryName,
+      gitHubOrgName: input.gitHubOrgName,
       iamRoleName,
     });
   };
@@ -61,7 +66,7 @@ export const createGitHubIamRoleInAws =
           Action: "sts:AssumeRoleWithWebIdentity",
           Condition: {
             StringLike: {
-              "token.actions.githubusercontent.com:sub": `repo:${config.gitHubOrgName}/${parsedInput.repositoryName}:*`,
+              "token.actions.githubusercontent.com:sub": `repo:${parsedInput.gitHubOrgName}/${parsedInput.repositoryName}:*`,
             },
           },
         },
@@ -93,11 +98,30 @@ export const deleteGitHubIamRoleInAws =
       RoleName: input.iamRoleName,
     });
 
-    return ResultAsync.fromPromise(iamClient.send(deleteRole), (error) => {
-      const errorMessage = `Failed to delete role: ${error}`;
-      logger.error(errorMessage);
-      return new HandlerError(errorMessage, "INTERNAL_SERVER_ERROR");
-    }).map(() => input);
+    return ResultAsync.fromPromise(
+      iamClient.send(deleteRole).then(
+        () => ({ ok: true as const }),
+        (error: unknown) => {
+          // Treat a missing IAM role as success: the desired post-condition
+          // (role no longer exists) already holds. Without this branch an
+          // orphaned DB record (where the IAM role was deleted out-of-band)
+          // can never be cleaned up via the normal deleteResource path, which
+          // then blocks subsequent createResource calls with the duplicate-PK
+          // legacy guard.
+          const name = (error as { name?: string } | undefined)?.name;
+          if (name === "NoSuchEntity" || name === "NoSuchEntityException") {
+            logger.info(`IAM role ${input.iamRoleName} already absent; treating delete as success`);
+            return { ok: true as const };
+          }
+          throw error;
+        }
+      ),
+      (error) => {
+        const errorMessage = `Failed to delete role: ${error}`;
+        logger.error(errorMessage);
+        return new HandlerError(errorMessage, "INTERNAL_SERVER_ERROR");
+      }
+    ).map(() => input);
   };
 
 export type ListGitHubIamRoleAuditItemInAws = (input: ListGitHubIamRoleAuditItemCommand) => ResultAsync<ListGitHubIamRoleAuditItem, HandlerError>;

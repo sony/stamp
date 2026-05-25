@@ -1,12 +1,13 @@
 import { none, some } from "@stamp-lib/stamp-option";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { GitHubIamRole } from "../../types/gitHubIamRole";
+import { CreatedGitHubIamRole, GitHubIamRole } from "../../types/gitHubIamRole";
 import {
   DeleteGitHubIamRoleDBItemInput,
   GetByIamRoleNameInput,
   GetGitHubIamRoleDBItemInput,
   GitHubRepositoryName,
   ListGitHubIamRoleDBItemInput,
+  buildGitHubIamRolePkValue,
   createGitHubIamRoleDBItem,
   deleteGitHubIamRoleDBItem,
   getByIamRoleName,
@@ -18,27 +19,30 @@ import { createLogger } from "@stamp-lib/stamp-logger";
 const tableName = `${process.env.IAM_ROLE_DYNAMO_TABLE_PREFIX}-iam-role-GitHubIamRoleResource`;
 const config = { region: "us-west-2" };
 const githubOrgName = process.env.GITHUB_ORG_NAME!;
+const testBareRepoName = "stamp-testRepository";
+const testPkValue = buildGitHubIamRolePkValue(githubOrgName, testBareRepoName);
 
 describe("Testing gitHubIamRoleDB", () => {
   const logger = createLogger("DEBUG", { moduleName: "iam-role" });
   beforeAll(async () => {
     const input: DeleteGitHubIamRoleDBItemInput = {
-      repositoryName: "stamp-testRepository",
+      repositoryName: testPkValue,
     };
     await deleteGitHubIamRoleDBItem(logger, tableName, config)(input);
   });
 
   afterAll(async () => {
     const input: DeleteGitHubIamRoleDBItemInput = {
-      repositoryName: "stamp-testRepository",
+      repositoryName: testPkValue,
     };
     await deleteGitHubIamRoleDBItem(logger, tableName, config)(input);
   });
 
   describe("createGitHubIamRoleDBItem", () => {
     it("returns failed result if repository name is invalid", async () => {
-      const input: GitHubIamRole = {
+      const input: CreatedGitHubIamRole = {
         repositoryName: "",
+        gitHubOrgName: githubOrgName,
         iamRoleName: `test-github-${githubOrgName}-test-repository`,
         iamRoleArn: "arn:aws:iam::123456789012:role/test-service-role",
         createdAt: "2024-01-02T03:04:05.006Z",
@@ -49,8 +53,9 @@ describe("Testing gitHubIamRoleDB", () => {
     });
 
     it("returns failed result even if iam role name is empty", async () => {
-      const input: GitHubIamRole = {
-        repositoryName: "stamp-testRepository",
+      const input: CreatedGitHubIamRole = {
+        repositoryName: testBareRepoName,
+        gitHubOrgName: githubOrgName,
         iamRoleName: "",
         iamRoleArn: "arn:aws:iam::123456789012:role/test-service-role",
         createdAt: "2024-01-02T03:04:05.006Z",
@@ -61,8 +66,9 @@ describe("Testing gitHubIamRoleDB", () => {
     });
 
     it("returns successful result even if iam role arn is empty", async () => {
-      const input: GitHubIamRole = {
-        repositoryName: "stamp-testRepository",
+      const input: CreatedGitHubIamRole = {
+        repositoryName: testBareRepoName,
+        gitHubOrgName: githubOrgName,
         iamRoleName: `test-github-${githubOrgName}-test-repository`,
         iamRoleArn: "",
         createdAt: "2024-01-02T03:04:05.006Z",
@@ -73,8 +79,9 @@ describe("Testing gitHubIamRoleDB", () => {
     });
 
     it("returns failed result if creation date is invalid", async () => {
-      const input: GitHubIamRole = {
-        repositoryName: "stamp-testRepository",
+      const input: CreatedGitHubIamRole = {
+        repositoryName: testBareRepoName,
+        gitHubOrgName: githubOrgName,
         iamRoleName: `test-github-${githubOrgName}-test-repository`,
         iamRoleArn: "arn:aws:iam::123456789012:role/test-service-role",
         createdAt: "",
@@ -85,13 +92,21 @@ describe("Testing gitHubIamRoleDB", () => {
     });
 
     it("creates GitHub iam role DB item", async () => {
-      const input: GitHubIamRole = {
-        repositoryName: "stamp-testRepository",
+      const input: CreatedGitHubIamRole = {
+        repositoryName: testBareRepoName,
+        gitHubOrgName: githubOrgName,
         iamRoleName: `test-github-${githubOrgName}-test-repository`,
         iamRoleArn: "arn:aws:iam::123456789012:role/test-service-role",
         createdAt: "2024-01-02T03:04:05.006Z",
       };
-      const expected = structuredClone(input);
+      const expected: GitHubIamRole = {
+        repositoryName: testPkValue,
+        gitHubRepositoryName: testBareRepoName,
+        gitHubOrgName: githubOrgName,
+        iamRoleName: `test-github-${githubOrgName}-test-repository`,
+        iamRoleArn: "arn:aws:iam::123456789012:role/test-service-role",
+        createdAt: "2024-01-02T03:04:05.006Z",
+      };
       const resultAsync = createGitHubIamRoleDBItem(logger, tableName, config)(input);
       const result = await resultAsync;
       if (result.isErr()) {
@@ -105,10 +120,12 @@ describe("Testing gitHubIamRoleDB", () => {
   describe("getGitHubIamRoleDBItem", () => {
     it("gets GitHub iam role DB item", async () => {
       const input: GetGitHubIamRoleDBItemInput = {
-        repositoryName: "stamp-testRepository",
+        repositoryName: testPkValue,
       };
       const expected: GitHubIamRole = {
-        repositoryName: "stamp-testRepository",
+        repositoryName: testPkValue,
+        gitHubRepositoryName: testBareRepoName,
+        gitHubOrgName: githubOrgName,
         iamRoleArn: "arn:aws:iam::123456789012:role/test-service-role",
         iamRoleName: `test-github-${githubOrgName}-test-repository`,
         createdAt: "2024-01-02T03:04:05.006Z",
@@ -150,7 +167,7 @@ describe("Testing gitHubIamRoleDB", () => {
         iamRoleName: `test-github-${githubOrgName}-test-repository`,
       };
       const expected: GitHubRepositoryName = {
-        repositoryName: "stamp-testRepository",
+        repositoryName: testPkValue,
       };
 
       const resultAsync = getByIamRoleName(logger, tableName, config)(input);
@@ -200,7 +217,7 @@ describe("Testing gitHubIamRoleDB", () => {
   describe("deleteGitHubIamRoleDBItem", () => {
     it("deletes GitHub iam role DB item", async () => {
       const input: DeleteGitHubIamRoleDBItemInput = {
-        repositoryName: "stamp-testRepository",
+        repositoryName: testPkValue,
       };
       const resultAsync = deleteGitHubIamRoleDBItem(logger, tableName, config)(input);
       const result = await resultAsync;

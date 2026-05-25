@@ -90,11 +90,28 @@ export const deleteJumpIamRoleInAws =
       RoleName: input.iamRoleName,
     });
 
-    return ResultAsync.fromPromise(iamClient.send(deleteRole), (error) => {
-      const errorMessage = `Failed to delete role: ${error}`;
-      logger.error(errorMessage);
-      return new HandlerError(errorMessage, "INTERNAL_SERVER_ERROR");
-    }).map(() => input);
+    return ResultAsync.fromPromise(
+      iamClient.send(deleteRole).then(
+        () => ({ ok: true as const }),
+        (error: unknown) => {
+          // Treat a missing IAM role as success — see the matching comment
+          // in `deleteGitHubIamRoleInAws`. Without this, orphaned DB
+          // records can never be cleaned up via the normal deleteResource
+          // path and block subsequent createResource calls.
+          const name = (error as { name?: string } | undefined)?.name;
+          if (name === "NoSuchEntity" || name === "NoSuchEntityException") {
+            logger.info(`IAM role ${input.iamRoleName} already absent; treating delete as success`);
+            return { ok: true as const };
+          }
+          throw error;
+        }
+      ),
+      (error) => {
+        const errorMessage = `Failed to delete role: ${error}`;
+        logger.error(errorMessage);
+        return new HandlerError(errorMessage, "INTERNAL_SERVER_ERROR");
+      }
+    ).map(() => input);
   };
 
 export type ListJumpIamRoleAuditItemInAws = (input: ListJumpIamRoleAuditItemCommand) => ResultAsync<ListJumpIamRoleAuditItem, HandlerError>;
