@@ -11,12 +11,16 @@ Your responsibility is to quickly and reliably confirm that the currently checke
 ## Invariants (must always follow)
 
 - **Do not modify source code, configuration files, or lockfiles** (this would change what is being tested)
+- Do not delete `node_modules/` or build artifacts (e.g. `lib/`, `.next/`) — re-creating them is allowed via `npm ci` / `npm run build`
 - Do not perform any operation that mutates repository state, such as `git commit`, `git push`, `gh pr create`, or tagging
 - Do not change dependencies (e.g. `npm install <new-pkg>`). `npm ci` is allowed
 - Do not perform external deployments (e.g. `gh workflow run`, `cdk deploy`, `terraform apply`, deploys to App Runner / Cloud Run)
 - Do not start watch mode or long-running processes (e.g. `vitest` watch, `next dev`, `npm run dev`)
+  - Note: some workspaces define `"test": "vitest"` which defaults to watch mode. **Always invoke `npx vitest run` directly**, not `npm test`
+- Do not set `RUN_INTEGRATION_TESTS` (integration tests must remain skipped)
 - Even if you detect a failure, do not attempt to fix the code. Stop at detection and reporting
 - Do not leak sensitive information into logs. If detected, mask it (see below)
+- Prefer running commands with `CI=1` to suppress interactive prompts and color codes for reproducible logs
 
 ## Repository structure (background)
 
@@ -45,7 +49,7 @@ Run the following and report as the header section:
 3. `git log -1 --oneline`
 4. `node --version`
 5. `npm --version`
-6. Check for `node_modules/` at the repo root and in `apps/web-ui/`. If missing, run `npm ci` in that directory.
+6. Check for `node_modules/` at the repo root and in `apps/web-ui/`. If missing, run `npm ci` in that directory. When in doubt about lockfile/`node_modules` drift, prefer running `npm ci` to ensure a clean, reproducible install.
 
 ### Phase 1: Root lint & build
 
@@ -54,14 +58,22 @@ Run the following and report as the header section:
 
 ### Phase 2: Unit tests (vitest)
 
-For every workspace under `packages/*`, `catalogs/*`, and `plugins/**` that contains a `vitest.config.ts` or `vitest.config.js`, run:
+Discover the workspaces that contain a vitest config. From the repo root:
 
 ```bash
-# example (inside each workspace directory)
+find packages catalogs plugins \
+  \( -name 'vitest.config.ts' -o -name 'vitest.config.js' -o -name 'vitest.config.mts' \) \
+  -not -path '*/node_modules/*' -not -path '*/lib/*' -not -path '*/dist/*'
+```
+
+For each workspace returned, run:
+
+```bash
+# inside each workspace directory
 npx vitest run --reporter=default
 ```
 
-- **Always use `vitest run`**; never use watch mode
+- **Always use `npx vitest run`**; never run `npm test` (some workspaces define `"test": "vitest"` which is watch mode)
 - For integration tests gated on `RUN_INTEGRATION_TESTS` (e.g. via `describe.skipIf(!process.env.RUN_INTEGRATION_TESTS)`), do NOT set the env var so they are skipped
 - Record any failing workspaces and continue
 
@@ -69,11 +81,18 @@ npx vitest run --reporter=default
 
 1. `cd apps/web-ui`
 2. `npx vitest run --reporter=default` (web-ui unit tests)
-3. `npm run next-build`
-4. Check `apps/web-ui/tests/.env`
-   - If the file is missing or `NEXTAUTH_SECRET` is unset, **skip** Playwright and record ⏭️ in the result table with the reason
-   - Otherwise run `npm run test-playwright -- --reporter=line --forbid-only`
-     - Continue even if it is heavy (timeout or abnormal exit). Include the list of failing tests at the end of the output
+3. Check `apps/web-ui/tests/.env` early to decide whether Playwright will run:
+   ```bash
+   test -f apps/web-ui/tests/.env && grep -q '^NEXTAUTH_SECRET=.\+' apps/web-ui/tests/.env
+   ```
+   - If this fails, **skip Playwright** and record ⏭️ with the reason in the result table
+4. `npm run next-build` (always run; this validates the web-ui build itself even if Playwright is skipped)
+5. If Playwright is not skipped, run the **production-mode** Playwright suite (closer to deployment behaviour and the recommended default):
+   ```bash
+   CI=1 npm run test-playwright:production -- --reporter=line --forbid-only
+   ```
+   - Fall back to `npm run test-playwright -- --reporter=line --forbid-only` (dev mode) only if production mode cannot start (e.g. `next-build` failed)
+   - Continue even if it is heavy (timeout or abnormal exit). Include the list of failing tests at the end of the output
 
 ### Phase 4: Result summary
 
