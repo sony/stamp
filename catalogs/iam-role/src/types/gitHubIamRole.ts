@@ -37,9 +37,11 @@ export type CreatedGitHubIamRole = z.infer<typeof CreatedGitHubIamRole>;
  *
  * `gitHubRepositoryName` and `gitHubOrgName` are optional on the schema level
  * to allow legacy records (which only persisted `repositoryName`) to be parsed.
- * The read path is responsible for filling sensible fallbacks (e.g. splitting
- * the compound PK or defaulting the org to the first configured allow-list
- * entry) before returning to handlers.
+ * For legacy records the read path derives the bare repository name from the
+ * PK (which IS the bare name for legacy records) but does NOT infer the org —
+ * it is returned as `undefined` so callers must handle the missing value
+ * explicitly. Silently defaulting to the first allowlist entry was rejected as
+ * misleading (it could misattribute access to the wrong org).
  */
 export const GitHubIamRole = z.object({
   repositoryName: z.string(),

@@ -17,11 +17,22 @@ export type CreateGitHubIamRoleName = (input: CreateGitHubIamRoleNameCommand) =>
 export const createGitHubIamRoleName =
   (config: IamRoleCatalogConfig): CreateGitHubIamRoleName =>
   (input) => {
-    if (!config.gitHubOrgNames.includes(input.gitHubOrgName)) {
-      const message = `GitHub organization "${input.gitHubOrgName}" is not allowed. Allowed organizations: ${config.gitHubOrgNames.join(", ")}.`;
+    const parsedResult = CreateGitHubIamRoleNameCommand.safeParse(input);
+    if (!parsedResult.success) {
+      return err(
+        new HandlerError(
+          `Failed to parse input.: ${parsedResult.error}`,
+          "BAD_REQUEST",
+          `Failed to parse input.: ${parsedResult.error}. Please check input value.`
+        )
+      );
+    }
+    const parsedInput = parsedResult.data;
+    if (!config.gitHubOrgNames.includes(parsedInput.gitHubOrgName)) {
+      const message = `GitHub organization "${parsedInput.gitHubOrgName}" is not allowed. Allowed organizations: ${config.gitHubOrgNames.join(", ")}.`;
       return err(new HandlerError(message, "BAD_REQUEST", message));
     }
-    const iamRoleName = `${config.roleNamePrefix}-github-${input.gitHubOrgName}-${input.repositoryName}`;
+    const iamRoleName = `${config.roleNamePrefix}-github-${parsedInput.gitHubOrgName}-${parsedInput.repositoryName}`;
     if (iamRoleName.length > 64) {
       return err(
         new HandlerError(
@@ -32,8 +43,8 @@ export const createGitHubIamRoleName =
       );
     }
     return ok({
-      repositoryName: input.repositoryName,
-      gitHubOrgName: input.gitHubOrgName,
+      repositoryName: parsedInput.repositoryName,
+      gitHubOrgName: parsedInput.gitHubOrgName,
       iamRoleName,
     });
   };

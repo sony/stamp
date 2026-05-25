@@ -121,11 +121,13 @@ const createResourceHandler =
     // Also guard against a legacy single-org record stored under the bare
     // repository name as PK. Such a record would otherwise be invisible to the
     // compound-PK lookup above and we would proceed to call IAM CreateRole
-    // with a name that already exists. This check is only meaningful when the
-    // requested org is the first allow-listed org (which is what legacy
-    // records implicitly belong to per `resolveDisplayFields`).
-    const legacyOrgName = parsedConfig.gitHubOrgNames[0];
-    if (gitHubOrgName === legacyOrgName && repositoryName !== pkValue) {
+    // with a name that already exists. Always look up the bare-PK item (not
+    // just when the requested org happens to be first in the allowlist) and
+    // reject only when its stored `iamRoleName` matches what we are about to
+    // create — this makes the check independent of allowlist ordering and
+    // avoids returning a clean `BAD_REQUEST` for an unrelated legacy record
+    // that targets a different org.
+    if (repositoryName !== pkValue) {
       const legacyResult = await getGitHubIamRoleDBItem(logger, parsedConfig.gitHubIamRoleResourceTableName, { region: parsedConfig.region })({
         repositoryName: repositoryName,
       });
@@ -133,8 +135,11 @@ const createResourceHandler =
         return err(new HandlerError(`${legacyResult.error}`, "INTERNAL_SERVER_ERROR"));
       }
       if (legacyResult.isOk() && legacyResult.value.isSome()) {
-        const message = `The GitHub IAM role for ${gitHubOrgName}/${repositoryName} already exists (legacy record).`;
-        return err(new HandlerError(message, "BAD_REQUEST", message));
+        const prospectiveIamRoleName = `${parsedConfig.roleNamePrefix}-github-${gitHubOrgName}-${repositoryName}`;
+        if (legacyResult.value.value.iamRoleName === prospectiveIamRoleName) {
+          const message = `The GitHub IAM role for ${gitHubOrgName}/${repositoryName} already exists (legacy record).`;
+          return err(new HandlerError(message, "BAD_REQUEST", message));
+        }
       }
     }
 

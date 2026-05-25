@@ -42,4 +42,17 @@ describe("createGitHubIamRoleName (multi-org)", () => {
     const result = createGitHubIamRoleName(baseConfig)({ repositoryName: "r".repeat(60), gitHubOrgName: "org-a" });
     expect(result.isErr()).toBe(true);
   });
+
+  it("rejects empty repositoryName via runtime schema validation", () => {
+    const result = createGitHubIamRoleName(baseConfig)({ repositoryName: "", gitHubOrgName: "org-a" });
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.userMessage).toContain("Failed to parse input");
+    }
+  });
+
+  it("rejects empty gitHubOrgName via runtime schema validation", () => {
+    const result = createGitHubIamRoleName(baseConfig)({ repositoryName: "my-repo", gitHubOrgName: "" });
+    expect(result.isErr()).toBe(true);
+  });
 });

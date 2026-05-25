@@ -79,13 +79,13 @@ describe("Testing gitHubIamRole", () => {
       expect(result.isErr()).toBe(true);
     });
 
-    it("returns successful result even if repository name is empty", async () => {
+    it("returns BAD_REQUEST when repository name is empty (runtime schema validation)", async () => {
       const input: CreateGitHubIamRoleNameCommand = {
         gitHubOrgName: githubOrgName,
         repositoryName: "",
       };
       const result = createGitHubIamRoleName(config)(input);
-      expect(result.isOk()).toBe(true);
+      expect(result.isErr()).toBe(true);
     });
   });
 
