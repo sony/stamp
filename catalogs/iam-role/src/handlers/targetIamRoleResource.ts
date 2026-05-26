@@ -232,6 +232,11 @@ const listResourceAuditItemHandler =
             }
 
             const item = result.value;
+            // Use the PK as-is for audit display: multi-org records are
+            // `${org}/${repo}` and legacy records are the bare repo name.
+            // Stripping the org via `extractBareRepositoryName` would collapse
+            // identically named repos under different orgs into one audit
+            // entry, which would misrepresent which org has access.
             return okAsync(item.repositoryName);
           });
         });

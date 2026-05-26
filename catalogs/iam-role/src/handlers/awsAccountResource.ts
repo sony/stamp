@@ -259,7 +259,18 @@ const listRepositories = (
         }
 
         const item = result.value;
-        return okAsync({ roleName: input.iamRoleName, value: item.repositoryName, isJumpIamRole: false });
+        return okAsync({
+          roleName: input.iamRoleName,
+          // The `IamRoleNameIndex` GSI is KEYS_ONLY so non-key attributes are
+          // not projected. Use the PK as the audit value: multi-org records
+          // expose the full `${org}/${repo}` (so identically named repos under
+          // different orgs remain distinguishable in audit reports — collapsing
+          // them via `extractBareRepositoryName` would be a security-relevant
+          // misrepresentation). Legacy records have the bare repo name as the
+          // PK, so they continue to display as before.
+          value: item.repositoryName,
+          isJumpIamRole: false,
+        });
       });
     });
   });

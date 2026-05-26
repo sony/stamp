@@ -15,12 +15,13 @@ const iamRoleFactoryAccountId = process.env.IAM_ROLE_FACTORY_AWS_ACCOUNT_ID!;
 const resourceTypeId = "iam-role-aws-account";
 const repositoryName = "test-repository";
 const githubOrgName = process.env.GITHUB_ORG_NAME!;
+const repositoryResourceId = `${githubOrgName}/${repositoryName}`;
 
 const config: IamRoleCatalogConfig = {
   region: "us-west-2",
   iamRoleFactoryAccountId: iamRoleFactoryAccountId,
   iamRoleFactoryAccountRoleArn: `arn:aws:iam::${iamRoleFactoryAccountId}:role/stamp-execute-role`,
-  gitHubOrgName: githubOrgName,
+  gitHubOrgNames: [githubOrgName],
   policyNamePrefix: "test",
   roleNamePrefix: "test",
   gitHubIamRoleResourceTableName: `${process.env.IAM_ROLE_DYNAMO_TABLE_PREFIX}-iam-role-GitHubIamRoleResource`,
@@ -35,7 +36,7 @@ describe("Testing gitHubIamRoleResource", () => {
   beforeAll(async () => {
     const input: DeleteResourceInput = {
       resourceTypeId: resourceTypeId,
-      resourceId: repositoryName,
+      resourceId: repositoryResourceId,
     };
     await gitHubIamRoleResource.deleteResource(input);
   });
@@ -43,7 +44,7 @@ describe("Testing gitHubIamRoleResource", () => {
   afterAll(async () => {
     const input: DeleteResourceInput = {
       resourceTypeId: resourceTypeId,
-      resourceId: repositoryName,
+      resourceId: repositoryResourceId,
     };
     await gitHubIamRoleResource.deleteResource(input);
   });
@@ -54,15 +55,17 @@ describe("Testing gitHubIamRoleResource", () => {
         resourceTypeId: resourceTypeId,
         inputParams: {
           repositoryName: repositoryName,
+          gitHubOrgName: githubOrgName,
         },
       };
       const expected: ResourceOutput = {
         params: {
           repositoryName: repositoryName,
+          gitHubOrgName: githubOrgName,
           iamRoleArn: expect.any(String),
         },
-        name: repositoryName,
-        resourceId: repositoryName,
+        name: repositoryResourceId,
+        resourceId: repositoryResourceId,
       };
       const result = await gitHubIamRoleResource.createResource(input);
       if (result.isErr()) {
@@ -82,6 +85,7 @@ describe("Testing gitHubIamRoleResource", () => {
         resourceTypeId: resourceTypeId,
         inputParams: {
           repositoryName: "",
+          gitHubOrgName: githubOrgName,
         },
       };
       const result = await gitHubIamRoleResource.createResource(input);
@@ -93,6 +97,7 @@ describe("Testing gitHubIamRoleResource", () => {
         resourceTypeId: resourceTypeId,
         inputParams: {
           repositoryName: 100,
+          gitHubOrgName: githubOrgName,
         },
       };
       const resultAsync = gitHubIamRoleResource.createResource(input);
@@ -105,15 +110,16 @@ describe("Testing gitHubIamRoleResource", () => {
     it("returns successful result", async () => {
       const input: GetResourceInput = {
         resourceTypeId: resourceTypeId,
-        resourceId: repositoryName,
+        resourceId: repositoryResourceId,
       };
       const expected: ResourceOutput = {
         params: {
           repositoryName: repositoryName,
+          gitHubOrgName: githubOrgName,
           iamRoleArn: expect.any(String),
         },
-        name: repositoryName,
-        resourceId: repositoryName,
+        name: repositoryResourceId,
+        resourceId: repositoryResourceId,
       };
       const result = await gitHubIamRoleResource.getResource(input);
       if (result.isErr()) {
@@ -167,7 +173,7 @@ describe("Testing gitHubIamRoleResource", () => {
     it("returns successful result", async () => {
       const input: ListResourceAuditItemInput = {
         resourceTypeId: resourceTypeId,
-        resourceId: repositoryName,
+        resourceId: repositoryResourceId,
       };
       const result = await gitHubIamRoleResource.listResourceAuditItem(input);
       if (result.isErr()) {
@@ -199,7 +205,7 @@ describe("Testing gitHubIamRoleResource", () => {
     it("returns successful result", async () => {
       const input: DeleteResourceInput = {
         resourceTypeId: resourceTypeId,
-        resourceId: repositoryName,
+        resourceId: repositoryResourceId,
       };
       const result = await gitHubIamRoleResource.deleteResource(input);
       expect(result.isOk()).toBe(true);

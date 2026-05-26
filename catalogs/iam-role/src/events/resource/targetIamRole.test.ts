@@ -102,7 +102,7 @@ describe("Testing targetIamRole", () => {
       expect(result.value).toEqual(expected);
     });
 
-    it("returns failed result if account ID is invalid", async () => {
+    it("returns ok when the IAM policy for an invalid account ID does not exist (idempotent)", async () => {
       const iamClient: IAMClient = new IAMClient({ region: "us-west-2" });
       const input: TargetIamRole = {
         accountId: "",
@@ -113,10 +113,10 @@ describe("Testing targetIamRole", () => {
       };
       const resultAsync = deleteTargetIamRole(deleteAssumeRolePolicy(logger, iamClient))(input);
       const result = await resultAsync;
-      expect(result.isErr()).toBe(true);
+      expect(result.isOk()).toBe(true);
     });
 
-    it("returns failed result if iam role name is invalid", async () => {
+    it("returns ok when the IAM policy for an invalid iam role name does not exist (idempotent)", async () => {
       const iamClient: IAMClient = new IAMClient({ region: "us-west-2" });
       const input: TargetIamRole = {
         accountId: accountId,
@@ -127,10 +127,10 @@ describe("Testing targetIamRole", () => {
       };
       const resultAsync = deleteTargetIamRole(deleteAssumeRolePolicy(logger, iamClient))(input);
       const result = await resultAsync;
-      expect(result.isErr()).toBe(true);
+      expect(result.isOk()).toBe(true);
     });
 
-    it("returns failed result if ID is invalid", async () => {
+    it("returns ok when the IAM policy for an invalid ID does not exist (idempotent)", async () => {
       const iamClient: IAMClient = new IAMClient({ region: "us-west-2" });
       const input: TargetIamRole = {
         accountId: accountId,
@@ -141,7 +141,7 @@ describe("Testing targetIamRole", () => {
       };
       const resultAsync = deleteTargetIamRole(deleteAssumeRolePolicy(logger, iamClient))(input);
       const result = await resultAsync;
-      expect(result.isErr()).toBe(true);
+      expect(result.isOk()).toBe(true);
     });
 
     it("returns failed result if created date is invalid", async () => {

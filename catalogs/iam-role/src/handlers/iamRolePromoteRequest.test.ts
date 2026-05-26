@@ -33,12 +33,13 @@ const revokedDate = "2023-11-01T10:00:00.000Z";
 
 const iamRoleFactoryAccountId = process.env.IAM_ROLE_FACTORY_AWS_ACCOUNT_ID!;
 const githubOrgName = process.env.GITHUB_ORG_NAME!;
+const repositoryResourceId = `${githubOrgName}/${repositoryName}`;
 
 const config: IamRoleCatalogConfig = {
   region: "us-west-2",
   iamRoleFactoryAccountId: iamRoleFactoryAccountId,
   iamRoleFactoryAccountRoleArn: `arn:aws:iam::${iamRoleFactoryAccountId}:role/stamp-execute-role`,
-  gitHubOrgName: githubOrgName,
+  gitHubOrgNames: [githubOrgName],
   policyNamePrefix: "test",
   roleNamePrefix: "test",
   awsAccountResourceTableName: tableNameForAWSAccount,
@@ -60,7 +61,7 @@ const approvedInput: ApprovedInput = {
   },
   inputResources: {
     "github-iam-role": {
-      resourceId: repositoryName,
+      resourceId: repositoryResourceId,
       resourceTypeId: resourceTypeId,
     },
     "aws-account": {
@@ -99,7 +100,7 @@ describe("Testing iamRolePromoteRequest", () => {
     });
     await gitHubIamRoleResourceHandler.deleteResource({
       resourceTypeId: resourceTypeId,
-      resourceId: repositoryName,
+      resourceId: repositoryResourceId,
     });
     await targetIamRoleResourceHandler.deleteResource({
       resourceTypeId: resourceTypeId,
@@ -117,6 +118,7 @@ describe("Testing iamRolePromoteRequest", () => {
       resourceTypeId: resourceTypeId,
       inputParams: {
         repositoryName: repositoryName,
+        gitHubOrgName: githubOrgName,
       },
     });
     await targetIamRoleResourceHandler.createResource({
@@ -138,7 +140,7 @@ describe("Testing iamRolePromoteRequest", () => {
     });
     await gitHubIamRoleResourceHandler.deleteResource({
       resourceTypeId: resourceTypeId,
-      resourceId: repositoryName,
+      resourceId: repositoryResourceId,
     });
     await targetIamRoleResourceHandler.deleteResource({
       resourceTypeId: resourceTypeId,
@@ -168,7 +170,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...approvalRequestValidationInput,
           inputResources: {
             "": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -188,7 +190,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...approvalRequestValidationInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "": {
@@ -208,7 +210,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...approvalRequestValidationInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -248,7 +250,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...approvalRequestValidationInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -268,7 +270,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...approvalRequestValidationInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -315,7 +317,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...approvalRequestValidationInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -335,7 +337,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...approvalRequestValidationInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -385,7 +387,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...approvedInput,
           inputResources: {
             "": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -405,7 +407,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...approvedInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "": {
@@ -425,7 +427,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...approvedInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -472,7 +474,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...approvedInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -492,7 +494,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...approvedInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -532,7 +534,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...approvedInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -552,7 +554,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...approvedInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -602,7 +604,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...revokedInput,
           inputResources: {
             "": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -622,7 +624,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...revokedInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "": {
@@ -642,7 +644,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...revokedInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -689,7 +691,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...revokedInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -709,7 +711,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...revokedInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -749,7 +751,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...revokedInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {
@@ -769,7 +771,7 @@ describe("Testing iamRolePromoteRequest", () => {
           ...revokedInput,
           inputResources: {
             "github-iam-role": {
-              resourceId: repositoryName,
+              resourceId: repositoryResourceId,
               resourceTypeId: resourceTypeId,
             },
             "aws-account": {

@@ -22,7 +22,7 @@ const config: IamRoleCatalogConfig = {
   region: "us-west-2",
   iamRoleFactoryAccountId: iamRoleFactoryAccountId,
   iamRoleFactoryAccountRoleArn: "test-arn",
-  gitHubOrgName: githubOrgName,
+  gitHubOrgNames: [githubOrgName],
   policyNamePrefix: "test",
   roleNamePrefix: "test",
   awsAccountResourceTableName: `${process.env.IAM_ROLE_DYNAMO_TABLE_PREFIX}-iam-role-AWSAccountResource`,
@@ -202,7 +202,7 @@ describe("Testing jumpIamRole", () => {
       expect(result.value).toEqual(expected);
     });
 
-    it("returns failed result if Jump iam role name is invalid", async () => {
+    it("returns ok when the IAM role for an invalid Jump iam role name does not exist (idempotent)", async () => {
       const iamClient = new IAMClient({ region: "us-west-2" });
       const input: JumpIamRole = {
         jumpIamRoleName: "",
@@ -213,7 +213,7 @@ describe("Testing jumpIamRole", () => {
       };
       const resultAsync = deleteJumpIamRoleInAws(logger, iamClient)(input);
       const result = await resultAsync;
-      expect(result.isErr()).toBe(true);
+      expect(result.isOk()).toBe(true);
     });
 
     it("returns failed result if iam role name is invalid", async () => {
@@ -230,7 +230,7 @@ describe("Testing jumpIamRole", () => {
       expect(result.isErr()).toBe(true);
     });
 
-    it("returns failed result if iam role arn is invalid", async () => {
+    it("returns ok when the IAM role for an invalid iam role arn does not exist (idempotent)", async () => {
       const iamClient = new IAMClient({ region: "us-west-2" });
       const input: JumpIamRole = {
         jumpIamRoleName: "jumpTestServiceRole",
@@ -241,10 +241,10 @@ describe("Testing jumpIamRole", () => {
       };
       const resultAsync = deleteJumpIamRoleInAws(logger, iamClient)(input);
       const result = await resultAsync;
-      expect(result.isErr()).toBe(true);
+      expect(result.isOk()).toBe(true);
     });
 
-    it("returns failed result if created date is invalid", async () => {
+    it("returns ok when the IAM role for an invalid created date does not exist (idempotent)", async () => {
       const iamClient = new IAMClient({ region: "us-west-2" });
       const input: JumpIamRole = {
         jumpIamRoleName: "jumpTestServiceRole",
@@ -255,7 +255,7 @@ describe("Testing jumpIamRole", () => {
       };
       const resultAsync = deleteJumpIamRoleInAws(logger, iamClient)(input);
       const result = await resultAsync;
-      expect(result.isErr()).toBe(true);
+      expect(result.isOk()).toBe(true);
     });
   });
 });

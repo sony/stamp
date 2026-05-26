@@ -15,10 +15,59 @@ import { createLogger } from "@stamp-lib/stamp-logger";
 import { some, Option, none } from "@stamp-lib/stamp-option";
 import { IAMClient } from "@aws-sdk/client-iam";
 import { IamRoleCatalogConfig } from "../config";
-import { getGitHubIamRoleDBItem, listGitHubIamRoleDBItem, createGitHubIamRoleDBItem, deleteGitHubIamRoleDBItem } from "../events/database/gitHubIamRoleDB";
+import {
+  buildGitHubIamRolePkValue,
+  getGitHubIamRoleDBItem,
+  listGitHubIamRoleDBItem,
+  createGitHubIamRoleDBItem,
+  deleteGitHubIamRoleDBItem,
+} from "../events/database/gitHubIamRoleDB";
 import { createGitHubIamRoleInAws, createGitHubIamRoleName, deleteGitHubIamRoleInAws, listGitHubIamRoleAuditItemInAws } from "../events/resource/gitHubIamRole";
 import { listIamRoleAttachedPolicyArns, fetchAllAttachedRolePolicyArns } from "../events/iam-ops/iamRoleManagement";
 import { assumeRoleCredentialProvider } from "../utils/assumeRoleCredentialProvider";
+import { GitHubIamRole } from "../types/gitHubIamRole";
+
+/**
+ * Resolves the user-facing repository name and GitHub organization for a
+ * persisted GitHub IAM Role record. For records created before multi-org
+ * support the new attributes are absent; the bare PK *is* the repository
+ * name so that fallback is exact, but the org cannot be safely inferred
+ * (a wrong attribution could mislead operators), so it is returned as
+ * `undefined` and downstream callers must handle the missing value
+ * explicitly.
+ */
+export const resolveDisplayFields = (
+  item: GitHubIamRole,
+  _config: IamRoleCatalogConfig
+): { repositoryName: string; gitHubOrgName: string | undefined; isLegacy: boolean } => {
+  const isLegacy = !item.gitHubOrgName;
+  return {
+    repositoryName: item.gitHubRepositoryName ?? item.repositoryName,
+    gitHubOrgName: item.gitHubOrgName,
+    isLegacy,
+  };
+};
+
+export const buildResourceOutput = (item: GitHubIamRole, config: IamRoleCatalogConfig): ResourceOutput => {
+  const display = resolveDisplayFields(item, config);
+  // For multi-org records, the user-visible name encodes the org so identically
+  // named repositories under different orgs remain distinguishable in selector
+  // UIs that key off `resource.name`. Legacy single-org records keep the bare
+  // repository name to avoid changing how existing resources are displayed.
+  const displayName = display.isLegacy || !display.gitHubOrgName ? display.repositoryName : `${display.gitHubOrgName}/${display.repositoryName}`;
+  const params: Record<string, string> = {
+    repositoryName: display.repositoryName,
+    iamRoleArn: item.iamRoleArn,
+  };
+  if (display.gitHubOrgName) {
+    params.gitHubOrgName = display.gitHubOrgName;
+  }
+  return {
+    resourceId: item.repositoryName,
+    name: displayName,
+    params,
+  };
+};
 
 export function createGitHubIamRoleResourceHandler(iamRoleCatalogConfig: IamRoleCatalogConfig): ResourceHandlers {
   const gitHubIamRoleResourceHandler: ResourceHandlers = {
@@ -45,42 +94,69 @@ const createResourceHandler =
     if (typeof input.inputParams.repositoryName !== "string" || input.inputParams.repositoryName.trim() === "") {
       return err(new HandlerError("Invalid input parameters(repositoryName)", "BAD_REQUEST", "Invalid input parameters(repositoryName)"));
     }
+    if (typeof input.inputParams.gitHubOrgName !== "string" || input.inputParams.gitHubOrgName.trim() === "") {
+      return err(new HandlerError("Invalid input parameters(gitHubOrgName)", "BAD_REQUEST", "Invalid input parameters(gitHubOrgName)"));
+    }
+    if (!parsedConfig.gitHubOrgNames.includes(input.inputParams.gitHubOrgName)) {
+      const message = `GitHub organization "${input.inputParams.gitHubOrgName}" is not allowed. Allowed organizations: ${parsedConfig.gitHubOrgNames.join(", ")}.`;
+      return err(new HandlerError(message, "BAD_REQUEST", message));
+    }
+
+    const repositoryName = input.inputParams.repositoryName;
+    const gitHubOrgName = input.inputParams.gitHubOrgName;
+    const pkValue = buildGitHubIamRolePkValue(gitHubOrgName, repositoryName);
 
     // If it has already been created, an error indicating "already created" will be returned.
-    const result = await getGitHubIamRoleDBItem(logger, iamRoleCatalogConfig.gitHubIamRoleResourceTableName, { region: iamRoleCatalogConfig.region })({
-      repositoryName: input.inputParams.repositoryName,
+    const result = await getGitHubIamRoleDBItem(logger, parsedConfig.gitHubIamRoleResourceTableName, { region: parsedConfig.region })({
+      repositoryName: pkValue,
     });
     if (result.isErr()) {
       return err(new HandlerError(`${result.error}`, "INTERNAL_SERVER_ERROR"));
     }
     if (result.isOk() && result.value.isSome()) {
-      const gitHubIamRole = result.value.unwrapOr();
-      const message = `The GitHub IAM role for ${gitHubIamRole.repositoryName} already exists.`;
+      const message = `The GitHub IAM role for ${gitHubOrgName}/${repositoryName} already exists.`;
       return err(new HandlerError(message, "BAD_REQUEST", message));
     }
 
+    // Also guard against a legacy single-org record stored under the bare
+    // repository name as PK. Such a record would otherwise be invisible to the
+    // compound-PK lookup above and we would proceed to call IAM CreateRole
+    // with a name that already exists. Always look up the bare-PK item (not
+    // just when the requested org happens to be first in the allowlist) and
+    // reject only when its stored `iamRoleName` matches what we are about to
+    // create — this makes the check independent of allowlist ordering and
+    // avoids returning a clean `BAD_REQUEST` for an unrelated legacy record
+    // that targets a different org.
+    if (repositoryName !== pkValue) {
+      const legacyResult = await getGitHubIamRoleDBItem(logger, parsedConfig.gitHubIamRoleResourceTableName, { region: parsedConfig.region })({
+        repositoryName: repositoryName,
+      });
+      if (legacyResult.isErr()) {
+        return err(new HandlerError(`${legacyResult.error}`, "INTERNAL_SERVER_ERROR"));
+      }
+      if (legacyResult.isOk() && legacyResult.value.isSome()) {
+        const prospectiveIamRoleName = `${parsedConfig.roleNamePrefix}-github-${gitHubOrgName}-${repositoryName}`;
+        if (legacyResult.value.value.iamRoleName === prospectiveIamRoleName) {
+          const message = `The GitHub IAM role for ${gitHubOrgName}/${repositoryName} already exists (legacy record).`;
+          return err(new HandlerError(message, "BAD_REQUEST", message));
+        }
+      }
+    }
+
     const createInput = {
-      repositoryName: input.inputParams.repositoryName,
+      repositoryName,
+      gitHubOrgName,
     };
 
     const iamClient = new IAMClient({
-      region: iamRoleCatalogConfig.region,
-      credentials: assumeRoleCredentialProvider(iamRoleCatalogConfig.iamRoleFactoryAccountRoleArn, iamRoleCatalogConfig.region),
+      region: parsedConfig.region,
+      credentials: assumeRoleCredentialProvider(parsedConfig.iamRoleFactoryAccountRoleArn, parsedConfig.region),
     });
 
-    return await createGitHubIamRoleName(iamRoleCatalogConfig)(createInput)
-      .asyncAndThen(createGitHubIamRoleInAws(logger, iamRoleCatalogConfig, iamClient))
-      .andThen(createGitHubIamRoleDBItem(logger, iamRoleCatalogConfig.gitHubIamRoleResourceTableName, { region: iamRoleCatalogConfig.region }))
-      .map((result) => {
-        return {
-          resourceId: result.repositoryName,
-          name: result.repositoryName,
-          params: {
-            repositoryName: result.repositoryName,
-            iamRoleArn: result.iamRoleArn,
-          },
-        };
-      });
+    return await createGitHubIamRoleName(parsedConfig)(createInput)
+      .asyncAndThen(createGitHubIamRoleInAws(logger, parsedConfig, iamClient))
+      .andThen(createGitHubIamRoleDBItem(logger, parsedConfig.gitHubIamRoleResourceTableName, { region: parsedConfig.region }))
+      .map((persisted) => buildResourceOutput(persisted, parsedConfig));
   };
 
 const deleteResourceHandler =
@@ -94,11 +170,11 @@ const deleteResourceHandler =
       repositoryName: input.resourceId,
     };
     const iamClient = new IAMClient({
-      region: iamRoleCatalogConfig.region,
-      credentials: assumeRoleCredentialProvider(iamRoleCatalogConfig.iamRoleFactoryAccountRoleArn, iamRoleCatalogConfig.region),
+      region: parsedConfig.region,
+      credentials: assumeRoleCredentialProvider(parsedConfig.iamRoleFactoryAccountRoleArn, parsedConfig.region),
     });
 
-    return await getGitHubIamRoleDBItem(logger, iamRoleCatalogConfig.gitHubIamRoleResourceTableName, { region: iamRoleCatalogConfig.region })(deleteInput)
+    return await getGitHubIamRoleDBItem(logger, parsedConfig.gitHubIamRoleResourceTableName, { region: parsedConfig.region })(deleteInput)
       .andThen((result) => {
         if (result.isNone()) {
           const message = `Resource ${input.resourceId} Not exist`;
@@ -108,7 +184,7 @@ const deleteResourceHandler =
         }
       })
       .andThen(deleteGitHubIamRoleInAws(logger, iamClient))
-      .andThen(deleteGitHubIamRoleDBItem(logger, iamRoleCatalogConfig.gitHubIamRoleResourceTableName, { region: iamRoleCatalogConfig.region }))
+      .andThen(() => deleteGitHubIamRoleDBItem(logger, parsedConfig.gitHubIamRoleResourceTableName, { region: parsedConfig.region })(deleteInput))
       .map(() => {});
   };
 
@@ -123,22 +199,13 @@ const getResourceHandler =
       repositoryName: input.resourceId,
     };
 
-    return await getGitHubIamRoleDBItem(logger, iamRoleCatalogConfig.gitHubIamRoleResourceTableName, { region: iamRoleCatalogConfig.region })(getInput).map(
-      (result) => {
-        if (result.isNone()) {
-          return none;
-        } else {
-          return some({
-            resourceId: result.value.repositoryName,
-            name: result.value.repositoryName,
-            params: {
-              repositoryName: result.value.repositoryName,
-              iamRoleArn: result.value.iamRoleArn,
-            },
-          });
-        }
+    return await getGitHubIamRoleDBItem(logger, parsedConfig.gitHubIamRoleResourceTableName, { region: parsedConfig.region })(getInput).map((result) => {
+      if (result.isNone()) {
+        return none;
+      } else {
+        return some(buildResourceOutput(result.value, parsedConfig));
       }
-    );
+    });
   };
 
 const listResourcesHandler =
@@ -153,23 +220,12 @@ const listResourcesHandler =
       nextToken: input.paginationToken,
     };
 
-    return await listGitHubIamRoleDBItem(logger, iamRoleCatalogConfig.gitHubIamRoleResourceTableName, { region: iamRoleCatalogConfig.region })(listInput).map(
-      (result) => {
-        return {
-          resources: result.items.map((item) => {
-            return {
-              resourceId: item.repositoryName,
-              name: item.repositoryName,
-              params: {
-                repositoryName: item.repositoryName,
-                iamRoleArn: item.iamRoleArn,
-              },
-            };
-          }),
-          nextToken: result.nextToken,
-        };
-      }
-    );
+    return await listGitHubIamRoleDBItem(logger, parsedConfig.gitHubIamRoleResourceTableName, { region: parsedConfig.region })(listInput).map((result) => {
+      return {
+        resources: result.items.map((item) => buildResourceOutput(item, parsedConfig)),
+        nextToken: result.nextToken,
+      };
+    });
   };
 
 const listResourceAuditItemHandler =
@@ -183,11 +239,11 @@ const listResourceAuditItemHandler =
       repositoryName: input.resourceId,
     };
     const iamClient = new IAMClient({
-      region: iamRoleCatalogConfig.region,
-      credentials: assumeRoleCredentialProvider(iamRoleCatalogConfig.iamRoleFactoryAccountRoleArn, iamRoleCatalogConfig.region),
+      region: parsedConfig.region,
+      credentials: assumeRoleCredentialProvider(parsedConfig.iamRoleFactoryAccountRoleArn, parsedConfig.region),
     });
 
-    return getGitHubIamRoleDBItem(logger, iamRoleCatalogConfig.gitHubIamRoleResourceTableName, { region: iamRoleCatalogConfig.region })(getInput)
+    return getGitHubIamRoleDBItem(logger, parsedConfig.gitHubIamRoleResourceTableName, { region: parsedConfig.region })(getInput)
       .andThen((result) => {
         if (result.isNone()) {
           const message = `Resource ${input.resourceId} does not exist`;
