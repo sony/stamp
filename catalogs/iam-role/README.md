@@ -115,9 +115,6 @@ createIamRoleCatalog({
 });
 ```
 
-> **Breaking change**: this field replaced `gitHubOrgNames: string[]`. Existing
-> deployments must update their configuration when upgrading.
-
 When a user creates a `github-iam-role` resource they provide:
 
 | param | required | description |
