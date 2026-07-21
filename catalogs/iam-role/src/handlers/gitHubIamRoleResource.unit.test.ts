@@ -188,6 +188,45 @@ describe("createResource input validation (short-circuits before any AWS call)",
     }
   });
 
+  it.each(["owner/repo", "repo name", "repo@123", "repo:ref"])("rejects a repositoryName with delimiter characters (%j)", async (badRepositoryName) => {
+    const result = await createResource({
+      ...baseInput,
+      inputParams: { ...baseInput.inputParams, repositoryName: badRepositoryName },
+    });
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.code).toBe("BAD_REQUEST");
+      expect(result.error.userMessage).toContain("repositoryName");
+    }
+  });
+
+  it.each(["org/a", "org a", "org@123", "org_a"])("rejects a gitHubOrgName with characters GitHub does not allow (%j)", async (badOrgName) => {
+    const result = await createResource({
+      ...baseInput,
+      inputParams: { ...baseInput.inputParams, gitHubOrgName: badOrgName },
+    });
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.code).toBe("BAD_REQUEST");
+      expect(result.error.userMessage).not.toContain("not allowed");
+    }
+  });
+
+  it("trims a padded gitHubOrgName before the allow-list lookup", async () => {
+    // With a padded-but-allowed org, validation must proceed past the
+    // allow-list check; the invalid repositoryId then short-circuits before
+    // any AWS call, proving the trimmed value was used for the lookup.
+    const result = await createResource({
+      ...baseInput,
+      inputParams: { ...baseInput.inputParams, gitHubOrgName: " org-a ", repositoryId: "not-numeric" },
+    });
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.userMessage).not.toContain("not allowed");
+      expect(result.error.userMessage).toContain("repositoryId");
+    }
+  });
+
   it("rejects an org that is not on the allow-list, listing allowed org names", async () => {
     const result = await createResource({
       ...baseInput,

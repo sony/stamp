@@ -25,7 +25,7 @@ import {
 import { createGitHubIamRoleInAws, createGitHubIamRoleName, deleteGitHubIamRoleInAws, listGitHubIamRoleAuditItemInAws } from "../events/resource/gitHubIamRole";
 import { listIamRoleAttachedPolicyArns, fetchAllAttachedRolePolicyArns } from "../events/iam-ops/iamRoleManagement";
 import { assumeRoleCredentialProvider } from "../utils/assumeRoleCredentialProvider";
-import { GitHubIamRole, GitHubRepositoryIdField, RoleSuffixField, SubjectTypeField } from "../types/gitHubIamRole";
+import { GitHubIamRole, GitHubOrgNameField, GitHubRepositoryIdField, GitHubRepositoryNameField, RoleSuffixField, SubjectTypeField } from "../types/gitHubIamRole";
 
 /**
  * Resolves the user-facing repository name and GitHub organization for a
@@ -116,8 +116,24 @@ const createResourceHandler =
     if (typeof input.inputParams.gitHubOrgName !== "string" || input.inputParams.gitHubOrgName.trim() === "") {
       return err(new HandlerError("Invalid input parameters(gitHubOrgName)", "BAD_REQUEST", "Invalid input parameters(gitHubOrgName)"));
     }
-    if (!findAllowedGitHubOrg(parsedConfig, input.inputParams.gitHubOrgName)) {
-      const message = `GitHub organization "${input.inputParams.gitHubOrgName}" is not allowed. Allowed organizations: ${parsedConfig.gitHubOrgs
+    // Trim once and use the trimmed values everywhere below — validating the
+    // trimmed value but looking up the raw one would reject padded input for
+    // orgs that are actually allowed. Charset validation matters because both
+    // names are embedded in the compound PK and the OIDC subject claim, where
+    // `/`, `@`, `:` and whitespace act as delimiters.
+    const repositoryName = input.inputParams.repositoryName.trim();
+    const gitHubOrgName = input.inputParams.gitHubOrgName.trim();
+    if (!GitHubRepositoryNameField.safeParse(repositoryName).success) {
+      const message =
+        "Invalid input parameters(repositoryName): must be a bare repository name (alphanumeric characters, hyphens, underscores, and periods only)";
+      return err(new HandlerError(message, "BAD_REQUEST", message));
+    }
+    if (!GitHubOrgNameField.safeParse(gitHubOrgName).success) {
+      const message = "Invalid input parameters(gitHubOrgName): must be a GitHub organization name (alphanumeric characters and hyphens only)";
+      return err(new HandlerError(message, "BAD_REQUEST", message));
+    }
+    if (!findAllowedGitHubOrg(parsedConfig, gitHubOrgName)) {
+      const message = `GitHub organization "${gitHubOrgName}" is not allowed. Allowed organizations: ${parsedConfig.gitHubOrgs
         .map((org) => org.name)
         .join(", ")}.`;
       return err(new HandlerError(message, "BAD_REQUEST", message));
@@ -155,8 +171,6 @@ const createResourceHandler =
     }
     const subjectType = subjectTypeParseResult.data;
 
-    const repositoryName = input.inputParams.repositoryName;
-    const gitHubOrgName = input.inputParams.gitHubOrgName;
     const repositoryId = input.inputParams.repositoryId.trim();
     const pkValue = buildGitHubIamRolePkValue(gitHubOrgName, repositoryName, roleSuffix);
 

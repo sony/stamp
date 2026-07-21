@@ -2,15 +2,24 @@ import { z } from "zod";
 
 /**
  * Bare GitHub repository name (without org prefix). This is what the user
- * enters in the create form and what we render in the UI. Must be non-empty.
+ * enters in the create form and what we render in the UI. Restricted to the
+ * characters GitHub itself allows in repository names — in particular `/`,
+ * `@`, `:` and whitespace are rejected because the name is embedded in both
+ * the compound DynamoDB PK (`org/repo[/suffix]`) and the OIDC subject claim,
+ * where those characters act as delimiters.
  */
-const GitHubRepositoryNameField = z.string().min(1);
+export const GitHubRepositoryNameField = z
+  .string()
+  .regex(/^[a-zA-Z0-9_.-]+$/, "GitHub repository name may only contain alphanumeric characters, hyphens, underscores, and periods");
 
 /**
  * GitHub organization name. New resources require it; persisted records
  * created before multi-org support may not have it (handled by the read path).
+ * Same delimiter-safety rationale as the repository name.
  */
-const GitHubOrgNameField = z.string().min(1);
+export const GitHubOrgNameField = z
+  .string()
+  .regex(/^[a-zA-Z0-9-]+$/, "GitHub organization name may only contain alphanumeric characters and hyphens");
 
 /**
  * Immutable numeric GitHub repository ID, as a decimal string (int64-safe).
