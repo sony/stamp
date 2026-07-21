@@ -20,7 +20,7 @@ const config: IamRoleCatalogConfig = {
   region: "us-west-2",
   iamRoleFactoryAccountId: accountId,
   iamRoleFactoryAccountRoleArn: "test-arn",
-  gitHubOrgNames: [githubOrgName],
+  gitHubOrgs: [{ name: githubOrgName, id: "1234567" }],
   policyNamePrefix: "test",
   roleNamePrefix: "test",
   awsAccountResourceTableName: `${process.env.IAM_ROLE_DYNAMO_TABLE_PREFIX}-iam-role-AWSAccountResource`,
@@ -35,7 +35,7 @@ const deleteGitHubIamRoleForTest = async (logger: Logger) => {
   const input: GitHubIamRole = {
     gitHubOrgName: githubOrgName,
     repositoryName: "test-Repository",
-    iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-test-Repository`,
+    iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgs[0].name}-test-Repository`,
     iamRoleArn: "test-arn",
     createdAt: "2024-01-02T03:04:05.006Z",
   };
@@ -57,11 +57,18 @@ describe("Testing gitHubIamRole", () => {
       const input: CreateGitHubIamRoleNameCommand = {
         gitHubOrgName: githubOrgName,
         repositoryName: "1".repeat(44), // number of characters within range excluding prefix etc
+        repositoryId: "9876543",
+        subjectType: "repository",
       };
       const expected: CreatedGitHubIamRoleName = {
         gitHubOrgName: githubOrgName,
         repositoryName: "1".repeat(44), // number of characters within range excluding prefix etc
-        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-` + "1".repeat(44),
+        repositoryId: "9876543",
+        gitHubOrgId: config.gitHubOrgs[0].id,
+        roleSuffix: undefined,
+        subjectType: "repository",
+        subject: `repo:${githubOrgName}@${config.gitHubOrgs[0].id}/${"1".repeat(44)}@9876543:*`,
+        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgs[0].name}-` + "1".repeat(44),
       };
       const result = createGitHubIamRoleName(config)(input);
       if (result.isErr()) {
@@ -74,6 +81,8 @@ describe("Testing gitHubIamRole", () => {
       const input: CreateGitHubIamRoleNameCommand = {
         gitHubOrgName: githubOrgName,
         repositoryName: "1".repeat(44) + "a", // number of characters exceeding range limit
+        repositoryId: "9876543",
+        subjectType: "repository",
       };
       const result = createGitHubIamRoleName(config)(input);
       expect(result.isErr()).toBe(true);
@@ -83,6 +92,8 @@ describe("Testing gitHubIamRole", () => {
       const input: CreateGitHubIamRoleNameCommand = {
         gitHubOrgName: githubOrgName,
         repositoryName: "",
+        repositoryId: "9876543",
+        subjectType: "repository",
       };
       const result = createGitHubIamRoleName(config)(input);
       expect(result.isErr()).toBe(true);
@@ -96,12 +107,20 @@ describe("Testing gitHubIamRole", () => {
       const input: CreateGitHubIamRoleCommand = {
         gitHubOrgName: githubOrgName,
         repositoryName: "test-Repository",
-        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-test-Repository`,
+        repositoryId: "9876543",
+        gitHubOrgId: config.gitHubOrgs[0].id,
+        subjectType: "repository",
+        subject: `repo:${githubOrgName}@${config.gitHubOrgs[0].id}/test-Repository@9876543:*`,
+        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgs[0].name}-test-Repository`,
       };
       const expected: CreatedGitHubIamRole = {
         gitHubOrgName: githubOrgName,
         repositoryName: "test-Repository",
-        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-test-Repository`,
+        repositoryId: "9876543",
+        gitHubOrgId: config.gitHubOrgs[0].id,
+        subjectType: "repository",
+        subject: `repo:${githubOrgName}@${config.gitHubOrgs[0].id}/test-Repository@9876543:*`,
+        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgs[0].name}-test-Repository`,
         iamRoleArn: expect.any(String),
         createdAt: expect.any(String),
       };
@@ -118,7 +137,11 @@ describe("Testing gitHubIamRole", () => {
       const input: CreateGitHubIamRoleCommand = {
         gitHubOrgName: githubOrgName,
         repositoryName: "",
-        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-test-Repository`,
+        repositoryId: "9876543",
+        gitHubOrgId: config.gitHubOrgs[0].id,
+        subjectType: "repository",
+        subject: `repo:${githubOrgName}@${config.gitHubOrgs[0].id}/@9876543:*`,
+        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgs[0].name}-test-Repository`,
       };
       const resultAsync = createGitHubIamRoleInAws(logger, config, iamClient)(input);
       const result = await resultAsync;
@@ -130,6 +153,10 @@ describe("Testing gitHubIamRole", () => {
       const input: CreateGitHubIamRoleCommand = {
         gitHubOrgName: githubOrgName,
         repositoryName: "test-Repository",
+        repositoryId: "9876543",
+        gitHubOrgId: config.gitHubOrgs[0].id,
+        subjectType: "repository",
+        subject: `repo:${githubOrgName}@${config.gitHubOrgs[0].id}/test-Repository@9876543:*`,
         iamRoleName: "",
       };
       const resultAsync = createGitHubIamRoleInAws(logger, config, iamClient)(input);
@@ -178,7 +205,7 @@ describe("Testing gitHubIamRole", () => {
       const input: GitHubIamRole = {
         gitHubOrgName: githubOrgName,
         repositoryName: "test-Repository",
-        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-test-Repository`,
+        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgs[0].name}-test-Repository`,
         iamRoleArn: "test-arn",
         createdAt: "2024-01-02T03:04:05.006Z",
       };
@@ -196,7 +223,7 @@ describe("Testing gitHubIamRole", () => {
       const input: GitHubIamRole = {
         gitHubOrgName: githubOrgName,
         repositoryName: "",
-        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-test-Repository`,
+        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgs[0].name}-test-Repository`,
         iamRoleArn: "test-arn",
         createdAt: "2024-01-02T03:04:05.006Z",
       };
@@ -225,7 +252,7 @@ describe("Testing gitHubIamRole", () => {
       const input: GitHubIamRole = {
         gitHubOrgName: githubOrgName,
         repositoryName: "test-Repository",
-        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-test-Repository`,
+        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgs[0].name}-test-Repository`,
         iamRoleArn: "",
         createdAt: "2024-01-02T03:04:05.006Z",
       };
@@ -239,7 +266,7 @@ describe("Testing gitHubIamRole", () => {
       const input: GitHubIamRole = {
         gitHubOrgName: githubOrgName,
         repositoryName: "test-Repository",
-        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgNames[0]}-test-Repository`,
+        iamRoleName: `${config.roleNamePrefix}-github-${config.gitHubOrgs[0].name}-test-Repository`,
         iamRoleArn: "test-arn",
         createdAt: "",
       };

@@ -43,6 +43,10 @@ standard AWS SDK credential source):
 | `JUMP_IAM_ROLE_ATTACHED_POLICY_ARN` | ARN of a managed policy used by `jump-iam-role` tests |
 | `ORIGIN_IAM_ROLE_ARN` | ARN of an IAM role used as the trust origin in `jump-iam-role` tests |
 
+GitHub organization / repository IDs are fixed fixtures inside the tests (IAM
+and DynamoDB never validate the sub-claim contents against GitHub), so no
+additional environment variables are needed for the immutable-claims support.
+
 Then run:
 
 ```bash
@@ -91,33 +95,101 @@ organization names from users. Instead, the catalog configuration declares an
 allow-list of organizations, and at resource creation time the user must pick
 one of them.
 
-##### `gitHubOrgNames`
+##### `gitHubOrgs`
+
+Each allow-list entry pairs the organization name with its **immutable numeric
+organization ID** (as a decimal string). The ID is embedded in the OIDC trust
+policy (see below). Obtain it with:
+
+```bash
+curl -s https://api.github.com/orgs/my-org | jq .id
+```
 
 ```ts
 createIamRoleCatalog({
   // ...other fields...
-  gitHubOrgNames: ["my-org", "my-other-org"],
+  gitHubOrgs: [
+    { name: "my-org", id: "1234567" },
+    { name: "my-other-org", id: "7654321" },
+  ],
 });
 ```
 
-When a user creates a `github-iam-role` resource they choose `gitHubOrgName`
-(required) and `repositoryName`. The handler rejects any value not in
-`gitHubOrgNames`.
+When a user creates a `github-iam-role` resource they provide:
+
+| param | required | description |
+| --- | --- | --- |
+| `gitHubOrgName` | ✓ | Must be one of the configured `gitHubOrgs` names. |
+| `repositoryName` | ✓ | Bare repository name (without org prefix). |
+| `repositoryId` | ✓ | Immutable numeric repository ID: `curl -s https://api.github.com/repos/{owner}/{repo} \| jq .id` |
+| `roleSuffix` | – | 1-32 chars (`[a-zA-Z0-9-]`, must start/end alphanumeric). Distinguishes multiple IAM roles for the same repository. |
+| `subjectType` | – | Defaults to `repository` (whole-repo scope). Other scopes (branch / environment / tag / pull_request) are planned but not yet supported. |
+
+#### Immutable OIDC subject claims
+
+GitHub [changed the OIDC token `sub` claim](https://github.blog/changelog/2026-04-23-immutable-subject-claims-for-github-actions-oidc-tokens/)
+to embed immutable numeric IDs: `repo:ORG@ORG_ID/REPO@REPO_ID:ref:...`.
+Since **2026-07-15**, all newly created, renamed, or transferred repositories
+on github.com emit this format unconditionally; pre-existing repositories keep
+the legacy `repo:ORG/REPO:...` format unless opted in.
+
+This catalog writes trust policies that match **only the new format**:
+
+```json
+"Condition": {
+  "StringLike": {
+    "token.actions.githubusercontent.com:sub": "repo:my-org@1234567/my-repo@9876543:*"
+  }
+}
+```
+
+Consequences:
+
+- **Tokens from repositories still on the legacy format will NOT match roles
+  created by this catalog.** The repository must be opted in to immutable
+  subject claims (or be newly created / renamed after 2026-07-15).
+- **Roles created before this feature keep their legacy-format trust policy
+  and are not migrated.** A trust policy is written once at role creation and
+  never updated (`updateResource` is not implemented). To migrate an existing
+  role, delete the resource and recreate it with `repositoryId`. If you omit
+  `roleSuffix`, the recreated IAM role has the **same role name and ARN**, so
+  GitHub workflow definitions referencing the ARN do not need to change.
+- **A wrong `repositoryId` fails closed**: the catalog does not call the
+  GitHub API to verify the ID, so a typo produces a role that can never be
+  assumed (no token will carry that org/repo/ID combination). Delete and
+  recreate with the correct ID.
+
+#### Multiple roles per repository (`roleSuffix`)
+
+Passing `roleSuffix` creates an additional, independent IAM role for a
+repository:
+
+- IAM role name: `${roleNamePrefix}-github-${org}-${repo}-${roleSuffix}`
+- resourceId / display name: `${org}/${repo}/${roleSuffix}`
+
+Omitting `roleSuffix` keeps the original single-role naming, which preserves
+role names/ARNs across delete-and-recreate migrations.
 
 ### Behavior notes
 
 - IAM role name format remains `${roleNamePrefix}-github-${gitHubOrgName}-${repositoryName}`
-  (the org name is taken from the per-resource choice, not from a single
-  config field). The 64-character IAM role name limit still applies; pick
-  shorter `roleNamePrefix` / repo names when on-boarding orgs with long names.
-- New resources created under multi-org support use a compound `resourceId` of
-  the form `${gitHubOrgName}/${repositoryName}` so that the same repository
-  name can be on-boarded under different orgs. Resources created before
-  multi-org support keep their bare `${repositoryName}` resourceId; both are
+  (with `-${roleSuffix}` appended when given). The 64-character IAM role name
+  limit still applies and the suffix counts toward it; pick shorter
+  `roleNamePrefix` / repo names / suffixes when on-boarding orgs with long names.
+- New resources use a compound `resourceId` of the form
+  `${gitHubOrgName}/${repositoryName}` (or `${gitHubOrgName}/${repositoryName}/${roleSuffix}`)
+  so that the same repository name can be on-boarded under different orgs and
+  multiple roles can exist per repository. Resources created before
+  multi-org support keep their bare `${repositoryName}` resourceId; all forms are
   resolved correctly by `getResource` / `deleteResource` / promote requests.
 - DynamoDB schema (`cf-db-template.yaml`) is unchanged. New attributes
-  (`gitHubRepositoryName`, `gitHubOrgName`) are written to records created with
-  multi-org support; legacy records without those attributes are still readable.
+  (`gitHubRepositoryName`, `gitHubOrgName`, `gitHubRepositoryId`, `gitHubOrgId`,
+  `roleSuffix`, `subjectType`, `subject`) are written to newly created records;
+  legacy records without those attributes are still readable. The persisted
+  `subject` records the exact sub condition written to the trust policy for
+  auditability. Record creation now uses a conditional put
+  (`attribute_not_exists`) so a concurrent duplicate create fails instead of
+  silently overwriting.
   Note that legacy records expose `gitHubOrgName` as `undefined` (the org cannot
   be safely inferred — a silent fallback could mislead operators), so consumers
   must handle the missing value. The bare `repositoryName` for legacy records is
@@ -135,10 +207,11 @@ When a user creates a `github-iam-role` resource they choose `gitHubOrgName`
 
 - The current `ResourceCreateParam` schema in `@stamp-lib/stamp-types` only
   supports primitive types (no `enum`), so the web UI still presents
-  `gitHubOrgName` as a free-text input. The catalog handler validates the
-  value against `gitHubOrgNames` server-side and rejects anything not on the
-  allow-list, so the allow-list is enforced — but UX could be improved by
-  promoting `ResourceCreateParam` to support enum selection (out of scope for
+  `gitHubOrgName` / `subjectType` as free-text inputs. The catalog handler
+  validates the values server-side (org against `gitHubOrgs`, `repositoryId`
+  as a numeric string, `roleSuffix` charset, `subjectType` enum) and rejects
+  anything invalid — but UX could be improved by promoting
+  `ResourceCreateParam` to support enum selection (out of scope for
   this catalog).
 - Because new resourceIds contain a `/`, anywhere the resourceId is
   embedded in a URL must URL-encode it (`encodeURIComponent`). The Stamp

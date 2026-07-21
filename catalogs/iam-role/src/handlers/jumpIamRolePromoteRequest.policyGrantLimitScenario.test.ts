@@ -27,7 +27,7 @@ const config: IamRoleCatalogConfig = {
   region: "us-west-2",
   iamRoleFactoryAccountId: iamRoleFactoryAccountId,
   iamRoleFactoryAccountRoleArn: `arn:aws:iam::${iamRoleFactoryAccountId}:role/stamp-execute-role`,
-  gitHubOrgNames: [githubOrgName],
+  gitHubOrgs: [{ name: githubOrgName, id: "1234567" }],
   policyNamePrefix: "test",
   roleNamePrefix: "test",
   awsAccountResourceTableName: tableNameForAWSAccount,

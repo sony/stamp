@@ -48,10 +48,17 @@ export function createIamRoleCatalog(iamRoleCatalogConfigInput: IamRoleCatalogCo
     createParams: [
       { type: "string", id: "gitHubOrgName", name: "GitHub Organization", required: true },
       { type: "string", id: "repositoryName", name: "Repository Name", required: true },
+      { type: "string", id: "repositoryId", name: "Repository ID (numeric)", required: true },
+      { type: "string", id: "roleSuffix", name: "Role Suffix (optional, for multiple roles per repository)", required: false },
+      { type: "string", id: "subjectType", name: "Subject Type (optional, default: repository)", required: false },
     ],
     infoParams: [
       { type: "string", id: "gitHubOrgName", name: "GitHub Organization", edit: false },
       { type: "string", id: "repositoryName", name: "Repository Name", edit: false },
+      { type: "string", id: "repositoryId", name: "Repository ID", edit: false },
+      { type: "string", id: "roleSuffix", name: "Role Suffix", edit: false },
+      { type: "string", id: "subjectType", name: "Subject Type", edit: false },
+      { type: "string", id: "subject", name: "OIDC Subject Claim", edit: false },
       { type: "string", id: "iamRoleArn", name: "IAM Role Arn", edit: false },
     ],
     handlers: createGitHubIamRoleResourceHandler(iamRoleCatalogConfig),
