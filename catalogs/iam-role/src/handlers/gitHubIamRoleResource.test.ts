@@ -16,12 +16,19 @@ const resourceTypeId = "iam-role-aws-account";
 const repositoryName = "test-repository";
 const githubOrgName = process.env.GITHUB_ORG_NAME!;
 const repositoryResourceId = `${githubOrgName}/${repositoryName}`;
+// Fixed fixtures: IAM never validates sub-claim contents against GitHub, so
+// any numeric strings work for integration tests.
+const gitHubOrgId = "1234567";
+const repositoryId = "9876543";
+const expectedSubject = `repo:${githubOrgName}@${gitHubOrgId}/${repositoryName}@${repositoryId}:*`;
+const roleSuffix = "it-suffix";
+const suffixedResourceId = `${githubOrgName}/${repositoryName}/${roleSuffix}`;
 
 const config: IamRoleCatalogConfig = {
   region: "us-west-2",
   iamRoleFactoryAccountId: iamRoleFactoryAccountId,
   iamRoleFactoryAccountRoleArn: `arn:aws:iam::${iamRoleFactoryAccountId}:role/stamp-execute-role`,
-  gitHubOrgNames: [githubOrgName],
+  gitHubOrgs: [{ name: githubOrgName, id: gitHubOrgId }],
   policyNamePrefix: "test",
   roleNamePrefix: "test",
   gitHubIamRoleResourceTableName: `${process.env.IAM_ROLE_DYNAMO_TABLE_PREFIX}-iam-role-GitHubIamRoleResource`,
@@ -34,19 +41,15 @@ const gitHubIamRoleResource = createGitHubIamRoleResourceHandler(config);
 
 describe("Testing gitHubIamRoleResource", () => {
   beforeAll(async () => {
-    const input: DeleteResourceInput = {
-      resourceTypeId: resourceTypeId,
-      resourceId: repositoryResourceId,
-    };
-    await gitHubIamRoleResource.deleteResource(input);
+    for (const resourceId of [repositoryResourceId, suffixedResourceId]) {
+      await gitHubIamRoleResource.deleteResource({ resourceTypeId, resourceId });
+    }
   });
 
   afterAll(async () => {
-    const input: DeleteResourceInput = {
-      resourceTypeId: resourceTypeId,
-      resourceId: repositoryResourceId,
-    };
-    await gitHubIamRoleResource.deleteResource(input);
+    for (const resourceId of [repositoryResourceId, suffixedResourceId]) {
+      await gitHubIamRoleResource.deleteResource({ resourceTypeId, resourceId });
+    }
   });
 
   describe("createResourceHandler", () => {
@@ -56,12 +59,16 @@ describe("Testing gitHubIamRoleResource", () => {
         inputParams: {
           repositoryName: repositoryName,
           gitHubOrgName: githubOrgName,
+          repositoryId: repositoryId,
         },
       };
       const expected: ResourceOutput = {
         params: {
           repositoryName: repositoryName,
           gitHubOrgName: githubOrgName,
+          repositoryId: repositoryId,
+          subjectType: "repository",
+          subject: expectedSubject,
           iamRoleArn: expect.any(String),
         },
         name: repositoryResourceId,
@@ -78,6 +85,58 @@ describe("Testing gitHubIamRoleResource", () => {
       if (result2.isErr()) {
         expect(result2.error.userMessage).toContain("already exists");
       }
+    });
+
+    it("creates a second role for the same repository when a roleSuffix is given", async () => {
+      const input: CreateResourceInput = {
+        resourceTypeId: resourceTypeId,
+        inputParams: {
+          repositoryName: repositoryName,
+          gitHubOrgName: githubOrgName,
+          repositoryId: repositoryId,
+          roleSuffix: roleSuffix,
+        },
+      };
+      const expected: ResourceOutput = {
+        params: {
+          repositoryName: repositoryName,
+          gitHubOrgName: githubOrgName,
+          repositoryId: repositoryId,
+          roleSuffix: roleSuffix,
+          subjectType: "repository",
+          subject: expectedSubject,
+          iamRoleArn: expect.any(String),
+        },
+        name: suffixedResourceId,
+        resourceId: suffixedResourceId,
+      };
+      const result = await gitHubIamRoleResource.createResource(input);
+      if (result.isErr()) {
+        throw result.error;
+      }
+      expect(result.value).toEqual(expected);
+      expect(result.value.params.iamRoleArn).toContain(`-${roleSuffix}`);
+
+      // Both roles for the repository can be fetched independently.
+      const suffixed = await gitHubIamRoleResource.getResource({ resourceTypeId, resourceId: suffixedResourceId });
+      if (suffixed.isErr()) {
+        throw suffixed.error;
+      }
+      expect(suffixed.value.isSome()).toBe(true);
+      const unsuffixed = await gitHubIamRoleResource.getResource({ resourceTypeId, resourceId: repositoryResourceId });
+      if (unsuffixed.isErr()) {
+        throw unsuffixed.error;
+      }
+      expect(unsuffixed.value.isSome()).toBe(true);
+
+      // Deleting the suffixed role leaves the base role intact.
+      const deleted = await gitHubIamRoleResource.deleteResource({ resourceTypeId, resourceId: suffixedResourceId });
+      expect(deleted.isOk()).toBe(true);
+      const stillThere = await gitHubIamRoleResource.getResource({ resourceTypeId, resourceId: repositoryResourceId });
+      if (stillThere.isErr()) {
+        throw stillThere.error;
+      }
+      expect(stillThere.value.isSome()).toBe(true);
     });
 
     it("returns failed result if repository name is empty", async () => {
@@ -116,6 +175,9 @@ describe("Testing gitHubIamRoleResource", () => {
         params: {
           repositoryName: repositoryName,
           gitHubOrgName: githubOrgName,
+          repositoryId: repositoryId,
+          subjectType: "repository",
+          subject: expectedSubject,
           iamRoleArn: expect.any(String),
         },
         name: repositoryResourceId,

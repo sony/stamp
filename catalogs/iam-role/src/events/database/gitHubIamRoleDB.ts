@@ -20,21 +20,25 @@ import { Logger } from "@stamp-lib/stamp-logger";
  * Builds the DynamoDB primary-key value (also the Stamp `resourceId`) for a
  * GitHub IAM Role resource. With multi-org support the PK is the compound
  * `${gitHubOrgName}/${repositoryName}` so that the same repo name can exist
- * under different orgs without collision.
+ * under different orgs without collision. An optional role suffix extends it
+ * to `${gitHubOrgName}/${repositoryName}/${roleSuffix}` so that multiple IAM
+ * roles can exist for the same repository.
  */
-export const buildGitHubIamRolePkValue = (gitHubOrgName: string, repositoryName: string): string => `${gitHubOrgName}/${repositoryName}`;
+export const buildGitHubIamRolePkValue = (gitHubOrgName: string, repositoryName: string, roleSuffix?: string): string =>
+  roleSuffix ? `${gitHubOrgName}/${repositoryName}/${roleSuffix}` : `${gitHubOrgName}/${repositoryName}`;
 
 /**
  * Extracts the bare repository name from the persisted primary-key value.
- * Multi-org records use the compound form `${org}/${repo}`; legacy single-org
- * records store the bare repo name as PK directly. Neither GitHub org names
- * nor repository names may contain `/`, so splitting on the first `/` is
- * unambiguous. Useful when only the PK is available (e.g. when reading via
- * the `IamRoleNameIndex` GSI which has `KEYS_ONLY` projection).
+ * Multi-org records use the compound form `${org}/${repo}` (optionally
+ * `${org}/${repo}/${suffix}`); legacy single-org records store the bare repo
+ * name as PK directly. Neither GitHub org names nor repository names may
+ * contain `/`, so the repo name is always the second segment when a `/` is
+ * present. Useful when only the PK is available (e.g. when reading via the
+ * `IamRoleNameIndex` GSI which has `KEYS_ONLY` projection).
  */
 export const extractBareRepositoryName = (pkValue: string): string => {
-  const idx = pkValue.indexOf("/");
-  return idx === -1 ? pkValue : pkValue.slice(idx + 1);
+  const segments = pkValue.split("/");
+  return segments.length === 1 ? segments[0] : segments[1];
 };
 
 export type GetGitHubIamRoleDBItemInput = { repositoryName: string };
@@ -132,13 +136,19 @@ export const createGitHubIamRoleDBItem =
     if (!inputValidation.success) {
       return errAsync(new HandlerError(`Failed to parse input.: ${inputValidation.error.toString()}`, "INTERNAL_SERVER_ERROR"));
     }
-    // Persist with the compound primary key (`${org}/${bareRepo}`) so that
-    // resources with identical bare repo names across different orgs do not
-    // collide.
+    // Persist with the compound primary key (`${org}/${bareRepo}` or
+    // `${org}/${bareRepo}/${roleSuffix}`) so that resources with identical
+    // bare repo names across different orgs — and multiple roles for the same
+    // repo — do not collide.
     const itemInput: GitHubIamRole = {
-      repositoryName: buildGitHubIamRolePkValue(input.gitHubOrgName, input.repositoryName),
+      repositoryName: buildGitHubIamRolePkValue(input.gitHubOrgName, input.repositoryName, input.roleSuffix),
       gitHubRepositoryName: input.repositoryName,
       gitHubOrgName: input.gitHubOrgName,
+      gitHubRepositoryId: input.repositoryId,
+      gitHubOrgId: input.gitHubOrgId,
+      roleSuffix: input.roleSuffix,
+      subjectType: input.subjectType,
+      subject: input.subject,
       iamRoleName: input.iamRoleName,
       iamRoleArn: input.iamRoleArn,
       createdAt: input.createdAt,
@@ -150,9 +160,15 @@ export const createGitHubIamRoleDBItem =
     const param = {
       TableName: tableName,
       Item: perseResult.data,
+      // The handler pre-checks for an existing PK, but that check is not
+      // atomic with this write. Fail loudly instead of silently overwriting a
+      // concurrent create's record (which would orphan its IAM role).
+      ConditionExpression: "attribute_not_exists(repositoryName)",
     };
     const client = new DynamoDBClient(DynamoDBClientConfig);
-    const ddbDocClient = DynamoDBDocumentClient.from(client);
+    // removeUndefinedValues: optional attributes (roleSuffix etc.) may be
+    // undefined and must be dropped rather than fail marshalling.
+    const ddbDocClient = DynamoDBDocumentClient.from(client, { marshallOptions: { removeUndefinedValues: true } });
     const command = new PutCommand(param);
 
     return ResultAsync.fromPromise(ddbDocClient.send(command), (err) => {

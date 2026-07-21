@@ -2,7 +2,7 @@ import { CreateRoleCommand, DeleteRoleCommand, GetPolicyCommand, GetPolicyVersio
 import { Logger } from "@stamp-lib/stamp-logger";
 import { HandlerError } from "@stamp-lib/stamp-types/catalogInterface/handler";
 import { Result, ResultAsync, err, errAsync, ok, okAsync } from "neverthrow";
-import { IamRoleCatalogConfig } from "../../config";
+import { IamRoleCatalogConfig, findAllowedGitHubOrg } from "../../config";
 import {
   CreateGitHubIamRoleCommand,
   CreateGitHubIamRoleNameCommand,
@@ -11,7 +11,34 @@ import {
   GitHubIamRole,
   ListGitHubIamRoleAuditItem,
   ListGitHubIamRoleAuditItemCommand,
+  SubjectType,
 } from "../../types/gitHubIamRole";
+
+/**
+ * Assembles the OIDC subject claim condition using GitHub's immutable format
+ * (`repo:ORG@ORG_ID/REPO@REPO_ID:...`). Since 2026-07-15 all newly created,
+ * renamed, or transferred repositories on github.com emit this format, so the
+ * trust policy must match on it. Tokens from repositories still on the legacy
+ * name-only format will NOT match roles created with this condition — such
+ * repositories must opt in to the immutable format first.
+ *
+ * Only the whole-repository scope is supported today; the signature accepts
+ * `subjectType` so branch / environment / tag / pull_request scoping can be
+ * added without changing call sites.
+ */
+export const buildGitHubSubjectClaim = (input: {
+  gitHubOrgName: string;
+  gitHubOrgId: string;
+  repositoryName: string;
+  repositoryId: string;
+  subjectType: SubjectType;
+}): string => {
+  const base = `repo:${input.gitHubOrgName}@${input.gitHubOrgId}/${input.repositoryName}@${input.repositoryId}`;
+  switch (input.subjectType) {
+    case "repository":
+      return `${base}:*`;
+  }
+};
 
 export type CreateGitHubIamRoleName = (input: CreateGitHubIamRoleNameCommand) => Result<CreatedGitHubIamRoleName, HandlerError>;
 export const createGitHubIamRoleName =
@@ -28,23 +55,39 @@ export const createGitHubIamRoleName =
       );
     }
     const parsedInput = parsedResult.data;
-    if (!config.gitHubOrgNames.includes(parsedInput.gitHubOrgName)) {
-      const message = `GitHub organization "${parsedInput.gitHubOrgName}" is not allowed. Allowed organizations: ${config.gitHubOrgNames.join(", ")}.`;
+    const allowedOrg = findAllowedGitHubOrg(config, parsedInput.gitHubOrgName);
+    if (!allowedOrg) {
+      const message = `GitHub organization "${parsedInput.gitHubOrgName}" is not allowed. Allowed organizations: ${config.gitHubOrgs
+        .map((org) => org.name)
+        .join(", ")}.`;
       return err(new HandlerError(message, "BAD_REQUEST", message));
     }
-    const iamRoleName = `${config.roleNamePrefix}-github-${parsedInput.gitHubOrgName}-${parsedInput.repositoryName}`;
+    const baseRoleName = `${config.roleNamePrefix}-github-${parsedInput.gitHubOrgName}-${parsedInput.repositoryName}`;
+    const iamRoleName = parsedInput.roleSuffix ? `${baseRoleName}-${parsedInput.roleSuffix}` : baseRoleName;
     if (iamRoleName.length > 64) {
       return err(
         new HandlerError(
           `Failed to create role name. ${iamRoleName} is over 64 character.`,
           "BAD_REQUEST",
-          `Failed to create role name. ${iamRoleName} is over 64 character. Please use a shorter repository name or a GitHub organization with a shorter name.`
+          `Failed to create role name. ${iamRoleName} is over 64 character. Please use a shorter repository name, role suffix, or a GitHub organization with a shorter name.`
         )
       );
     }
+    const subject = buildGitHubSubjectClaim({
+      gitHubOrgName: parsedInput.gitHubOrgName,
+      gitHubOrgId: allowedOrg.id,
+      repositoryName: parsedInput.repositoryName,
+      repositoryId: parsedInput.repositoryId,
+      subjectType: parsedInput.subjectType,
+    });
     return ok({
       repositoryName: parsedInput.repositoryName,
       gitHubOrgName: parsedInput.gitHubOrgName,
+      repositoryId: parsedInput.repositoryId,
+      gitHubOrgId: allowedOrg.id,
+      roleSuffix: parsedInput.roleSuffix,
+      subjectType: parsedInput.subjectType,
+      subject,
       iamRoleName,
     });
   };
@@ -77,7 +120,7 @@ export const createGitHubIamRoleInAws =
           Action: "sts:AssumeRoleWithWebIdentity",
           Condition: {
             StringLike: {
-              "token.actions.githubusercontent.com:sub": `repo:${parsedInput.gitHubOrgName}/${parsedInput.repositoryName}:*`,
+              "token.actions.githubusercontent.com:sub": parsedInput.subject,
             },
           },
         },

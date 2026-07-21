@@ -22,7 +22,7 @@ const config: IamRoleCatalogConfig = {
   region: "us-west-2",
   iamRoleFactoryAccountId: iamRoleFactoryAccountId,
   iamRoleFactoryAccountRoleArn: "test-arn",
-  gitHubOrgNames: [githubOrgName],
+  gitHubOrgs: [{ name: githubOrgName, id: "1234567" }],
   policyNamePrefix: "test",
   roleNamePrefix: "test",
   awsAccountResourceTableName: `${process.env.IAM_ROLE_DYNAMO_TABLE_PREFIX}-iam-role-AWSAccountResource`,

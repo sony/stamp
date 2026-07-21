@@ -21,6 +21,11 @@ const config = { region: "us-west-2" };
 const githubOrgName = process.env.GITHUB_ORG_NAME!;
 const testBareRepoName = "stamp-testRepository";
 const testPkValue = buildGitHubIamRolePkValue(githubOrgName, testBareRepoName);
+// Fixed fixtures: DynamoDB never validates these against GitHub, so any
+// numeric strings work for integration tests.
+const testRepositoryId = "9876543";
+const testGitHubOrgId = "1234567";
+const testSubject = `repo:${githubOrgName}@${testGitHubOrgId}/${testBareRepoName}@${testRepositoryId}:*`;
 
 describe("Testing gitHubIamRoleDB", () => {
   const logger = createLogger("DEBUG", { moduleName: "iam-role" });
@@ -43,6 +48,10 @@ describe("Testing gitHubIamRoleDB", () => {
       const input: CreatedGitHubIamRole = {
         repositoryName: "",
         gitHubOrgName: githubOrgName,
+        repositoryId: testRepositoryId,
+        gitHubOrgId: testGitHubOrgId,
+        subjectType: "repository",
+        subject: testSubject,
         iamRoleName: `test-github-${githubOrgName}-test-repository`,
         iamRoleArn: "arn:aws:iam::123456789012:role/test-service-role",
         createdAt: "2024-01-02T03:04:05.006Z",
@@ -56,6 +65,10 @@ describe("Testing gitHubIamRoleDB", () => {
       const input: CreatedGitHubIamRole = {
         repositoryName: testBareRepoName,
         gitHubOrgName: githubOrgName,
+        repositoryId: testRepositoryId,
+        gitHubOrgId: testGitHubOrgId,
+        subjectType: "repository",
+        subject: testSubject,
         iamRoleName: "",
         iamRoleArn: "arn:aws:iam::123456789012:role/test-service-role",
         createdAt: "2024-01-02T03:04:05.006Z",
@@ -69,6 +82,10 @@ describe("Testing gitHubIamRoleDB", () => {
       const input: CreatedGitHubIamRole = {
         repositoryName: testBareRepoName,
         gitHubOrgName: githubOrgName,
+        repositoryId: testRepositoryId,
+        gitHubOrgId: testGitHubOrgId,
+        subjectType: "repository",
+        subject: testSubject,
         iamRoleName: `test-github-${githubOrgName}-test-repository`,
         iamRoleArn: "",
         createdAt: "2024-01-02T03:04:05.006Z",
@@ -76,12 +93,19 @@ describe("Testing gitHubIamRoleDB", () => {
       const resultAsync = createGitHubIamRoleDBItem(logger, tableName, config)(input);
       const result = await resultAsync;
       expect(result.isOk()).toBe(true);
+      // Clean up: the create below writes the same PK and PutCommand now uses
+      // attribute_not_exists (no silent overwrite).
+      await deleteGitHubIamRoleDBItem(logger, tableName, config)({ repositoryName: testPkValue });
     });
 
     it("returns failed result if creation date is invalid", async () => {
       const input: CreatedGitHubIamRole = {
         repositoryName: testBareRepoName,
         gitHubOrgName: githubOrgName,
+        repositoryId: testRepositoryId,
+        gitHubOrgId: testGitHubOrgId,
+        subjectType: "repository",
+        subject: testSubject,
         iamRoleName: `test-github-${githubOrgName}-test-repository`,
         iamRoleArn: "arn:aws:iam::123456789012:role/test-service-role",
         createdAt: "",
@@ -95,6 +119,10 @@ describe("Testing gitHubIamRoleDB", () => {
       const input: CreatedGitHubIamRole = {
         repositoryName: testBareRepoName,
         gitHubOrgName: githubOrgName,
+        repositoryId: testRepositoryId,
+        gitHubOrgId: testGitHubOrgId,
+        subjectType: "repository",
+        subject: testSubject,
         iamRoleName: `test-github-${githubOrgName}-test-repository`,
         iamRoleArn: "arn:aws:iam::123456789012:role/test-service-role",
         createdAt: "2024-01-02T03:04:05.006Z",
@@ -103,6 +131,10 @@ describe("Testing gitHubIamRoleDB", () => {
         repositoryName: testPkValue,
         gitHubRepositoryName: testBareRepoName,
         gitHubOrgName: githubOrgName,
+        gitHubRepositoryId: testRepositoryId,
+        gitHubOrgId: testGitHubOrgId,
+        subjectType: "repository",
+        subject: testSubject,
         iamRoleName: `test-github-${githubOrgName}-test-repository`,
         iamRoleArn: "arn:aws:iam::123456789012:role/test-service-role",
         createdAt: "2024-01-02T03:04:05.006Z",
@@ -115,6 +147,22 @@ describe("Testing gitHubIamRoleDB", () => {
       const gitHubIamRole = result.value;
       expect(gitHubIamRole).toEqual(expected);
     });
+
+    it("returns failed result when the same PK already exists (no silent overwrite)", async () => {
+      const input: CreatedGitHubIamRole = {
+        repositoryName: testBareRepoName,
+        gitHubOrgName: githubOrgName,
+        repositoryId: testRepositoryId,
+        gitHubOrgId: testGitHubOrgId,
+        subjectType: "repository",
+        subject: testSubject,
+        iamRoleName: `test-github-${githubOrgName}-test-repository`,
+        iamRoleArn: "arn:aws:iam::123456789012:role/test-service-role",
+        createdAt: "2024-01-02T03:04:05.006Z",
+      };
+      const result = await createGitHubIamRoleDBItem(logger, tableName, config)(input);
+      expect(result.isErr()).toBe(true);
+    });
   });
 
   describe("getGitHubIamRoleDBItem", () => {
@@ -126,6 +174,10 @@ describe("Testing gitHubIamRoleDB", () => {
         repositoryName: testPkValue,
         gitHubRepositoryName: testBareRepoName,
         gitHubOrgName: githubOrgName,
+        gitHubRepositoryId: testRepositoryId,
+        gitHubOrgId: testGitHubOrgId,
+        subjectType: "repository",
+        subject: testSubject,
         iamRoleArn: "arn:aws:iam::123456789012:role/test-service-role",
         iamRoleName: `test-github-${githubOrgName}-test-repository`,
         createdAt: "2024-01-02T03:04:05.006Z",
