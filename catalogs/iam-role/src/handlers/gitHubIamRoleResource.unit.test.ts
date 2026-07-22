@@ -22,52 +22,31 @@ const makeConfig = (overrides: Partial<Record<string, unknown>> = {}): IamRoleCa
 
 describe("resolveDisplayFields / buildResourceOutput", () => {
   it("legacy record (no gitHubOrgName attribute) returns undefined org (no silent fallback)", () => {
-    const cfg = makeConfig({
-      gitHubOrgs: [
-        { name: "org-b", id: "222" },
-        { name: "org-a", id: "111" },
-      ],
-    });
-    const display = resolveDisplayFields(
-      { repositoryName: "old-repo", iamRoleName: "x", iamRoleArn: "y", createdAt: "2024-01-01" },
-      cfg
-    );
+    const display = resolveDisplayFields({ repositoryName: "old-repo", iamRoleName: "x", iamRoleArn: "y", createdAt: "2024-01-01" });
     expect(display).toEqual({ repositoryName: "old-repo", gitHubOrgName: undefined, isLegacy: true });
   });
 
   it("legacy record exposes bare repo name from the PK without guessing the org", () => {
-    const cfg = makeConfig();
-    const display = resolveDisplayFields(
-      { repositoryName: "old-repo", iamRoleName: "x", iamRoleArn: "y", createdAt: "2024-01-01" },
-      cfg
-    );
+    const display = resolveDisplayFields({ repositoryName: "old-repo", iamRoleName: "x", iamRoleArn: "y", createdAt: "2024-01-01" });
     expect(display.gitHubOrgName).toBeUndefined();
     expect(display.repositoryName).toBe("old-repo");
     expect(display.isLegacy).toBe(true);
   });
 
   it("compound record exposes bare repo name and explicit org", () => {
-    const cfg = makeConfig();
-    const display = resolveDisplayFields(
-      {
-        repositoryName: "org-b/new-repo",
-        gitHubRepositoryName: "new-repo",
-        gitHubOrgName: "org-b",
-        iamRoleName: "x",
-        iamRoleArn: "y",
-        createdAt: "2024-01-01",
-      },
-      cfg
-    );
+    const display = resolveDisplayFields({
+      repositoryName: "org-b/new-repo",
+      gitHubRepositoryName: "new-repo",
+      gitHubOrgName: "org-b",
+      iamRoleName: "x",
+      iamRoleArn: "y",
+      createdAt: "2024-01-01",
+    });
     expect(display).toEqual({ repositoryName: "new-repo", gitHubOrgName: "org-b", isLegacy: false });
   });
 
   it("buildResourceOutput keeps bare display name for legacy records and omits new params", () => {
-    const cfg = makeConfig({ gitHubOrgs: [{ name: "org-a", id: "111" }] });
-    const output = buildResourceOutput(
-      { repositoryName: "legacy-repo", iamRoleName: "r", iamRoleArn: "arn", createdAt: "2024-01-01" },
-      cfg
-    );
+    const output = buildResourceOutput({ repositoryName: "legacy-repo", iamRoleName: "r", iamRoleArn: "arn", createdAt: "2024-01-01" });
     expect(output.resourceId).toBe("legacy-repo");
     expect(output.name).toBe("legacy-repo");
     expect(output.params).toEqual({
@@ -80,18 +59,14 @@ describe("resolveDisplayFields / buildResourceOutput", () => {
   });
 
   it("buildResourceOutput uses compound display name for multi-org records (so same repo name across orgs is distinguishable in UI)", () => {
-    const cfg = makeConfig();
-    const output = buildResourceOutput(
-      {
-        repositoryName: "org-b/shared-repo",
-        gitHubRepositoryName: "shared-repo",
-        gitHubOrgName: "org-b",
-        iamRoleName: "r",
-        iamRoleArn: "arn",
-        createdAt: "2024-01-01",
-      },
-      cfg
-    );
+    const output = buildResourceOutput({
+      repositoryName: "org-b/shared-repo",
+      gitHubRepositoryName: "shared-repo",
+      gitHubOrgName: "org-b",
+      iamRoleName: "r",
+      iamRoleArn: "arn",
+      createdAt: "2024-01-01",
+    });
     expect(output.resourceId).toBe("org-b/shared-repo");
     expect(output.name).toBe("org-b/shared-repo");
     expect(output.params).toEqual({
@@ -102,22 +77,18 @@ describe("resolveDisplayFields / buildResourceOutput", () => {
   });
 
   it("buildResourceOutput exposes immutable-claims attributes when present", () => {
-    const cfg = makeConfig();
-    const output = buildResourceOutput(
-      {
-        repositoryName: "org-b/new-repo",
-        gitHubRepositoryName: "new-repo",
-        gitHubOrgName: "org-b",
-        gitHubRepositoryId: "12345",
-        gitHubOrgId: "222",
-        subjectType: "repository",
-        subject: "repo:org-b@222/new-repo@12345:*",
-        iamRoleName: "r",
-        iamRoleArn: "arn",
-        createdAt: "2024-01-01",
-      },
-      cfg
-    );
+    const output = buildResourceOutput({
+      repositoryName: "org-b/new-repo",
+      gitHubRepositoryName: "new-repo",
+      gitHubOrgName: "org-b",
+      gitHubRepositoryId: "12345",
+      gitHubOrgId: "222",
+      subjectType: "repository",
+      subject: "repo:org-b@222/new-repo@12345:*",
+      iamRoleName: "r",
+      iamRoleArn: "arn",
+      createdAt: "2024-01-01",
+    });
     expect(output.params).toEqual({
       repositoryName: "new-repo",
       gitHubOrgName: "org-b",
@@ -129,23 +100,19 @@ describe("resolveDisplayFields / buildResourceOutput", () => {
   });
 
   it("buildResourceOutput appends the role suffix to the display name so multiple roles per repo stay distinguishable", () => {
-    const cfg = makeConfig();
-    const output = buildResourceOutput(
-      {
-        repositoryName: "org-b/new-repo/prod-deploy",
-        gitHubRepositoryName: "new-repo",
-        gitHubOrgName: "org-b",
-        gitHubRepositoryId: "12345",
-        gitHubOrgId: "222",
-        roleSuffix: "prod-deploy",
-        subjectType: "repository",
-        subject: "repo:org-b@222/new-repo@12345:*",
-        iamRoleName: "r",
-        iamRoleArn: "arn",
-        createdAt: "2024-01-01",
-      },
-      cfg
-    );
+    const output = buildResourceOutput({
+      repositoryName: "org-b/new-repo/prod-deploy",
+      gitHubRepositoryName: "new-repo",
+      gitHubOrgName: "org-b",
+      gitHubRepositoryId: "12345",
+      gitHubOrgId: "222",
+      roleSuffix: "prod-deploy",
+      subjectType: "repository",
+      subject: "repo:org-b@222/new-repo@12345:*",
+      iamRoleName: "r",
+      iamRoleArn: "arn",
+      createdAt: "2024-01-01",
+    });
     expect(output.resourceId).toBe("org-b/new-repo/prod-deploy");
     expect(output.name).toBe("org-b/new-repo/prod-deploy");
     expect(output.params.roleSuffix).toBe("prod-deploy");

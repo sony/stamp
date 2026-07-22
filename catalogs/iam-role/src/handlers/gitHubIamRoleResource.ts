@@ -36,10 +36,7 @@ import { GitHubIamRole, GitHubOrgNameField, GitHubRepositoryIdField, GitHubRepos
  * `undefined` and downstream callers must handle the missing value
  * explicitly.
  */
-export const resolveDisplayFields = (
-  item: GitHubIamRole,
-  _config: IamRoleCatalogConfig
-): { repositoryName: string; gitHubOrgName: string | undefined; isLegacy: boolean } => {
+export const resolveDisplayFields = (item: GitHubIamRole): { repositoryName: string; gitHubOrgName: string | undefined; isLegacy: boolean } => {
   const isLegacy = !item.gitHubOrgName;
   return {
     repositoryName: item.gitHubRepositoryName ?? item.repositoryName,
@@ -48,8 +45,8 @@ export const resolveDisplayFields = (
   };
 };
 
-export const buildResourceOutput = (item: GitHubIamRole, config: IamRoleCatalogConfig): ResourceOutput => {
-  const display = resolveDisplayFields(item, config);
+export const buildResourceOutput = (item: GitHubIamRole): ResourceOutput => {
+  const display = resolveDisplayFields(item);
   // For multi-org records, the user-visible name encodes the org so identically
   // named repositories under different orgs remain distinguishable in selector
   // UIs that key off `resource.name`. The role suffix is appended for the same
@@ -228,7 +225,7 @@ const createResourceHandler =
     return await createGitHubIamRoleName(parsedConfig)(createInput)
       .asyncAndThen(createGitHubIamRoleInAws(logger, parsedConfig, iamClient))
       .andThen(createGitHubIamRoleDBItem(logger, parsedConfig.gitHubIamRoleResourceTableName, { region: parsedConfig.region }))
-      .map((persisted) => buildResourceOutput(persisted, parsedConfig));
+      .map((persisted) => buildResourceOutput(persisted));
   };
 
 const deleteResourceHandler =
@@ -275,7 +272,7 @@ const getResourceHandler =
       if (result.isNone()) {
         return none;
       } else {
-        return some(buildResourceOutput(result.value, parsedConfig));
+        return some(buildResourceOutput(result.value));
       }
     });
   };
@@ -294,7 +291,7 @@ const listResourcesHandler =
 
     return await listGitHubIamRoleDBItem(logger, parsedConfig.gitHubIamRoleResourceTableName, { region: parsedConfig.region })(listInput).map((result) => {
       return {
-        resources: result.items.map((item) => buildResourceOutput(item, parsedConfig)),
+        resources: result.items.map((item) => buildResourceOutput(item)),
         nextToken: result.nextToken,
       };
     });
