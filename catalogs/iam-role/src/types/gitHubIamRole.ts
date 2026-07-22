@@ -44,36 +44,81 @@ export const RoleSuffixField = z
   .regex(/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,30}[a-zA-Z0-9])?$/, "roleSuffix must be 1-32 alphanumeric/hyphen characters, starting and ending alphanumeric");
 
 /**
- * Scope of the OIDC subject claim condition. Only `repository` (whole-repo,
- * `repo:ORG@ID/REPO@ID:*`) is supported today; branch / environment / tag /
- * pull_request scoping is planned as a follow-up.
+ * Scope of the OIDC subject claim condition:
+ * - `repository` (default): whole repository, `repo:ORG@ID/REPO@ID:*`
+ * - `branch` / `tag` / `environment`: a single ref or environment (requires `subjectValue`)
+ * - `pull_request`: pull-request-triggered workflows only
  */
-export const SubjectTypeField = z.enum(["repository"]).default("repository");
+export const SubjectTypeField = z.enum(["repository", "branch", "environment", "tag", "pull_request"]).default("repository");
 export type SubjectType = z.infer<typeof SubjectTypeField>;
 
-export const CreateGitHubIamRoleNameCommand = z.object({
+/** Subject types whose sub condition embeds a user-supplied value. */
+export const SubjectTypeWithValue = z.enum(["branch", "environment", "tag"]);
+/** Subject types that take no value. Defaults to `repository` when omitted. */
+export const SubjectTypeWithoutValue = z.enum(["repository", "pull_request"]).default("repository");
+
+/**
+ * Branch / tag / environment name embedded verbatim in the sub condition.
+ * Wildcard characters are rejected: the condition uses StringLike, and a `*`
+ * or `?` inside the value would silently widen the trust policy scope.
+ */
+export const SubjectValueField = z
+  .string()
+  .min(1)
+  .max(256)
+  .refine((value) => !/[*?]/.test(value), "subjectValue must not contain wildcard characters (* or ?)");
+
+const CreateGitHubIamRoleNameCommandCommonFields = {
   repositoryName: GitHubRepositoryNameField,
   gitHubOrgName: GitHubOrgNameField,
   repositoryId: GitHubRepositoryIdField,
   roleSuffix: RoleSuffixField.optional(),
-  subjectType: SubjectTypeField,
+};
+
+// Union couples subjectType to subjectValue cardinality: branch/environment/tag
+// require a value, repository/pull_request forbid one. Modeling this in the
+// schema (instead of an after-the-fact refine) keeps every downstream consumer
+// of the parsed command working with a valid pairing.
+const ValueScopedCommandOption = z.object({
+  ...CreateGitHubIamRoleNameCommandCommonFields,
+  subjectType: SubjectTypeWithValue,
+  subjectValue: SubjectValueField,
 });
+const RepoScopedCommandOption = z.object({
+  ...CreateGitHubIamRoleNameCommandCommonFields,
+  subjectType: SubjectTypeWithoutValue,
+  subjectValue: z.undefined().optional(),
+});
+
+export const CreateGitHubIamRoleNameCommand = z.union([ValueScopedCommandOption, RepoScopedCommandOption]);
 export type CreateGitHubIamRoleNameCommand = z.infer<typeof CreateGitHubIamRoleNameCommand>;
 
-export const CreatedGitHubIamRoleName = CreateGitHubIamRoleNameCommand.merge(
-  z.object({
-    iamRoleName: z.string(),
-    gitHubOrgId: GitHubOrgIdField,
-    /** Fully assembled OIDC subject claim condition written to the trust policy. */
-    subject: z.string().min(1),
-  })
-);
+const CreatedGitHubIamRoleNameFields = {
+  iamRoleName: z.string(),
+  gitHubOrgId: GitHubOrgIdField,
+  /** Fully assembled OIDC subject claim condition written to the trust policy. */
+  subject: z.string().min(1),
+};
+
+export const CreatedGitHubIamRoleName = z.union([
+  ValueScopedCommandOption.extend(CreatedGitHubIamRoleNameFields),
+  RepoScopedCommandOption.extend(CreatedGitHubIamRoleNameFields),
+]);
 export type CreatedGitHubIamRoleName = z.infer<typeof CreatedGitHubIamRoleName>;
 
 export const CreateGitHubIamRoleCommand = CreatedGitHubIamRoleName;
 export type CreateGitHubIamRoleCommand = z.infer<typeof CreateGitHubIamRoleCommand>;
 
-export const CreatedGitHubIamRole = CreatedGitHubIamRoleName.merge(z.object({ iamRoleArn: z.string(), createdAt: z.string().datetime() }));
+const CreatedGitHubIamRoleFields = {
+  ...CreatedGitHubIamRoleNameFields,
+  iamRoleArn: z.string(),
+  createdAt: z.string().datetime(),
+};
+
+export const CreatedGitHubIamRole = z.union([
+  ValueScopedCommandOption.extend(CreatedGitHubIamRoleFields),
+  RepoScopedCommandOption.extend(CreatedGitHubIamRoleFields),
+]);
 export type CreatedGitHubIamRole = z.infer<typeof CreatedGitHubIamRole>;
 
 /**
@@ -120,6 +165,10 @@ export const GitHubIamRole = z.object({
     .optional()
     .transform((v) => (v ? v : undefined)),
   subjectType: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v : undefined)),
+  subjectValue: z
     .string()
     .optional()
     .transform((v) => (v ? v : undefined)),

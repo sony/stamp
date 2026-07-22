@@ -25,7 +25,15 @@ import {
 import { createGitHubIamRoleInAws, createGitHubIamRoleName, deleteGitHubIamRoleInAws, listGitHubIamRoleAuditItemInAws } from "../events/resource/gitHubIamRole";
 import { listIamRoleAttachedPolicyArns, fetchAllAttachedRolePolicyArns } from "../events/iam-ops/iamRoleManagement";
 import { assumeRoleCredentialProvider } from "../utils/assumeRoleCredentialProvider";
-import { GitHubIamRole, GitHubOrgNameField, GitHubRepositoryIdField, GitHubRepositoryNameField, RoleSuffixField, SubjectTypeField } from "../types/gitHubIamRole";
+import {
+  GitHubIamRole,
+  GitHubOrgNameField,
+  GitHubRepositoryIdField,
+  GitHubRepositoryNameField,
+  RoleSuffixField,
+  SubjectTypeField,
+  SubjectValueField,
+} from "../types/gitHubIamRole";
 
 /**
  * Resolves the user-facing repository name and GitHub organization for a
@@ -74,6 +82,9 @@ export const buildResourceOutput = (item: GitHubIamRole): ResourceOutput => {
   }
   if (item.subjectType) {
     params.subjectType = item.subjectType;
+  }
+  if (item.subjectValue) {
+    params.subjectValue = item.subjectValue;
   }
   if (item.subject) {
     params.subject = item.subject;
@@ -152,9 +163,9 @@ const createResourceHandler =
         "Invalid input parameters(roleSuffix): must be 1-32 alphanumeric/hyphen characters, starting and ending with an alphanumeric character";
       return err(new HandlerError(message, "BAD_REQUEST", message));
     }
-    // Optional: defaults to "repository" (whole-repo scope). Other subject
-    // types (branch / environment / tag / pull_request) are planned but not
-    // yet supported.
+    // Optional: defaults to "repository" (whole-repo scope). branch /
+    // environment / tag scope the sub condition to a single ref or
+    // environment and require subjectValue; repository / pull_request forbid it.
     const rawSubjectType = input.inputParams.subjectType;
     if (rawSubjectType !== undefined && typeof rawSubjectType !== "string") {
       return err(new HandlerError("Invalid input parameters(subjectType)", "BAD_REQUEST", "Invalid input parameters(subjectType)"));
@@ -163,10 +174,39 @@ const createResourceHandler =
       typeof rawSubjectType === "string" && rawSubjectType.trim() !== "" ? rawSubjectType.trim() : undefined
     );
     if (!subjectTypeParseResult.success) {
-      const message = `Invalid input parameters(subjectType): "${rawSubjectType}" is not yet supported. Supported values: repository (default).`;
+      const message = `Invalid input parameters(subjectType): "${rawSubjectType}" is not supported. Supported values: repository (default), branch, environment, tag, pull_request.`;
       return err(new HandlerError(message, "BAD_REQUEST", message));
     }
     const subjectType = subjectTypeParseResult.data;
+
+    const rawSubjectValue = input.inputParams.subjectValue;
+    if (rawSubjectValue !== undefined && typeof rawSubjectValue !== "string") {
+      return err(new HandlerError("Invalid input parameters(subjectValue)", "BAD_REQUEST", "Invalid input parameters(subjectValue)"));
+    }
+    const subjectValue = typeof rawSubjectValue === "string" && rawSubjectValue.trim() !== "" ? rawSubjectValue.trim() : undefined;
+    // Literal comparisons (not a helper) so TypeScript narrows subjectType and
+    // the resulting pair satisfies the CreateGitHubIamRoleNameCommand union.
+    let subjectSpec:
+      | { subjectType: "branch" | "environment" | "tag"; subjectValue: string }
+      | { subjectType: "repository" | "pull_request"; subjectValue?: undefined };
+    if (subjectType === "branch" || subjectType === "environment" || subjectType === "tag") {
+      if (subjectValue === undefined) {
+        const message = `Invalid input parameters(subjectValue): required when subjectType is "${subjectType}"`;
+        return err(new HandlerError(message, "BAD_REQUEST", message));
+      }
+      if (!SubjectValueField.safeParse(subjectValue).success) {
+        const message =
+          "Invalid input parameters(subjectValue): must be 1-256 characters and must not contain wildcard characters (* or ?)";
+        return err(new HandlerError(message, "BAD_REQUEST", message));
+      }
+      subjectSpec = { subjectType, subjectValue };
+    } else {
+      if (subjectValue !== undefined) {
+        const message = `Invalid input parameters(subjectValue): must be empty when subjectType is "${subjectType}"`;
+        return err(new HandlerError(message, "BAD_REQUEST", message));
+      }
+      subjectSpec = { subjectType };
+    }
 
     const repositoryId = input.inputParams.repositoryId.trim();
     const pkValue = buildGitHubIamRolePkValue(gitHubOrgName, repositoryName, roleSuffix);
@@ -214,7 +254,7 @@ const createResourceHandler =
       gitHubOrgName,
       repositoryId,
       roleSuffix,
-      subjectType,
+      ...subjectSpec,
     };
 
     const iamClient = new IAMClient({

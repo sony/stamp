@@ -22,9 +22,9 @@ import {
  * name-only format will NOT match roles created with this condition — such
  * repositories must opt in to the immutable format first.
  *
- * Only the whole-repository scope is supported today; the signature accepts
- * `subjectType` so branch / environment / tag / pull_request scoping can be
- * added without changing call sites.
+ * `subjectValue` is required for branch / environment / tag and must be absent
+ * otherwise — enforced by the CreateGitHubIamRoleNameCommand schema; this
+ * function throws if called with an invalid pairing (programming error).
  */
 export const buildGitHubSubjectClaim = (input: {
   gitHubOrgName: string;
@@ -32,11 +32,26 @@ export const buildGitHubSubjectClaim = (input: {
   repositoryName: string;
   repositoryId: string;
   subjectType: SubjectType;
+  subjectValue?: string;
 }): string => {
   const base = `repo:${input.gitHubOrgName}@${input.gitHubOrgId}/${input.repositoryName}@${input.repositoryId}`;
+  const requireValue = (): string => {
+    if (!input.subjectValue) {
+      throw new Error(`subjectValue is required for subjectType "${input.subjectType}"`);
+    }
+    return input.subjectValue;
+  };
   switch (input.subjectType) {
     case "repository":
       return `${base}:*`;
+    case "branch":
+      return `${base}:ref:refs/heads/${requireValue()}`;
+    case "tag":
+      return `${base}:ref:refs/tags/${requireValue()}`;
+    case "environment":
+      return `${base}:environment:${requireValue()}`;
+    case "pull_request":
+      return `${base}:pull_request`;
   }
 };
 
@@ -79,14 +94,11 @@ export const createGitHubIamRoleName =
       repositoryName: parsedInput.repositoryName,
       repositoryId: parsedInput.repositoryId,
       subjectType: parsedInput.subjectType,
+      subjectValue: parsedInput.subjectValue,
     });
     return ok({
-      repositoryName: parsedInput.repositoryName,
-      gitHubOrgName: parsedInput.gitHubOrgName,
-      repositoryId: parsedInput.repositoryId,
+      ...parsedInput,
       gitHubOrgId: allowedOrg.id,
-      roleSuffix: parsedInput.roleSuffix,
-      subjectType: parsedInput.subjectType,
       subject,
       iamRoleName,
     });
