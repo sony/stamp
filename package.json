@@ -2,7 +2,7 @@
   "name": "root",
   "version": "0.0.1",
   "engines": {
-    "node": ">=20.0.0"
+    "node": "^20.19.0 || >=22.12.0"
   },
   "description": "",
   "scripts": {
@@ -45,25 +45,29 @@
     "vitest": "^3.2.4"
   },
   "overrides": {
-    "axios": "1.16.0",
+    "axios": "1.18.0",
     "minimatch@3.1.4": {
-      "brace-expansion": "1.1.14"
+      "brace-expansion": "1.1.16"
     },
     "minimatch@3.1.5": {
-      "brace-expansion": "1.1.14"
+      "brace-expansion": "1.1.16"
     },
     "minimatch@9.0.9": {
-      "brace-expansion": "2.1.0"
+      "brace-expansion": "2.1.2"
     },
     "minimatch@10.2.4": {
-      "brace-expansion": "5.0.5"
+      "brace-expansion": "5.0.7"
     },
     "minimatch@10.2.5": {
-      "brace-expansion": "5.0.5"
+      "brace-expansion": "5.0.7"
     },
     "nx": "22.6.3",
     "@nx/devkit": "22.6.3",
     "follow-redirects": "1.16.0",
-    "yaml": "2.8.4"
+    "yaml": "2.8.4",
+    "js-yaml@^4.0.0": "4.3.0",
+    "lerna": {
+      "tar": "7.5.19"
+    }
   }
 }

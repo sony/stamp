@@ -58,7 +58,7 @@
     "dotenv": "^16.4.5",
     "eslint": "^9",
     "eslint-config-next": "^16.0.0",
-    "postcss": "8.5.14",
+    "postcss": "8.5.21",
     "tailwindcss": "^3.3.0",
     "ts-node": "^10.9.1",
     "typescript": "^5.2.2",
@@ -66,10 +66,10 @@
   },
   "overrides": {
     "minimatch@3.1.5": {
-      "brace-expansion": "1.1.14"
+      "brace-expansion": "1.1.16"
     },
     "minimatch@10.2.4": {
-      "brace-expansion": "5.0.5"
+      "brace-expansion": "5.0.7"
     },
     "postcss": "$postcss",
     "react-day-picker": {
