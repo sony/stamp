@@ -45,29 +45,21 @@
     "vitest": "^3.2.4"
   },
   "overrides": {
+    "brace-expansion@^1.0.0": "1.1.18",
+    "brace-expansion@^2.0.0": "2.1.4",
+    "brace-expansion@^5.0.0": "5.0.9",
     "axios": "1.18.0",
-    "minimatch@3.1.4": {
-      "brace-expansion": "1.1.16"
-    },
-    "minimatch@3.1.5": {
-      "brace-expansion": "1.1.16"
-    },
-    "minimatch@9.0.9": {
-      "brace-expansion": "2.1.2"
-    },
-    "minimatch@10.2.4": {
-      "brace-expansion": "5.0.7"
-    },
-    "minimatch@10.2.5": {
-      "brace-expansion": "5.0.7"
-    },
-    "nx": "22.6.3",
-    "@nx/devkit": "22.6.3",
+    "nx": "22.7.8",
+    "@nx/devkit": "22.7.8",
     "follow-redirects": "1.16.0",
     "yaml": "2.8.4",
-    "js-yaml@^4.0.0": "4.3.0",
+    "js-yaml@^3.0.0": "3.15.1",
+    "js-yaml@^4.0.0": "4.3.1",
+    "ip-address@^10.0.0": "10.4.0",
+    "undici@^6.0.0": "6.28.0",
+    "postcss@^8.0.0": "8.5.25",
     "lerna": {
-      "tar": "7.5.19"
+      "tar": "7.5.22"
     }
   }
 }
