@@ -77,9 +77,10 @@ export const approvalRequestRouter = router({
   }),
   listByApprovalFlowId: publicProcedure.input(ListByApprovalFlowId).query(async ({ input, ctx }) => {
     const logger = createStampHubLogger();
-    const listByApprovalFlowIdResult = await listByApprovalFlowIdWorkflow(input, ctx.config.catalogConfig.get, ctx.db.approvalRequestDB).mapErr(
-      convertTRPCError(logger)
-    );
+    const listByApprovalFlowIdResult = await listByApprovalFlowIdWorkflow(input, ctx.config.catalogConfig.get, ctx.db.approvalRequestDB, {
+      getCatalogDBProvider: ctx.db.catalogDB.getById,
+      listGroupMemberShipByUser: ctx.identity.groupMemberShip.listByUser,
+    }).mapErr(convertTRPCError(logger));
     return unwrapOrthrowTRPCError(listByApprovalFlowIdResult);
   }),
   listByRequestUserId: publicProcedure.input(ListByRequestUserIdInput).query(async ({ input, ctx }) => {
@@ -93,7 +94,10 @@ export const approvalRequestRouter = router({
   }),
   get: publicProcedure.input(GetApprovalRequestInput).query(async ({ input, ctx }) => {
     const logger = createStampHubLogger();
-    const getApprovalRequestResult = await GetApprovalRequestWorkflow(input, ctx.db.approvalRequestDB)
+    const getApprovalRequestResult = await GetApprovalRequestWorkflow(input, ctx.db.approvalRequestDB, {
+      getCatalogDBProvider: ctx.db.catalogDB.getById,
+      listGroupMemberShipByUser: ctx.identity.groupMemberShip.listByUser,
+    })
       .andThen(unwrapOptionOrThrowNotFound)
       .mapErr(convertTRPCError(logger));
     return unwrapOrthrowTRPCError(getApprovalRequestResult);
