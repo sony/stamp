@@ -33,6 +33,22 @@ export const PendingUpdateParams = z
   .optional();
 export type PendingUpdateParams = z.infer<typeof PendingUpdateParams>;
 
+/**
+ * Groups whose members are allowed to submit approval requests that include this resource.
+ * `undefined` or an empty array means anyone can request.
+ */
+export const RequesterGroupIds = z.array(GroupId).max(10);
+export type RequesterGroupIds = z.infer<typeof RequesterGroupIds>;
+
+/**
+ * Who can see this resource (listOutlines / get / listAuditItem).
+ * - "all" (or `undefined`): everyone.
+ * - "restricted": only members of ownerGroupId / approverGroupId / requesterGroupIds,
+ *   the catalog owner group and the parent resource owner group.
+ */
+export const ResourceVisibility = z.enum(["all", "restricted"]);
+export type ResourceVisibility = z.infer<typeof ResourceVisibility>;
+
 export const ResourceInfo = z.object({
   id: ResourceId,
   name: ResourceName,
@@ -41,6 +57,8 @@ export const ResourceInfo = z.object({
   params: ResourceParams,
   approverGroupId: GroupId.optional(),
   ownerGroupId: GroupId.optional(),
+  requesterGroupIds: RequesterGroupIds.optional(),
+  visibility: ResourceVisibility.optional(),
   parentResourceId: ResourceId.optional(),
   parentResourceTypeId: ResourceTypeId.optional(),
   auditNotifications: z.array(AuditNotification).max(1).optional(),
@@ -64,6 +82,8 @@ export const ResourceOnDB = z.object({
   resourceTypeId: ResourceTypeId,
   approverGroupId: GroupId.optional(),
   ownerGroupId: GroupId.optional(),
+  requesterGroupIds: RequesterGroupIds.optional(),
+  visibility: ResourceVisibility.optional(),
   auditNotifications: z.array(AuditNotification).max(1).optional(),
   pendingUpdateParams: PendingUpdateParams,
 });

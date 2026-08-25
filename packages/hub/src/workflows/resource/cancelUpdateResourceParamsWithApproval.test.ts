@@ -49,6 +49,7 @@ describe("cancelUpdateResourceWithApproval", () => {
       createAuditNotification: vi.fn(),
       updateAuditNotification: vi.fn(),
       deleteAuditNotification: vi.fn(),
+      listByResourceType: vi.fn(),
     };
     const canceledRequest = {
       ...approvalRequest,
@@ -106,6 +107,7 @@ describe("cancelUpdateResourceWithApproval", () => {
       createAuditNotification: vi.fn(),
       updateAuditNotification: vi.fn(),
       deleteAuditNotification: vi.fn(),
+      listByResourceType: vi.fn(),
     };
     const approvalRequestDBProvider = {
       getById: vi.fn(),
@@ -148,6 +150,7 @@ describe("cancelUpdateResourceWithApproval", () => {
       createAuditNotification: vi.fn(),
       updateAuditNotification: vi.fn(),
       deleteAuditNotification: vi.fn(),
+      listByResourceType: vi.fn(),
     };
     const approvalRequestDBProvider = {
       getById: vi.fn(),
@@ -188,6 +191,7 @@ describe("cancelUpdateResourceWithApproval", () => {
       createAuditNotification: vi.fn(),
       updateAuditNotification: vi.fn(),
       deleteAuditNotification: vi.fn(),
+      listByResourceType: vi.fn(),
     };
     const approvalRequestDBProvider = {
       getById: vi.fn().mockReturnValue(okAsync(none)),
@@ -228,6 +232,7 @@ describe("cancelUpdateResourceWithApproval", () => {
       createAuditNotification: vi.fn(),
       updateAuditNotification: vi.fn(),
       deleteAuditNotification: vi.fn(),
+      listByResourceType: vi.fn(),
     };
     const approvalRequestDBProvider = {
       getById: vi.fn().mockReturnValue(okAsync(some({ ...approvalRequest, status: "approvedActionFailed" }))),
@@ -276,6 +281,7 @@ describe("cancelUpdateResourceWithApproval", () => {
       createAuditNotification: vi.fn(),
       updateAuditNotification: vi.fn(),
       deleteAuditNotification: vi.fn(),
+      listByResourceType: vi.fn(),
     };
     const approvalRequestDBProvider = {
       getById: vi.fn().mockReturnValue(okAsync(some({ ...approvalRequest, status: "rejected" }))),
@@ -324,6 +330,7 @@ describe("cancelUpdateResourceWithApproval", () => {
       createAuditNotification: vi.fn(),
       updateAuditNotification: vi.fn(),
       deleteAuditNotification: vi.fn(),
+      listByResourceType: vi.fn(),
     };
     const approvalRequestDBProvider = {
       getById: vi.fn().mockReturnValue(okAsync(some({ ...approvalRequest, status: "approved" }))),
@@ -364,6 +371,7 @@ describe("cancelUpdateResourceWithApproval", () => {
       createAuditNotification: vi.fn(),
       updateAuditNotification: vi.fn(),
       deleteAuditNotification: vi.fn(),
+      listByResourceType: vi.fn(),
     };
     const approvalRequestDBProvider = {
       getById: vi.fn().mockReturnValue(okAsync(some(approvalRequest))),

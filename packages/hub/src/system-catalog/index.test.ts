@@ -11,6 +11,7 @@ describe("createStampSystemCatalog", () => {
       createAuditNotification: vi.fn(),
       updateAuditNotification: vi.fn(),
       deleteAuditNotification: vi.fn(),
+      listByResourceType: vi.fn(),
     };
     const catalogConfigProvider = {
       get: vi.fn(),

@@ -19,7 +19,8 @@ import { validateAutoRevokeDurationTime } from "../../events/approval-request/ac
 import { CreateSchedulerEvent } from "@stamp-lib/stamp-types/pluginInterface/scheduler";
 import type { CatalogConfig, ApprovalFlowConfig } from "@stamp-lib/stamp-types/models";
 
-export const SubmitWorkflowInput = SubmittedRequest.omit({ requestId: true, status: true, requestDate: true }).extend({
+// visibility is computed by the hub at submit time and must not be supplied by the caller.
+export const SubmitWorkflowInput = SubmittedRequest.omit({ requestId: true, status: true, requestDate: true, visibility: true }).extend({
   approverType: ApproverType.optional(),
   approverId: z.string().uuid().optional(),
 });

@@ -75,6 +75,7 @@ describe("deleteResource", () => {
     createAuditNotification: vi.fn(),
     updateAuditNotification: vi.fn(),
     deleteAuditNotification: vi.fn(),
+    listByResourceType: vi.fn(),
   };
 
   const mockGetGroupMemberShip = vi.fn().mockReturnValue(okAsync(some({})));

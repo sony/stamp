@@ -23,12 +23,16 @@ import {
   UpdateResourceOwnerInput,
   UpdateResourceParamsWithApprovalInput,
   UpdateResourceParamsInput,
+  UpdateResourceRequesterGroupsInput,
+  UpdateResourceVisibilityInput,
 } from "../../workflows/resource/input";
 import { listResourceAuditItem } from "../../workflows/resource/listResourceAuditItem";
 import { listResourceOutlines } from "../../workflows/resource/listResourceOutlines";
 import { updateAuditNotification } from "../../workflows/resource/updateAuditNotification";
 import { updateResourceApprover } from "../../workflows/resource/updateResourceApprover";
 import { updateResourceOwner } from "../../workflows/resource/updateResourceOwner";
+import { updateResourceRequesterGroups } from "../../workflows/resource/updateResourceRequesterGroups";
+import { updateResourceVisibility } from "../../workflows/resource/updateResourceVisibility";
 import { updateResourceParamsWithApproval, createWorkflowDependencies } from "../../workflows/resource/updateResourceParamsWithApproval/index";
 import { cancelUpdateResourceParamsWithApproval } from "../../workflows/resource/cancelUpdateResourceParamsWithApproval";
 import { updateResourceParams } from "../../workflows/resource/updateResourceParams";
@@ -154,6 +158,27 @@ export const resourceRouter = router({
       getGroupMemberShip: ctx.identity.groupMemberShip.get,
     })(input).mapErr(convertTRPCError(logger));
     return unwrapOrthrowTRPCError(updateResourceOwnerResult);
+  }),
+  updateRequesterGroups: publicProcedure.input(UpdateResourceRequesterGroupsInput).mutation(async ({ input, ctx }) => {
+    const logger = createStampHubLogger();
+    const result = await updateResourceRequesterGroups({
+      catalogDBProvider: ctx.db.catalogDB,
+      catalogConfigProvider: ctx.config.catalogConfig,
+      resourceDBProvider: ctx.db.resourceDB,
+      getGroupMemberShip: ctx.identity.groupMemberShip.get,
+      getGroup: ctx.identity.group.get,
+    })(input).mapErr(convertTRPCError(logger));
+    return unwrapOrthrowTRPCError(result);
+  }),
+  updateVisibility: publicProcedure.input(UpdateResourceVisibilityInput).mutation(async ({ input, ctx }) => {
+    const logger = createStampHubLogger();
+    const result = await updateResourceVisibility({
+      catalogDBProvider: ctx.db.catalogDB,
+      catalogConfigProvider: ctx.config.catalogConfig,
+      resourceDBProvider: ctx.db.resourceDB,
+      getGroupMemberShip: ctx.identity.groupMemberShip.get,
+    })(input).mapErr(convertTRPCError(logger));
+    return unwrapOrthrowTRPCError(result);
   }),
   listAuditItem: publicProcedure.input(ListResourceAuditItemInput).query(async ({ input, ctx }) => {
     const logger = createStampHubLogger();
