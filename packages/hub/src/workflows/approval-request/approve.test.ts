@@ -1354,4 +1354,97 @@ describe("approveWorkflow", () => {
       });
     });
   });
+  describe("requester re-check", () => {
+    const requesterGroupId = "1f10d463-a2fe-c407-2b95-05b561346c8b";
+    const approverGroupId = "18578bed-c45d-4f67-b9f7-10daf4c85f3f";
+    const requestUserId = "dbf33b00-8a5f-e045-4aa1-2d943cb659b6";
+    const userIdWhoApproved = "13f6d758-cea9-bfab-ffaf-9e012ddacf47";
+    const pendingRequest = {
+      requestId: "38296685-5f00-ca43-5e7a-218e9eb7b423",
+      requestDate: new Date().toISOString(),
+      approvalFlowId: "test-approval-flow-id",
+      requestUserId,
+      approverId: approverGroupId,
+      inputParams: [],
+      inputResources: [{ resourceId: "test-resource-id", resourceTypeId: "test-resource-type-id" }],
+      status: "pending",
+      catalogId: "test-catalog-id",
+      approverType: "group",
+      requestComment: "test request comment",
+      validatedDate: new Date().toISOString(),
+      validationHandlerResult: { isSuccess: true, message: "ok" },
+    };
+    const buildProviders = (requesterStillMember: boolean) => {
+      // Created per test because the outer beforeEach resets all mocks.
+      const testApprovalFlowHandler: ApprovalFlowHandler = {
+        approvalRequestValidation: vi.fn(),
+        approved: vi.fn().mockResolvedValue(ok({ isSuccess: true, message: "approved Actions Succeeded" })),
+        revoked: vi.fn(),
+      };
+      const getGroupMemberShip: GroupMemberShipProvider["get"] = vi.fn().mockImplementation(({ groupId, userId }) => {
+        if (groupId === approverGroupId && userId === userIdWhoApproved) {
+          return okAsync(some({ groupId, userId, role: "owner", createdAt: "", updatedAt: "" }));
+        }
+        if (groupId === requesterGroupId && userId === requestUserId && requesterStillMember) {
+          return okAsync(some({ groupId, userId, role: "member", createdAt: "", updatedAt: "" }));
+        }
+        return okAsync(none);
+      });
+      const updateApprovalRequestStatusToApproved: ApprovalRequestDBProvider["updateStatusToApproved"] = vi
+        .fn()
+        .mockReturnValue(okAsync({ ...pendingRequest, status: "approved", approvedDate: new Date().toISOString(), userIdWhoApproved, approvedComment: "c" }));
+      return {
+        getCatalogConfigProvider: vi.fn().mockReturnValue(
+          okAsync(
+            some({
+              id: "test-catalog-id",
+              name: "test-catalog",
+              description: "catalogDescription",
+              approvalFlows: [
+                {
+                  id: "test-approval-flow-id",
+                  name: "n",
+                  description: "d",
+                  inputParams: [],
+                  handlers: testApprovalFlowHandler,
+                  inputResources: [],
+                  approver: { approverType: "approvalFlow" },
+                },
+              ],
+              resourceTypes: [],
+            })
+          )
+        ) as CatalogConfigProvider["get"],
+        getApprovalRequestById: vi.fn().mockReturnValue(okAsync(some(pendingRequest))) as ApprovalRequestDBProvider["getById"],
+        updateApprovalRequestStatusToApproved,
+        setApprovalRequest: vi.fn().mockImplementation((input) => okAsync(input)) as ApprovalRequestDBProvider["set"],
+        getApprovalFlowById: vi
+          .fn()
+          .mockReturnValue(okAsync(some({ id: "test-approval-flow-id", catalogId: "test-catalog-id", approverGroupId }))) as ApprovalFlowDBProvider["getById"],
+        getResourceById: vi
+          .fn()
+          .mockReturnValue(
+            okAsync(some({ id: "test-resource-id", catalogId: "test-catalog-id", resourceTypeId: "test-resource-type-id", requesterGroupIds: [requesterGroupId] }))
+          ) as ResourceDBProvider["getById"],
+        getGroupMemberShip,
+      };
+    };
+    const input: ApproveWorkflowInput = { approvalRequestId: pendingRequest.requestId, approvedComment: "c", userIdWhoApproved };
+
+    it("rejects approval with BAD_REQUEST when the requester is no longer in requesterGroupIds", async () => {
+      const providers = buildProviders(false);
+      const result = await approveWorkflow(providers, logger)(input);
+      const error = result._unsafeUnwrapErr();
+      expect(error.code).toBe("BAD_REQUEST");
+      expect(error.userMessage).toContain("no longer allowed");
+      expect(providers.updateApprovalRequestStatusToApproved).not.toHaveBeenCalled();
+    });
+
+    it("approves when the requester is still a member", async () => {
+      const providers = buildProviders(true);
+      const result = await approveWorkflow(providers, logger)(input);
+      expect(result._unsafeUnwrap().status).toBe("approvedActionSucceeded");
+      expect(providers.updateApprovalRequestStatusToApproved).toHaveBeenCalledTimes(1);
+    });
+  });
 });

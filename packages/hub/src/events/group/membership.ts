@@ -2,7 +2,7 @@ import { GroupId, UserId, GroupMemberShipProvider } from "@stamp-lib/stamp-types
 import { convertStampHubError, StampHubError } from "../../error";
 import { parseZodObjectAsync } from "../../utils/neverthrow";
 import { z } from "zod";
-import { ResultAsync, okAsync } from "neverthrow";
+import { ResultAsync, errAsync, okAsync } from "neverthrow";
 
 export const IsUserInGroupInput = z.object({
   groupId: GroupId,
@@ -50,4 +50,40 @@ function isGroupOwnerImpl(input: IsGroupOwnerInput, getGroupMemberShip: GroupMem
 
 export function createIsGroupOwner(getGroupMemberShip: GroupMemberShipProvider["get"]): IsGroupOwner {
   return (input) => isGroupOwnerImpl(input, getGroupMemberShip);
+}
+
+/**
+ * IsUserInGroup backed by an in-memory set of the user's group ids.
+ * Use with `createListAllGroupIdsByUser` to evaluate many membership checks with a single identity lookup.
+ */
+export function createIsUserInGroupFromSet(groupIds: ReadonlySet<GroupId>): IsUserInGroup {
+  return (input) =>
+    parseZodObjectAsync(input, IsUserInGroupInput)
+      .andThen((parsedInput) => okAsync(groupIds.has(parsedInput.groupId)))
+      .mapErr(convertStampHubError);
+}
+
+export type ListAllGroupIdsByUser = (userId: UserId) => ResultAsync<Set<GroupId>, StampHubError>;
+
+const MAX_GROUP_MEMBERSHIP_PAGES = 50;
+
+/**
+ * Collect every group id the user belongs to by following listByUser pagination to the end.
+ */
+export function createListAllGroupIdsByUser(listByUser: GroupMemberShipProvider["listByUser"]): ListAllGroupIdsByUser {
+  const collect = (userId: UserId, paginationToken: string | undefined, acc: Set<GroupId>, page: number): ResultAsync<Set<GroupId>, StampHubError> => {
+    if (page >= MAX_GROUP_MEMBERSHIP_PAGES) {
+      return errAsync(new StampHubError(`Too many group membership pages for user ${userId}`, "Unexpected error occurred", "INTERNAL_SERVER_ERROR"));
+    }
+    return listByUser({ userId, limit: 100, paginationToken })
+      .mapErr(convertStampHubError)
+      .andThen((result) => {
+        result.items.forEach((membership) => acc.add(membership.groupId));
+        if (result.nextPaginationToken) {
+          return collect(userId, result.nextPaginationToken, acc, page + 1);
+        }
+        return okAsync(acc);
+      });
+  };
+  return (userId) => collect(userId, undefined, new Set<GroupId>(), 0);
 }

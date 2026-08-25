@@ -5,7 +5,7 @@ import { UpdateResourceParamsWithApprovalInput } from "../input";
 import { CatalogConfigProvider } from "@stamp-lib/stamp-types/configInterface";
 import { ResourceDBProvider } from "@stamp-lib/stamp-types/pluginInterface/database";
 import { Logger } from "@stamp-lib/stamp-logger";
-import { getResourceInfo, GetResourceInfo } from "../getResourceInfo";
+import { getResourceInfoWithoutVisibilityCheck, GetResourceInfo } from "../getResourceInfo";
 import { createResolveResourceWithFallback, createResolveApproverGroup, createResolveSystemCatalog } from "./resolution";
 import { createExecuteApprovalWorkflow, SubmitWorkflowForResourceUpdate } from "./execution";
 import { createGetCatalogConfig } from "../../../events/catalog/catalogConfig";
@@ -38,7 +38,7 @@ export const createWorkflowDependencies = (providers: {
   const getResourceTypeInfoFunc = getResourceTypeInfo(getCatalogConfig);
 
   // Create base resource info function
-  const getResourceInfoFunc: GetResourceInfo = getResourceInfo({
+  const getResourceInfoFunc: GetResourceInfo = getResourceInfoWithoutVisibilityCheck({
     getCatalogConfigProvider: catalogConfigProvider.get,
     getResourceDBProvider: resourceDBProvider.getById,
   });
