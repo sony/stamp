@@ -1,7 +1,12 @@
 import { Logger } from "@stamp-lib/stamp-logger";
 import { none, some } from "@stamp-lib/stamp-option";
 import { CatalogId, ResourceId, ResourceOnDB, ResourceTypeId } from "@stamp-lib/stamp-types/models";
-import { ResourceDBProvider, ResourceInput, UpdatePendingUpdateParamsInput } from "@stamp-lib/stamp-types/pluginInterface/database";
+import {
+  ListResourceByResourceTypeInput,
+  ResourceDBProvider,
+  ResourceInput,
+  UpdatePendingUpdateParamsInput,
+} from "@stamp-lib/stamp-types/pluginInterface/database";
 import { errAsync, okAsync } from "neverthrow";
 
 const resourceMap = new Map<CatalogId, Map<ResourceTypeId, Map<ResourceId, ResourceOnDB>>>();
@@ -46,6 +51,11 @@ export function createResourceDBProvider(logger: Logger): ResourceDBProvider {
       resourceMap.get(input.catalogId)?.get(input.resourceTypeId)?.set(input.id, structuredClone(updatedResource));
       return okAsync(structuredClone(updatedResource));
     },
+    listByResourceType: (input: ListResourceByResourceTypeInput) => {
+      logger.info("ResourceDB.listByResourceType", input.catalogId, input.resourceTypeId);
+      const resources = Array.from(resourceMap.get(input.catalogId)?.get(input.resourceTypeId)?.values() ?? []);
+      return okAsync({ items: structuredClone(resources) });
+    },
     delete: (input: ResourceInput) => {
       logger.info("ResourceDB.delete", input.id);
       resourceMap.delete(input.id);
@@ -63,6 +73,8 @@ export function createResourceDBProvider(logger: Logger): ResourceDBProvider {
         resourceTypeId: resource.resourceTypeId,
         approverGroupId: resource.approverGroupId,
         ownerGroupId: resource.ownerGroupId,
+        requesterGroupIds: resource.requesterGroupIds,
+        visibility: resource.visibility,
         auditNotifications: [
           {
             schedulerEventId: input.schedulerEventId,
@@ -86,6 +98,8 @@ export function createResourceDBProvider(logger: Logger): ResourceDBProvider {
         resourceTypeId: resource.resourceTypeId,
         approverGroupId: resource.approverGroupId,
         ownerGroupId: resource.ownerGroupId,
+        requesterGroupIds: resource.requesterGroupIds,
+        visibility: resource.visibility,
         auditNotifications: [
           {
             schedulerEventId: input.schedulerEventId,
@@ -109,6 +123,8 @@ export function createResourceDBProvider(logger: Logger): ResourceDBProvider {
         resourceTypeId: resource.resourceTypeId,
         approverGroupId: resource.approverGroupId,
         ownerGroupId: resource.ownerGroupId,
+        requesterGroupIds: resource.requesterGroupIds,
+        visibility: resource.visibility,
       };
       return okAsync(newResourceOnDB);
     },

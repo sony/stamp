@@ -1,5 +1,5 @@
 import { DynamoDBClient, DynamoDBClientConfig } from "@aws-sdk/client-dynamodb";
-import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { Logger } from "@stamp-lib/stamp-logger";
 import { none, some } from "@stamp-lib/stamp-option";
 import { ResourceOnDB } from "@stamp-lib/stamp-types/models";
@@ -9,6 +9,8 @@ import {
   DBError,
   DeleteAuditNotificationInput,
   DeleteAuditNotificationOutput,
+  ListResourceByResourceTypeInput,
+  ListResourceByResourceTypeOutput,
   ResourceDBDeleteResult,
   ResourceDBGetByIdResult,
   ResourceDBProvider,
@@ -19,7 +21,9 @@ import {
   UpdatePendingUpdateParamsInput,
 } from "@stamp-lib/stamp-types/pluginInterface/database";
 import { errAsync, okAsync, ResultAsync } from "neverthrow";
+import { z } from "zod";
 import { parseDBInputAsync, parseDBItemAsync } from "./utils/neverthrow";
+import { deserializeObject, serializeObject } from "./utils/pagination";
 
 export function getByIdImpl(logger: Logger) {
   return (input: ResourceInput, TableName: string, config: DynamoDBClientConfig = {}): ResourceDBGetByIdResult => {
@@ -384,6 +388,47 @@ export function deleteAuditNotificationImpl(logger: Logger) {
   };
 }
 
+export function listByResourceTypeImpl(logger: Logger) {
+  return (input: ListResourceByResourceTypeInput, TableName: string, config: DynamoDBClientConfig = {}): ListResourceByResourceTypeOutput => {
+    const client = new DynamoDBClient(config);
+    const ddbDocClient = DynamoDBDocumentClient.from(client);
+
+    return parseDBInputAsync(input, ListResourceByResourceTypeInput).andThen((parsedInput) => {
+      const compositeKey = `${parsedInput.catalogId}#${parsedInput.resourceTypeId}`;
+      const exclusiveStartKey = parsedInput.paginationToken ? deserializeObject(parsedInput.paginationToken) : undefined;
+
+      const queryResult = ResultAsync.fromPromise(
+        ddbDocClient.send(
+          new QueryCommand({
+            TableName: TableName,
+            KeyConditionExpression: "#catalogIdResourceTypeId = :catalogIdResourceTypeId",
+            ExpressionAttributeNames: {
+              "#catalogIdResourceTypeId": "catalogId#resourceTypeId",
+            },
+            ExpressionAttributeValues: {
+              ":catalogIdResourceTypeId": compositeKey,
+            },
+            ExclusiveStartKey: exclusiveStartKey,
+            Limit: parsedInput.limit,
+          })
+        ),
+        (err) => {
+          logger.error(err);
+          return new DBError((err as Error).message ?? "Internal Server Error", "INTERNAL_SERVER_ERROR");
+        }
+      );
+
+      return queryResult.andThen((result) => {
+        const paginationToken = result.LastEvaluatedKey ? serializeObject(result.LastEvaluatedKey) : undefined;
+        if (result.Items === undefined || result.Items.length === 0) {
+          return okAsync({ items: [], paginationToken });
+        }
+        return parseDBItemAsync(logger)(result.Items, z.array(ResourceOnDB)).map((items) => ({ items, paginationToken }));
+      });
+    });
+  };
+}
+
 export const createResourceDBProvider =
   (logger: Logger) =>
   (TableName: string, config: DynamoDBClientConfig = {}): ResourceDBProvider => {
@@ -395,5 +440,6 @@ export const createResourceDBProvider =
       createAuditNotification: (input: CreateAuditNotificationInput) => createAuditNotificationImpl(logger)(input, TableName, config),
       updateAuditNotification: (input: UpdateAuditNotificationInput) => updateAuditNotificationImpl(logger)(input, TableName, config),
       deleteAuditNotification: (input: DeleteAuditNotificationInput) => deleteAuditNotificationImpl(logger)(input, TableName, config),
+      listByResourceType: (input: ListResourceByResourceTypeInput) => listByResourceTypeImpl(logger)(input, TableName, config),
     };
   };

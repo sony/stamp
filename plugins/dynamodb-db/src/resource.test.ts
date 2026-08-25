@@ -13,6 +13,7 @@ import {
   deleteAuditNotificationImpl,
   deleteImpl,
   getByIdImpl,
+  listByResourceTypeImpl,
   setImpl,
   updateAuditNotificationImpl,
   updatePendingUpdateParamsImpl,
@@ -752,6 +753,109 @@ describe("Testing resource", () => {
       }
 
       expect(result.value.pendingUpdateParams).toEqual(updatedParams);
+    });
+  });
+  describe("requesterGroupIds / visibility round-trip", () => {
+    const requesterGroupIds = ["1f10d463-a2fe-c407-2b95-05b561346c8b", "7c2b9e4d-1a3f-4c5e-9b8a-6d5c4b3a2f1e"];
+
+    it("should persist requesterGroupIds and visibility", async () => {
+      const resourceInput: ResourceOnDB = {
+        id,
+        catalogId,
+        resourceTypeId,
+        requesterGroupIds,
+        visibility: "restricted",
+      };
+      const setResult = await setImpl(logger)(resourceInput, tableName, config);
+      if (setResult.isErr()) {
+        throw setResult.error;
+      }
+      const getResult = await getByIdImpl(logger)({ id, catalogId, resourceTypeId }, tableName, config);
+      if (getResult.isErr()) {
+        throw getResult.error;
+      }
+      expect(getResult.value).toEqual(some(resourceInput));
+    });
+
+    it("should remove the attributes when set with undefined", async () => {
+      const resourceInput: ResourceOnDB = {
+        id,
+        catalogId,
+        resourceTypeId,
+        requesterGroupIds: undefined,
+        visibility: undefined,
+      };
+      const setResult = await setImpl(logger)(resourceInput, tableName, config);
+      if (setResult.isErr()) {
+        throw setResult.error;
+      }
+      const getResult = await getByIdImpl(logger)({ id, catalogId, resourceTypeId }, tableName, config);
+      if (getResult.isErr()) {
+        throw getResult.error;
+      }
+      expect(getResult.value.isSome()).toBe(true);
+      if (getResult.value.isNone()) throw new Error("expected some");
+      expect(getResult.value.value.requesterGroupIds).toBeUndefined();
+      expect(getResult.value.value.visibility).toBeUndefined();
+    });
+  });
+
+  describe("listByResourceTypeImpl", () => {
+    const listCatalogId = "test-list-catalog-resource";
+    const listResourceTypeId = "test-list-resource-type";
+    const otherResourceTypeId = "test-list-other-resource-type";
+    const ids = ["list-resource-1", "list-resource-2", "list-resource-3"];
+
+    beforeAll(async () => {
+      for (const listId of ids) {
+        await setImpl(logger)({ id: listId, catalogId: listCatalogId, resourceTypeId: listResourceTypeId, visibility: "restricted" }, tableName, config);
+      }
+      await setImpl(logger)({ id: "other-resource", catalogId: listCatalogId, resourceTypeId: otherResourceTypeId }, tableName, config);
+    });
+    afterAll(async () => {
+      for (const listId of ids) {
+        await deleteImpl(logger)({ id: listId, catalogId: listCatalogId, resourceTypeId: listResourceTypeId }, tableName, config);
+      }
+      await deleteImpl(logger)({ id: "other-resource", catalogId: listCatalogId, resourceTypeId: otherResourceTypeId }, tableName, config);
+    });
+
+    it("should list only rows of the given resource type", async () => {
+      const result = await listByResourceTypeImpl(logger)({ catalogId: listCatalogId, resourceTypeId: listResourceTypeId }, tableName, config);
+      if (result.isErr()) {
+        throw result.error;
+      }
+      expect(result.value.items.map((item) => item.id).sort()).toEqual([...ids].sort());
+      expect(result.value.items.every((item) => item.resourceTypeId === listResourceTypeId && item.visibility === "restricted")).toBe(true);
+      expect(result.value.paginationToken).toBeUndefined();
+    });
+
+    it("should paginate with limit and paginationToken", async () => {
+      const first = await listByResourceTypeImpl(logger)({ catalogId: listCatalogId, resourceTypeId: listResourceTypeId, limit: 2 }, tableName, config);
+      if (first.isErr()) {
+        throw first.error;
+      }
+      expect(first.value.items.length).toBe(2);
+      expect(first.value.paginationToken).toBeDefined();
+
+      const second = await listByResourceTypeImpl(logger)(
+        { catalogId: listCatalogId, resourceTypeId: listResourceTypeId, limit: 2, paginationToken: first.value.paginationToken },
+        tableName,
+        config
+      );
+      if (second.isErr()) {
+        throw second.error;
+      }
+      const all = [...first.value.items, ...second.value.items].map((item) => item.id).sort();
+      expect(all).toEqual([...ids].sort());
+    });
+
+    it("should return an empty list for an unknown resource type", async () => {
+      const result = await listByResourceTypeImpl(logger)({ catalogId: listCatalogId, resourceTypeId: "no-such-type" }, tableName, config);
+      if (result.isErr()) {
+        throw result.error;
+      }
+      expect(result.value.items).toEqual([]);
+      expect(result.value.paginationToken).toBeUndefined();
     });
   });
 });

@@ -1,4 +1,4 @@
-import { CatalogId, ResourceId, ResourceParams, ResourceTypeId } from "@stamp-lib/stamp-types/models";
+import { CatalogId, RequesterGroupIds, ResourceId, ResourceParams, ResourceTypeId, ResourceVisibility } from "@stamp-lib/stamp-types/models";
 import { GroupId, UserId } from "@stamp-lib/stamp-types/pluginInterface/identity";
 import { z } from "zod";
 
@@ -17,6 +17,8 @@ export const CreateResourceInput = z.object({
   parentResourceId: ResourceId.optional(),
   approverGroupId: GroupId.optional(),
   ownerGroupId: GroupId.optional(),
+  requesterGroupIds: RequesterGroupIds.optional(),
+  visibility: ResourceVisibility.optional(),
   requestUserId: UserId,
 });
 export type CreateResourceInput = z.infer<typeof CreateResourceInput>;
@@ -83,6 +85,24 @@ export const UpdateResourceOwnerInput = z.object({
   requestUserId: UserId,
 });
 export type UpdateResourceOwnerInput = z.infer<typeof UpdateResourceOwnerInput>;
+
+export const UpdateResourceRequesterGroupsInput = z.object({
+  catalogId: CatalogId,
+  resourceTypeId: ResourceTypeId,
+  resourceId: ResourceId,
+  requesterGroupIds: RequesterGroupIds, // Empty array clears the restriction (anyone can request).
+  requestUserId: UserId,
+});
+export type UpdateResourceRequesterGroupsInput = z.infer<typeof UpdateResourceRequesterGroupsInput>;
+
+export const UpdateResourceVisibilityInput = z.object({
+  catalogId: CatalogId,
+  resourceTypeId: ResourceTypeId,
+  resourceId: ResourceId,
+  visibility: ResourceVisibility,
+  requestUserId: UserId,
+});
+export type UpdateResourceVisibilityInput = z.infer<typeof UpdateResourceVisibilityInput>;
 
 export const ListResourceAuditItemInput = z.object({
   catalogId: CatalogId,
