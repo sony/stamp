@@ -13,7 +13,9 @@ import { createSubmitApprovalRequest } from "../../events/approval-request/actio
 import { getApprovalFlowConfig } from "../../events/approval-flow/approvalFlowConfig";
 import { createValidateApprovalRequest } from "../../events/approval-request/actions/validate";
 import { enrichInputDataForNotification } from "../../events/approval-request/actions/enrichForNotification";
-import { GetGroup } from "@stamp-lib/stamp-types/pluginInterface/identity";
+import { GetGroup, GroupMemberShipProvider } from "@stamp-lib/stamp-types/pluginInterface/identity";
+import { checkCanSubmitRequestForResources } from "../../events/approval-request/authz/submit";
+import { createBuildRequestVisibility } from "../../events/approval-request/visibility/buildRequestVisibility";
 import { Logger } from "@stamp-lib/stamp-logger";
 import { validateAutoRevokeDurationTime } from "../../events/approval-request/actions/autoRevoke";
 import { CreateSchedulerEvent } from "@stamp-lib/stamp-types/pluginInterface/scheduler";
@@ -34,6 +36,7 @@ export const submitWorkflow =
       getApprovalFlowById: ApprovalFlowDBProvider["getById"];
       getResourceById: ResourceDBProvider["getById"];
       getGroup: GetGroup;
+      getGroupMemberShip: GroupMemberShipProvider["get"];
       getNotificationPluginConfig: GetNotificationPluginConfig;
       createSchedulerEvent?: CreateSchedulerEvent;
     },
@@ -46,16 +49,21 @@ export const submitWorkflow =
       getApprovalFlowById,
       getResourceById,
       getGroup,
+      getGroupMemberShip,
       getNotificationPluginConfig,
       createSchedulerEvent,
     } = providers;
 
     const getCatalogConfig = createGetCatalogConfig(getCatalogConfigProvider);
     const submitApprovalRequest = createSubmitApprovalRequest(setApprovalRequestDBProvider);
+    const checkCanSubmit = checkCanSubmitRequestForResources(getResourceById, getGroupMemberShip);
+    const buildRequestVisibility = createBuildRequestVisibility({ getResourceById, getCatalogConfigProvider });
 
     return parseZodObjectAsync(input, SubmitWorkflowInput)
       .andThen(getCatalogConfig)
       .andThen(getApprovalFlowConfig)
+      // Requester authorization: every input resource with requesterGroupIds must include the requester.
+      .andThen(checkCanSubmit)
       .andThen((parsedInput) => {
         if (parsedInput.autoRevokeDuration) {
           // Check autoRevokeDuration is set but autoRevoke is not enabled
@@ -163,6 +171,10 @@ export const submitWorkflow =
           // Return Internal server error because nothing ApproverType is unexpected.
           return errAsync(new StampHubError("ApproverType is not set", "ApproverType is not set", "INTERNAL_SERVER_ERROR"));
         }
+      })
+      .andThen((extendInput) => {
+        // Snapshot who may view this request (fixed at submit time; not affected by later resource changes).
+        return buildRequestVisibility(extendInput).map((visibility) => ({ ...extendInput, visibility }));
       })
       .andThen((extendInput) => {
         return submitApprovalRequest(extendInput).map((submittedApprovalRequest) => {

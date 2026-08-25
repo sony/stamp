@@ -1,5 +1,5 @@
 import { createLogger } from "@stamp-lib/stamp-logger";
-import { some } from "@stamp-lib/stamp-option";
+import { none, some } from "@stamp-lib/stamp-option";
 import { HandlerError, ListResourceAuditItemOutput, ResourceHandlers } from "@stamp-lib/stamp-types/catalogInterface/handler";
 import { CatalogConfig } from "@stamp-lib/stamp-types/models";
 import { err, ok, okAsync } from "neverthrow";
@@ -63,6 +63,17 @@ const testCatalogConfig: CatalogConfig = {
   resourceTypes: [testResourceTypeConfig],
 };
 
+// The resource has no hub-side row, so it is not restricted and no visibility lookups happen.
+const getResourceDBProvider = vi.fn().mockReturnValue(okAsync(none));
+const getCatalogDBProvider = vi.fn().mockReturnValue(okAsync(none));
+const listGroupMemberShipByUser = vi.fn().mockReturnValue(okAsync({ items: [] }));
+const providersWith = (getCatalogConfigProvider: ReturnType<typeof vi.fn>) => ({
+  getCatalogConfigProvider,
+  getResourceDBProvider,
+  getCatalogDBProvider,
+  listGroupMemberShipByUser,
+});
+
 describe("Testing listResourceAuditItem", () => {
   it("should list resource audit item with valid input", async () => {
     const getCatalogConfigSuccess = vi.fn().mockReturnValue(okAsync(some(testCatalogConfig)));
@@ -84,7 +95,7 @@ describe("Testing listResourceAuditItem", () => {
       ],
       paginationToken: undefined,
     };
-    const result = await listResourceAuditItem(logger, getCatalogConfigSuccess)(input);
+    const result = await listResourceAuditItem(logger, providersWith(getCatalogConfigSuccess))(input);
     if (result.isErr()) {
       throw result.error;
     }
@@ -113,7 +124,7 @@ describe("Testing listResourceAuditItem", () => {
       paginationToken: undefined,
       limit: undefined,
     };
-    const result = await listResourceAuditItem(logger, getCatalogConfigError)(input);
+    const result = await listResourceAuditItem(logger, providersWith(getCatalogConfigError))(input);
     expect(result.isErr()).toBe(true);
   });
 
@@ -147,7 +158,7 @@ describe("Testing listResourceAuditItem", () => {
       paginationToken: undefined,
       limit: undefined,
     };
-    const result = await listResourceAuditItem(logger, getCatalogConfig)(input);
+    const result = await listResourceAuditItem(logger, providersWith(getCatalogConfig))(input);
     expect(result.isErr()).toBe(true);
   });
 
@@ -199,7 +210,34 @@ describe("Testing listResourceAuditItem", () => {
     ],
   ])("returns failure result", async (key, input) => {
     const getCatalogConfigSuccess = vi.fn().mockReturnValue(okAsync(some(testCatalogConfig)));
-    const result = await listResourceAuditItem(logger, getCatalogConfigSuccess)(input);
+    const result = await listResourceAuditItem(logger, providersWith(getCatalogConfigSuccess))(input);
     expect(result.isErr()).toBe(true);
+  });
+  describe("visibility", () => {
+    const ownerGroupId = "96fc6a4c-b5d3-8c2b-0307-165168a023cd";
+    const input: ListResourceAuditItemInput = { catalogId, resourceTypeId, resourceId, requestUserId };
+    const restricted = vi.fn().mockReturnValue(okAsync(some({ id: resourceId, catalogId, resourceTypeId, ownerGroupId, visibility: "restricted" })));
+    const membership = (groups: Array<string>) =>
+      vi.fn().mockReturnValue(okAsync({ items: groups.map((groupId) => ({ groupId, userId: requestUserId, role: "member", createdAt: "", updatedAt: "" })) }));
+
+    it("returns FORBIDDEN for a restricted resource when the user is unrelated", async () => {
+      const result = await listResourceAuditItem(logger, {
+        getCatalogConfigProvider: vi.fn().mockReturnValue(okAsync(some(testCatalogConfig))),
+        getResourceDBProvider: restricted,
+        getCatalogDBProvider: vi.fn().mockReturnValue(okAsync(none)),
+        listGroupMemberShipByUser: membership([]),
+      })(input);
+      expect(result._unsafeUnwrapErr().code).toBe("FORBIDDEN");
+    });
+
+    it("lists audit items for an owner group member", async () => {
+      const result = await listResourceAuditItem(logger, {
+        getCatalogConfigProvider: vi.fn().mockReturnValue(okAsync(some(testCatalogConfig))),
+        getResourceDBProvider: restricted,
+        getCatalogDBProvider: vi.fn().mockReturnValue(okAsync(none)),
+        listGroupMemberShipByUser: membership([ownerGroupId]),
+      })(input);
+      expect(result._unsafeUnwrap().auditItems.length).toBe(1);
+    });
   });
 });

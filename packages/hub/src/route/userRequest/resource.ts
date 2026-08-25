@@ -46,6 +46,8 @@ export const resourceRouter = router({
     const getResourceResult = await getResourceInfo({
       getCatalogConfigProvider: ctx.config.catalogConfig.get,
       getResourceDBProvider: ctx.db.resourceDB.getById,
+      getCatalogDBProvider: ctx.db.catalogDB.getById,
+      listGroupMemberShipByUser: ctx.identity.groupMemberShip.listByUser,
     })(input)
       .andThen(unwrapOptionOrThrowNotFound)
       .mapErr(convertTRPCError(logger));
@@ -87,6 +89,7 @@ export const resourceRouter = router({
           getNotificationPluginConfig: ctx.config.notificationPlugin.get,
           createSchedulerEvent: ctx.scheduler?.createSchedulerEvent,
           getGroup: ctx.identity.group.get,
+          getGroupMemberShip: ctx.identity.groupMemberShip.get,
         },
         logger
       )
@@ -136,7 +139,12 @@ export const resourceRouter = router({
   }),
   listOutlines: publicProcedure.input(ListResourceOutlinesInput).query(async ({ input, ctx }) => {
     const logger = createStampHubLogger();
-    const listResourceOutlinesResult = await listResourceOutlines({ catalogConfigProvider: ctx.config.catalogConfig })(input).mapErr(convertTRPCError(logger));
+    const listResourceOutlinesResult = await listResourceOutlines({
+      catalogConfigProvider: ctx.config.catalogConfig,
+      catalogDBProvider: ctx.db.catalogDB,
+      resourceDBProvider: ctx.db.resourceDB,
+      listGroupMemberShipByUser: ctx.identity.groupMemberShip.listByUser,
+    })(input).mapErr(convertTRPCError(logger));
     return unwrapOrthrowTRPCError(listResourceOutlinesResult);
   }),
   updateApprover: publicProcedure.input(UpdateResourceApproverInput).mutation(async ({ input, ctx }) => {
@@ -182,7 +190,12 @@ export const resourceRouter = router({
   }),
   listAuditItem: publicProcedure.input(ListResourceAuditItemInput).query(async ({ input, ctx }) => {
     const logger = createStampHubLogger();
-    const listResourceAuditItemResult = await listResourceAuditItem(logger, ctx.config.catalogConfig.get)(input).mapErr(convertTRPCError(logger));
+    const listResourceAuditItemResult = await listResourceAuditItem(logger, {
+      getCatalogConfigProvider: ctx.config.catalogConfig.get,
+      getResourceDBProvider: ctx.db.resourceDB.getById,
+      getCatalogDBProvider: ctx.db.catalogDB.getById,
+      listGroupMemberShipByUser: ctx.identity.groupMemberShip.listByUser,
+    })(input).mapErr(convertTRPCError(logger));
     return unwrapOrthrowTRPCError(listResourceAuditItemResult);
   }),
   createAuditNotification: publicProcedure.input(CreateAuditNotificationInput).mutation(async ({ input, ctx }) => {

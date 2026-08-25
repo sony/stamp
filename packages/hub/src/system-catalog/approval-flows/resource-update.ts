@@ -13,7 +13,7 @@ import { createStampHubLogger } from "../../logger";
 import { CatalogConfigProvider } from "@stamp-lib/stamp-types/configInterface";
 import { createGetCatalogConfig } from "../../events/catalog/catalogConfig";
 import { convertPromiseResultToResultAsync } from "../../utils/neverthrow";
-import { GetResourceInfo, getResourceInfo } from "../../workflows/resource/getResourceInfo";
+import { GetResourceInfo, getResourceInfoWithoutVisibilityCheck } from "../../workflows/resource/getResourceInfo";
 import { Logger } from "@stamp-lib/stamp-logger";
 import { StampHubError } from "../../error";
 
@@ -50,7 +50,7 @@ export const createCheckCanApproveResourceUpdate = (
   resourceDBProvider: ResourceDBProvider
 ): CheckCanApproveResourceUpdate => {
   return checkCanApproveResourceUpdate({
-    getResourceInfo: getResourceInfo({
+    getResourceInfo: getResourceInfoWithoutVisibilityCheck({
       getCatalogConfigProvider: catalogConfigProvider.get,
       getResourceDBProvider: resourceDBProvider.getById,
     }),

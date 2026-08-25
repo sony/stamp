@@ -2,7 +2,8 @@ import { none, some } from "@stamp-lib/stamp-option";
 import { HandlerError, ResourceHandlers } from "@stamp-lib/stamp-types/catalogInterface/handler";
 import { CatalogConfigProvider } from "@stamp-lib/stamp-types/configInterface";
 import { CatalogConfig, ResourceOnDB, ResourceTypeConfig } from "@stamp-lib/stamp-types/models";
-import { DBError, ResourceDBProvider } from "@stamp-lib/stamp-types/pluginInterface/database";
+import { CatalogDBProvider, DBError, ResourceDBProvider } from "@stamp-lib/stamp-types/pluginInterface/database";
+import { GroupMemberShipProvider, IdentityPluginError } from "@stamp-lib/stamp-types/pluginInterface/identity";
 import { err, ok, okAsync } from "neverthrow";
 import { describe, expect, it, vi } from "vitest";
 import { getResourceInfo } from "./getResourceInfo";
@@ -62,6 +63,12 @@ describe("getResourceInfo", () => {
     delete: vi.fn().mockResolvedValue(err(new DBError("DB error"))),
   };
 
+  // The resource is not restricted, so these are never consulted.
+  const getCatalogDBProvider: CatalogDBProvider["getById"] = vi.fn().mockReturnValue(okAsync(none));
+  const listGroupMemberShipByUser: GroupMemberShipProvider["listByUser"] = vi
+    .fn()
+    .mockReturnValue(err(new IdentityPluginError("This is Identity Plugin Error")));
+
   const input: GetResourceInfoInput = {
     catalogId: "test-catalog-id",
     resourceTypeId: "test-resource-type-id",
@@ -93,6 +100,8 @@ describe("getResourceInfo", () => {
     const result = await getResourceInfo({
       getCatalogConfigProvider: catalogConfigProvider.get,
       getResourceDBProvider: resourceDBProviderForSuccess.getById,
+      getCatalogDBProvider,
+      listGroupMemberShipByUser,
     })(input);
     if (result.isErr()) {
       throw result.error;
@@ -122,6 +131,8 @@ describe("getResourceInfo", () => {
     const result = await getResourceInfo({
       getCatalogConfigProvider: catalogConfigProvider.get,
       getResourceDBProvider: resourceDBProviderForSuccess.getById,
+      getCatalogDBProvider,
+      listGroupMemberShipByUser,
     })(input);
     if (result.isOk()) {
       throw result.value;
@@ -148,6 +159,8 @@ describe("getResourceInfo", () => {
     const result = await getResourceInfo({
       getCatalogConfigProvider: catalogConfigProvider.get,
       getResourceDBProvider: resourceDBProviderForSuccess.getById,
+      getCatalogDBProvider,
+      listGroupMemberShipByUser,
     })(input);
     if (result.isOk()) {
       throw result.value;
@@ -156,5 +169,33 @@ describe("getResourceInfo", () => {
     expect(result.error.systemMessage).toBe("ResourceType not found");
     expect(result.error.userMessage).toBe("ResourceType Not Found");
     expect(result.error.code).toBe("NOT_FOUND");
+  });
+  describe("visibility", () => {
+    const catalogConfigProvider: CatalogConfigProvider = {
+      get: () => okAsync(some({ ...baseCatalogConfig, resourceTypes: [resourceTypeConfigForSuccess] })),
+    };
+    const restrictedGetById: ResourceDBProvider["getById"] = vi.fn().mockReturnValue(okAsync(some({ ownerGroupId, visibility: "restricted" })));
+    const membership = (groups: Array<string>) =>
+      vi.fn().mockReturnValue(okAsync({ items: groups.map((groupId) => ({ groupId, userId: requestUserId, role: "member", createdAt: "", updatedAt: "" })) }));
+
+    it("returns FORBIDDEN for a restricted resource when the user is unrelated", async () => {
+      const result = await getResourceInfo({
+        getCatalogConfigProvider: catalogConfigProvider.get,
+        getResourceDBProvider: restrictedGetById,
+        getCatalogDBProvider: vi.fn().mockReturnValue(okAsync(some({ id: "test-catalog-id", ownerGroupId: undefined }))),
+        listGroupMemberShipByUser: membership([]),
+      })(input);
+      expect(result._unsafeUnwrapErr().code).toBe("FORBIDDEN");
+    });
+
+    it("returns the resource to an owner group member", async () => {
+      const result = await getResourceInfo({
+        getCatalogConfigProvider: catalogConfigProvider.get,
+        getResourceDBProvider: restrictedGetById,
+        getCatalogDBProvider: vi.fn().mockReturnValue(okAsync(some({ id: "test-catalog-id", ownerGroupId: undefined }))),
+        listGroupMemberShipByUser: membership([ownerGroupId]),
+      })(input);
+      expect(result._unsafeUnwrap().isSome()).toBe(true);
+    });
   });
 });

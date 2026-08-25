@@ -73,6 +73,7 @@ describe("submitWorkflow", () => {
     ),
     getNotificationPluginConfig: vi.fn().mockReturnValue(okAsync(none)),
     createSchedulerEvent: vi.fn().mockReturnValue(okAsync({ id: "scheduler-event-id" })),
+    getGroupMemberShip: vi.fn().mockReturnValue(okAsync(none)),
   };
 
   it("should successfully submit approval request without autoRevokeDuration", async () => {
@@ -847,5 +848,114 @@ describe("submitWorkflow", () => {
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap().status).toBe("pending");
     expect(sendNotificationMock).toHaveBeenCalled();
+  });
+  describe("requester authorization and visibility snapshot", () => {
+    const requesterGroupId = "1f10d463-a2fe-c407-2b95-05b561346c8b";
+    const ownerGroupId = "96fc6a4c-b5d3-8c2b-0307-165168a023cd";
+    const resourceHandlers = {
+      createResource: vi.fn(),
+      deleteResource: vi.fn(),
+      getResource: vi.fn().mockResolvedValue(ok(some({ resourceId: "test-resource-id", name: "r", params: {} }))),
+      listResources: vi.fn(),
+      updateResource: vi.fn(),
+      listResourceAuditItem: vi.fn(),
+    };
+    const catalogConfigWithResourceType = vi.fn().mockReturnValue(
+      okAsync(
+        some({
+          id: "test-catalog-id",
+          name: "test-catalog",
+          description: "catalogDescription",
+          approvalFlows: [
+            {
+              id: "test-approval-flow-id",
+              name: "testApprovalFlowName",
+              description: "testApprovalFlowDescription",
+              inputParams: [],
+              handlers: testApprovalFlowHandler,
+              inputResources: [{ resourceTypeId: "test-resource-type-id", description: "d" }],
+              approver: { approverType: "approvalFlow" },
+            },
+          ],
+          resourceTypes: [
+            {
+              id: "test-resource-type-id",
+              name: "t",
+              description: "t",
+              createParams: [],
+              infoParams: [],
+              handlers: resourceHandlers,
+              isCreatable: false,
+              isUpdatable: false,
+              isDeletable: false,
+              ownerManagement: true,
+              approverManagement: true,
+            },
+          ],
+        })
+      )
+    );
+    const input: SubmitWorkflowInput = {
+      approvalFlowId: "test-approval-flow-id",
+      requestUserId: "dbf33b00-8a5f-e045-4aa1-2d943cb659b6",
+      requestComment: "test request comment",
+      inputParams: [],
+      inputResources: [{ resourceTypeId: "test-resource-type-id", resourceId: "test-resource-id" }],
+      catalogId: "test-catalog-id",
+    };
+
+    it("rejects with FORBIDDEN and writes nothing when the requester is not in requesterGroupIds", async () => {
+      const mockProviders = {
+        ...defaultMockProviders,
+        getCatalogConfigProvider: catalogConfigWithResourceType,
+        getResourceById: vi
+          .fn()
+          .mockReturnValue(okAsync(some({ id: "test-resource-id", catalogId: "test-catalog-id", resourceTypeId: "test-resource-type-id", requesterGroupIds: [requesterGroupId] }))),
+        getGroupMemberShip: vi.fn().mockReturnValue(okAsync(none)),
+      };
+      const result = await submitWorkflow(mockProviders, logger)(input);
+      expect(result._unsafeUnwrapErr().code).toBe("FORBIDDEN");
+      expect(mockProviders.setApprovalRequestDBProvider).not.toHaveBeenCalled();
+      expect(mockProviders.getGroupMemberShip).toHaveBeenCalledWith({ groupId: requesterGroupId, userId: input.requestUserId });
+    });
+
+    it("submits when the requester is a member and stores a visibility snapshot for a restricted resource", async () => {
+      const mockProviders = {
+        ...defaultMockProviders,
+        getCatalogConfigProvider: catalogConfigWithResourceType,
+        getResourceById: vi.fn().mockReturnValue(
+          okAsync(
+            some({
+              id: "test-resource-id",
+              catalogId: "test-catalog-id",
+              resourceTypeId: "test-resource-type-id",
+              ownerGroupId,
+              requesterGroupIds: [requesterGroupId],
+              visibility: "restricted",
+            })
+          )
+        ),
+        getGroupMemberShip: vi.fn().mockReturnValue(okAsync(some({ groupId: requesterGroupId, userId: input.requestUserId, role: "member", createdAt: "", updatedAt: "" }))),
+      };
+      const result = await submitWorkflow(mockProviders, logger)(input);
+      expect(result._unsafeUnwrap().status).toBe("pending");
+      const stored = mockProviders.setApprovalRequestDBProvider.mock.calls[0][0];
+      expect(stored.visibility).toEqual({ type: "restricted", viewerGroupIds: [ownerGroupId, requesterGroupId] });
+    });
+
+    it("stores no visibility snapshot for unrestricted resources and ignores a client-supplied visibility", async () => {
+      const mockProviders = {
+        ...defaultMockProviders,
+        getCatalogConfigProvider: catalogConfigWithResourceType,
+        getResourceById: vi.fn().mockReturnValue(okAsync(some({ id: "test-resource-id", catalogId: "test-catalog-id", resourceTypeId: "test-resource-type-id", ownerGroupId }))),
+      };
+      const result = await submitWorkflow(mockProviders, logger)({
+        ...input,
+        visibility: { type: "restricted", viewerGroupIds: [ownerGroupId] },
+      } as unknown as SubmitWorkflowInput);
+      expect(result._unsafeUnwrap().status).toBe("pending");
+      const stored = mockProviders.setApprovalRequestDBProvider.mock.calls[0][0];
+      expect(stored.visibility).toBeUndefined();
+    });
   });
 });
