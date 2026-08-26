@@ -104,6 +104,24 @@ function Overview({ resourceType, resourceOutline }: { resourceType: ResourceTyp
       )}
 
       <Flex direction="column" gap="1">
+        <Heading size="3">Requester Groups</Heading>
+        <Flex p="1" direction="column" gap="1">
+          {resource.requesterGroupIds && resource.requesterGroupIds.length > 0 ? (
+            resource.requesterGroupIds.map((groupId) => <GroupLink key={groupId} groupId={groupId} />)
+          ) : (
+            <Text size="2">No setting (anyone can request)</Text>
+          )}
+        </Flex>
+      </Flex>
+
+      <Flex direction="column" gap="1">
+        <Heading size="3">Visibility</Heading>
+        <Flex p="1">
+          <Text size="2">{resource.visibility === "restricted" ? "Restricted (requester, approver and owner groups only)" : "All"}</Text>
+        </Flex>
+      </Flex>
+
+      <Flex direction="column" gap="1">
         <Heading size="3">Audit Notification</Heading>
         {resource.auditNotifications ? (
           resource.auditNotifications?.map((notification) => (
