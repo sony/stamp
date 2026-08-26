@@ -13,6 +13,7 @@ import { updateOwnerGroup } from "@/server-actions/resource/updateOwnerGroup";
 import { deleteResource } from "@/server-actions/resource/deleteResource";
 import { NotificationSettingModal } from "./setResourceNotification";
 import { ResourceEditModal } from "./resourceEditModal";
+import { RequestAccessSettingModal } from "./requestAccessSettingModal";
 
 export function DotsMenu({ resourceType, resourceOutline }: { resourceType: ResourceType; resourceOutline: ResourceOutline }) {
   const isNotUpdatable = !resourceType.isUpdatable;
@@ -22,6 +23,7 @@ export function DotsMenu({ resourceType, resourceOutline }: { resourceType: Reso
   const [EditParamsModalOpen, setEditParamsModalOpen] = useState(false);
   const [OwnerSettingModalOpen, setOwnerSettingModalOpen] = useState(false);
   const [ApproverSettingModalOpen, setApproverSettingModalOpen] = useState(false);
+  const [RequestAccessSettingModalOpen, setRequestAccessSettingModalOpen] = useState(false);
   const [NotificationSettingModalOpen, setNotificationSettingModalOpen] = useState(false);
   const [DeleteModalOpen, setDeleteModalOpen] = useState(false);
 
@@ -29,12 +31,19 @@ export function DotsMenu({ resourceType, resourceOutline }: { resourceType: Reso
   // https://github.com/radix-ui/primitives/issues/2355
   // https://github.com/radix-ui/primitives/issues/1241#issuecomment-1888232392
   useEffect(() => {
-    if (!EditParamsModalOpen || !OwnerSettingModalOpen || !ApproverSettingModalOpen || !DeleteModalOpen) {
+    if (
+      !EditParamsModalOpen ||
+      !OwnerSettingModalOpen ||
+      !ApproverSettingModalOpen ||
+      !RequestAccessSettingModalOpen ||
+      !NotificationSettingModalOpen ||
+      !DeleteModalOpen
+    ) {
       setTimeout(() => {
         document.body.style.pointerEvents = "";
       }, 500);
     }
-  }, [EditParamsModalOpen, OwnerSettingModalOpen, ApproverSettingModalOpen, DeleteModalOpen]);
+  }, [EditParamsModalOpen, OwnerSettingModalOpen, ApproverSettingModalOpen, RequestAccessSettingModalOpen, NotificationSettingModalOpen, DeleteModalOpen]);
 
   return (
     <Flex>
@@ -67,6 +76,13 @@ export function DotsMenu({ resourceType, resourceOutline }: { resourceType: Reso
               }}
             >
               Approver Setting
+            </DropdownMenu.Item>
+            <DropdownMenu.Item
+              onClick={() => {
+                setRequestAccessSettingModalOpen(true);
+              }}
+            >
+              Request Access Setting
             </DropdownMenu.Item>
             <DropdownMenu.Item
               onClick={() => {
@@ -104,6 +120,12 @@ export function DotsMenu({ resourceType, resourceOutline }: { resourceType: Reso
           resourceOutline={resourceOutline}
           modalOpen={ApproverSettingModalOpen}
           setModalOpen={setApproverSettingModalOpen}
+        />
+        <RequestAccessSettingModal
+          resourceType={resourceType}
+          resourceOutline={resourceOutline}
+          modalOpen={RequestAccessSettingModalOpen}
+          setModalOpen={setRequestAccessSettingModalOpen}
         />
         <NotificationSettingModal resourceOutline={resourceOutline} modalOpen={NotificationSettingModalOpen} setModalOpen={setNotificationSettingModalOpen} />
         <DeleteModal resourceType={resourceType} resourceOutline={resourceOutline} modalOpen={DeleteModalOpen} setModalOpen={setDeleteModalOpen} />

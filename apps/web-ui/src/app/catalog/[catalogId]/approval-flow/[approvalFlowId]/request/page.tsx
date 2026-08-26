@@ -32,7 +32,9 @@ export default async function Page({
   const approvalFlow = await unwrapOr(stampHubClient.userRequest.approvalFlow.get.query({ catalogId, approvalFlowId }), undefined);
   if (!approvalFlow) return notFound();
 
+  // eslint-disable-next-line react-hooks/purity -- server component: the default date range is computed per request
   const start = typeof resolvedSearchParams["start"] === "string" ? resolvedSearchParams["start"] : new Date(Date.now() - 1000 * 60 * 60 * 24 * 14).toISOString(); // default 14 days ago
+  // eslint-disable-next-line react-hooks/purity -- server component: the default date range is computed per request
   const end = typeof resolvedSearchParams["end"] === "string" ? resolvedSearchParams["end"] : new Date(Date.now()).toISOString();
 
   const userSession = await getSessionUser();

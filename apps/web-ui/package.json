@@ -14,7 +14,8 @@
     "next-dev": "next dev",
     "next-build": "next build",
     "next-start": "next start",
-    "next-lint": "next lint"
+    "lint": "eslint .",
+    "next-lint": "eslint ."
   },
   "dependencies": {
     "@hono/node-server": "1.19.17",
