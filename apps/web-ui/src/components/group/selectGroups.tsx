@@ -47,11 +47,9 @@ export function SelectGroups({
 
   return (
     <Flex direction="column" gap="2">
-      <label htmlFor={name}>
-        <Text as="div" size="2" weight="bold">
-          {label}
-        </Text>
-      </label>
+      <Text as="div" size="2" weight="bold">
+        {label}
+      </Text>
       {selectedGroupIds.map((groupId) => (
         <input key={groupId} type="hidden" name={name} value={groupId} />
       ))}
@@ -78,7 +76,7 @@ export function SelectGroups({
         )
       )}
       <Popover.Root open={openPopover} onOpenChange={setOpenPopover}>
-        <Popover.Trigger disabled={disabled || isLoading || groups.length === 0} id={name}>
+        <Popover.Trigger disabled={disabled || isLoading || groups.length === 0}>
           <Button type="button" color="gray" variant="surface">
             <Text weight="light" highContrast>
               {triggerText}
