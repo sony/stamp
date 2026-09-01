@@ -50,7 +50,8 @@ export function createIamRoleCatalog(iamRoleCatalogConfigInput: IamRoleCatalogCo
       { type: "string", id: "repositoryName", name: "Repository Name", required: true },
       { type: "string", id: "repositoryId", name: "Repository ID (numeric)", required: true },
       { type: "string", id: "roleSuffix", name: "Role Suffix (optional, for multiple roles per repository)", required: false },
-      { type: "string", id: "subjectType", name: "Subject Type (optional, default: repository)", required: false },
+      { type: "string", id: "subjectType", name: "Subject Type (optional, default: repository; one of repository, branch, environment, tag, pull_request)", required: false },
+      { type: "string", id: "subjectValue", name: "Subject Value (required for branch/environment/tag)", required: false },
     ],
     infoParams: [
       { type: "string", id: "gitHubOrgName", name: "GitHub Organization", edit: false },
@@ -58,6 +59,7 @@ export function createIamRoleCatalog(iamRoleCatalogConfigInput: IamRoleCatalogCo
       { type: "string", id: "repositoryId", name: "Repository ID", edit: false },
       { type: "string", id: "roleSuffix", name: "Role Suffix", edit: false },
       { type: "string", id: "subjectType", name: "Subject Type", edit: false },
+      { type: "string", id: "subjectValue", name: "Subject Value", edit: false },
       { type: "string", id: "subject", name: "OIDC Subject Claim", edit: false },
       { type: "string", id: "iamRoleArn", name: "IAM Role Arn", edit: false },
     ],
