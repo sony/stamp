@@ -311,5 +311,5 @@ describe(
       expect(result.value).toEqual(void 0);
     });
   },
-  { timeout: 100000 }
+  100000
 );

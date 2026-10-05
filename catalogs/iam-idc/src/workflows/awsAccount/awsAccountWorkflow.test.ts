@@ -101,5 +101,5 @@ describe(
       expect(awsAccount).toEqual(expected);
     });
   },
-  { timeout: 100000 }
+  100000
 );

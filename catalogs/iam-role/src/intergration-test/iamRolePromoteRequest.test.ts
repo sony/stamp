@@ -394,7 +394,7 @@ describe("Testing iamRolePromoteRequest", () => {
         });
       });
     },
-    { timeout: 100000 }
+    100000
   );
 
   describe("GitHubIamRoleResource Audit", () => {
