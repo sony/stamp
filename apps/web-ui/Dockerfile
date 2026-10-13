@@ -2,7 +2,7 @@
 FROM --platform=linux/amd64 node:24-alpine as builder
 
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 COPY tsconfig.json next.config.js postcss.config.js tailwind.config.ts ./
 
 RUN npm install -g npm@11.12.1 && npm ci
