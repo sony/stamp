@@ -320,5 +320,5 @@ describe(
       });
     });
   },
-  { timeout: 600000 } // Set timeout to 600 second
+  600000 // Set timeout to 600 second
 );

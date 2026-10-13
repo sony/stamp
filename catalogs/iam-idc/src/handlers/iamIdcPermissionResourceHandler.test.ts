@@ -189,7 +189,7 @@ describe(
       expect(result.value).toEqual(void 0);
     });
   },
-  { timeout: 100000 }
+  100000
 );
 
 describe(
@@ -273,7 +273,7 @@ describe(
       expect(deleteResult.isOk()).toBe(true);
     });
   },
-  { timeout: 100000 }
+  100000
 );
 
 describe(
@@ -550,7 +550,7 @@ describe(
       expect(deleteResult.isOk()).toBe(true);
     });
   },
-  { timeout: 300000 } // Longer timeout for AWS operations including provisioning
+  300000 // Longer timeout for AWS operations including provisioning
 );
 
 describe(
@@ -662,5 +662,5 @@ describe(
       });
     });
   },
-  { timeout: 200000 }
+  200000
 );

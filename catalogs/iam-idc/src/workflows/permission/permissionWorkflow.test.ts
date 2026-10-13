@@ -440,5 +440,5 @@ describe(
       expect(error.code).toBe("BAD_REQUEST");
     });
   },
-  { timeout: 100000 }
+  100000
 );
