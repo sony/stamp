@@ -19,6 +19,8 @@ import {
 import { CreateSchedulerEvent } from "@stamp-lib/stamp-types/pluginInterface/scheduler";
 import { settingAutoRevoke } from "../../events/approval-request/actions/autoRevoke";
 import { Logger } from "@stamp-lib/stamp-logger";
+import { createFindResourceNotRequestableBy } from "../../events/approval-request/authz/submit";
+import { inputResourcesOfApprovalRequest } from "../../events/approval-request/resources";
 
 export const ApproveWorkflowInput = z.object({ approvalRequestId: z.string(), approvedComment: z.string().max(1024), userIdWhoApproved: UserId });
 export type ApproveWorkflowInput = z.infer<typeof ApproveWorkflowInput>;
@@ -49,6 +51,7 @@ export const approveWorkflow =
       createSchedulerEvent,
     } = providers;
     const getCatalogConfig = createGetCatalogConfig(getCatalogConfigProvider);
+    const findResourceNotRequestableBy = createFindResourceNotRequestableBy(getResourceById, getGroupMemberShip);
 
     return parseZodObjectAsync(input, ApproveWorkflowInput)
       .andThen((parsedInput) => {
@@ -116,6 +119,25 @@ export const approveWorkflow =
           // Return Internal server error because approverType is only approvalFlow or resource.
           return errAsync(new StampHubError("Approver type not found", "Approver Type Not Found", "INTERNAL_SERVER_ERROR"));
         }
+      })
+      .andThen((extendApprovalRequest) => {
+        // Re-check that the requester is still allowed to request every input resource
+        // (requesterGroupIds may have been tightened after the request was submitted).
+        return findResourceNotRequestableBy(extendApprovalRequest.requestUserId, inputResourcesOfApprovalRequest(extendApprovalRequest)).andThen(
+          (notRequestable) => {
+            if (notRequestable.isNone()) {
+              return okAsync(extendApprovalRequest);
+            }
+            const ref = notRequestable.value;
+            return errAsync(
+              new StampHubError(
+                `Requester ${extendApprovalRequest.requestUserId} is no longer in requesterGroupIds of resource ${ref.resourceTypeId}/${ref.resourceId}`,
+                "Requester is no longer allowed to request this resource. Please reject the request.",
+                "BAD_REQUEST"
+              )
+            );
+          }
+        );
       })
       .andThen((extendApprovedRequest) => {
         // If autoRevokeDuration is set, create a scheduler event to revoke the request.

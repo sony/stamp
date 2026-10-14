@@ -27,6 +27,7 @@ export const approvalRequestRouter = router({
         getApprovalFlowById: ctx.db.approvalFlowDB.getById,
         getResourceById: ctx.db.resourceDB.getById,
         getGroup: ctx.identity.group.get,
+        getGroupMemberShip: ctx.identity.groupMemberShip.get,
         getNotificationPluginConfig: ctx.config.notificationPlugin.get,
         createSchedulerEvent: ctx.scheduler?.createSchedulerEvent,
       },

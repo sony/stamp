@@ -22,7 +22,7 @@ import {
   UpdateResourceVisibilityInput as WorkflowUpdateResourceVisibilityInput,
 } from "./workflows/resource/input";
 import { UserId } from "@stamp-lib/stamp-types/pluginInterface/identity";
-import { ApprovalFlowInfo } from "@stamp-lib/stamp-types/models";
+import { ApprovalFlowId, ApprovalFlowInfo, ApprovalRequestInputResource, CatalogId } from "@stamp-lib/stamp-types/models";
 
 export const EditUserInput = DeleteUserInput;
 export type EditUserInput = z.infer<typeof EditUserInput>;
@@ -65,7 +65,12 @@ export type UpdateResourceVisibilityInput = z.infer<typeof UpdateResourceVisibil
 export const EditApprovalFlowInput = z.object({ catalogId: z.string(), approvalFlowId: z.string(), requestUserId: UserId });
 export type EditApprovalFlowInput = z.infer<typeof EditApprovalFlowInput>;
 
-export const SubmitApprovalRequestInput = z.object({ catalogId: z.string(), approvalFlowId: z.string(), requestUserId: UserId });
+export const SubmitApprovalRequestInput = z.object({
+  catalogId: CatalogId,
+  approvalFlowId: ApprovalFlowId,
+  requestUserId: UserId,
+  inputResources: z.array(ApprovalRequestInputResource).max(5),
+});
 export type SubmitApprovalRequestInput = z.infer<typeof SubmitApprovalRequestInput>;
 
 export const ApproveApprovalRequestInput = z.object({ catalogId: z.string(), approvalFlowId: z.string(), userIdWhoApproved: UserId });
