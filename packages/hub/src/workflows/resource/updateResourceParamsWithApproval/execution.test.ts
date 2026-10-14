@@ -28,6 +28,7 @@ describe("updateResourceParamsWithApproval.execution", () => {
     createAuditNotification: vi.fn(),
     updateAuditNotification: vi.fn(),
     deleteAuditNotification: vi.fn(),
+    listByResourceType: vi.fn(),
   });
 
   // Create logger using the actual createLogger function

@@ -148,6 +148,7 @@ describe("revokeWorkflow", () => {
     createAuditNotification: vi.fn().mockResolvedValue(err(new DBError("DB error"))),
     updateAuditNotification: vi.fn().mockResolvedValue(err(new DBError("DB error"))),
     deleteAuditNotification: vi.fn().mockResolvedValue(err(new DBError("DB error"))),
+    listByResourceType: vi.fn(),
   };
 
   const groupMemberShipProvider: GroupMemberShipProvider = {

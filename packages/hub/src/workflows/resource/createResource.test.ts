@@ -310,4 +310,77 @@ describe("createResource", () => {
     expect(result.error.userMessage).toBe("ResourceType Not Found");
     expect(result.error.code).toBe("NOT_FOUND");
   });
+  it("Adds record to resource DB when only requesterGroupIds is given (normalized, deduped)", async () => {
+    const requesterGroupId = "1f10d463-a2fe-c407-2b95-05b561346c8b";
+    const input: CreateResourceInput = {
+      ...baseInput,
+      parentResourceId: "123456789012",
+      requesterGroupIds: [requesterGroupId, requesterGroupId],
+    };
+    const catalogConfig: CatalogConfig = { ...baseCatalogConfig, resourceTypes: [resourceTypeConfigForSuccess] };
+    const catalogConfigProvider: CatalogConfigProvider = { get: () => okAsync(some(catalogConfig)) };
+    const set = vi.fn((resourceOnDB: ResourceOnDB) => okAsync(structuredClone(resourceOnDB)));
+
+    const result = await createResource({
+      catalogDBProvider: catalogDbProviderForSuccess,
+      catalogConfigProvider: catalogConfigProvider,
+      resourceDBProvider: { ...resourceDBProviderForSuccess, set },
+      getGroupMemberShip: groupMemberShipProvider.get,
+    })(input);
+    if (result.isErr()) {
+      throw result.error;
+    }
+    expect(set).toHaveBeenCalledTimes(1);
+    expect(set.mock.calls[0][0]).toMatchObject({ id: "112233445566", requesterGroupIds: [requesterGroupId], visibility: undefined });
+    expect(result.value.requesterGroupIds).toEqual([requesterGroupId]);
+  });
+
+  it("Adds record to resource DB when only visibility restricted is given", async () => {
+    const input: CreateResourceInput = {
+      ...baseInput,
+      parentResourceId: "123456789012",
+      visibility: "restricted",
+    };
+    const catalogConfig: CatalogConfig = { ...baseCatalogConfig, resourceTypes: [resourceTypeConfigForSuccess] };
+    const catalogConfigProvider: CatalogConfigProvider = { get: () => okAsync(some(catalogConfig)) };
+    const set = vi.fn((resourceOnDB: ResourceOnDB) => okAsync(structuredClone(resourceOnDB)));
+
+    const result = await createResource({
+      catalogDBProvider: catalogDbProviderForSuccess,
+      catalogConfigProvider: catalogConfigProvider,
+      resourceDBProvider: { ...resourceDBProviderForSuccess, set },
+      getGroupMemberShip: groupMemberShipProvider.get,
+    })(input);
+    if (result.isErr()) {
+      throw result.error;
+    }
+    expect(set).toHaveBeenCalledTimes(1);
+    expect(set.mock.calls[0][0]).toMatchObject({ id: "112233445566", visibility: "restricted" });
+    expect(result.value.visibility).toBe("restricted");
+  });
+
+  it('Does not add record to resource DB when requesterGroupIds is [] and visibility is "all"', async () => {
+    const input: CreateResourceInput = {
+      ...baseInput,
+      parentResourceId: "123456789012",
+      requesterGroupIds: [],
+      visibility: "all",
+    };
+    const catalogConfig: CatalogConfig = { ...baseCatalogConfig, resourceTypes: [resourceTypeConfigForSuccess] };
+    const catalogConfigProvider: CatalogConfigProvider = { get: () => okAsync(some(catalogConfig)) };
+    const set = vi.fn((resourceOnDB: ResourceOnDB) => okAsync(structuredClone(resourceOnDB)));
+
+    const result = await createResource({
+      catalogDBProvider: catalogDbProviderForSuccess,
+      catalogConfigProvider: catalogConfigProvider,
+      resourceDBProvider: { ...resourceDBProviderForSuccess, set },
+      getGroupMemberShip: groupMemberShipProvider.get,
+    })(input);
+    if (result.isErr()) {
+      throw result.error;
+    }
+    expect(set).not.toHaveBeenCalled();
+    expect(result.value.requesterGroupIds).toBeUndefined();
+    expect(result.value.visibility).toBeUndefined();
+  });
 });

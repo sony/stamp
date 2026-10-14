@@ -26,6 +26,7 @@ describe("updateResourceParamsWithApproval.resolution", () => {
         createAuditNotification: vi.fn(),
         updateAuditNotification: vi.fn(),
         deleteAuditNotification: vi.fn(),
+        listByResourceType: vi.fn(),
       };
       const mockGetResourceInfo = vi.fn().mockReturnValue(okAsync(some({ id: "res-1", name: "Test Resource" })));
 

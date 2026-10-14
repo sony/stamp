@@ -42,6 +42,20 @@ export type DeleteAuditNotificationInput = z.infer<typeof DeleteAuditNotificatio
 export type DeleteAuditNotificationOutput = ResultAsync<ResourceOnDB, DBError>;
 export type DeleteAuditNotification = (input: DeleteAuditNotificationInput) => DeleteAuditNotificationOutput;
 
+export const ListResourceByResourceTypeInput = z.object({
+  catalogId: CatalogId,
+  resourceTypeId: ResourceTypeId,
+  paginationToken: z.string().optional(),
+  limit: z.number().int().min(1).max(200).optional(),
+});
+export type ListResourceByResourceTypeInput = z.infer<typeof ListResourceByResourceTypeInput>;
+export type ListResourceByResourceTypeOutput = ResultAsync<{ items: Array<ResourceOnDB>; paginationToken?: string }, DBError>;
+/**
+ * List all ResourceOnDB rows of a resource type (i.e. resources that have any hub-side setting).
+ * Used to evaluate visibility for a whole list page without per-item reads.
+ */
+export type ListResourceByResourceType = (input: ListResourceByResourceTypeInput) => ListResourceByResourceTypeOutput;
+
 export type ResourceDBProvider = {
   getById(input: ResourceInput): ResourceDBGetByIdResult;
   set(resourceOnDB: ResourceOnDB): ResourceDBSetResult;
@@ -50,4 +64,5 @@ export type ResourceDBProvider = {
   createAuditNotification: CreateAuditNotification;
   updateAuditNotification: UpdateAuditNotification;
   deleteAuditNotification: DeleteAuditNotification;
+  listByResourceType: ListResourceByResourceType;
 };

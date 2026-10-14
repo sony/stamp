@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { CatalogId } from "./id";
 import { ApprovalFlowId } from "./id";
-import { UserId } from "../pluginInterface/identity";
+import { UserId, GroupId } from "../pluginInterface/identity";
 import { ResourceId, ResourceName } from "./resource";
 import { ResourceTypeId, ResourceTypeConfig } from "./resourceType";
 import { ApprovalFlowInputParam } from "./approvalFlow";
@@ -40,6 +40,18 @@ export const InputResourceWithName = z.object({
 });
 export type InputResourceWithName = z.infer<typeof InputResourceWithName>;
 
+/**
+ * Visibility snapshot taken when the request is submitted.
+ * Present only if at least one input resource had `visibility: "restricted"` at submit time.
+ * `viewerGroupIds` is the union of the owner / approver / requester / parent-owner groups of those resources.
+ * The visibility of a request is fixed by this snapshot and is not affected by later resource changes or deletion.
+ */
+export const ApprovalRequestVisibility = z.object({
+  type: z.literal("restricted"),
+  viewerGroupIds: z.array(GroupId).max(70),
+});
+export type ApprovalRequestVisibility = z.infer<typeof ApprovalRequestVisibility>;
+
 export const SubmittedRequest = z.object({
   requestId: z.string().uuid(),
   status: z.enum(["submitted"]),
@@ -53,6 +65,7 @@ export const SubmittedRequest = z.object({
   requestDate: z.string().datetime(),
   requestComment: z.string().max(1024),
   autoRevokeDuration: AutoRevokeDuration.optional(),
+  visibility: ApprovalRequestVisibility.optional(),
 });
 export type SubmittedRequest = z.infer<typeof SubmittedRequest>;
 

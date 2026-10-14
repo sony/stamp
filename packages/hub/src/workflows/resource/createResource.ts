@@ -10,6 +10,7 @@ import { createGetCatalogConfig } from "../../events/catalog/catalogConfig";
 import { getResourceTypeConfig } from "../../events/resource-type/resourceTypeConfig";
 import { createCheckCanCreateResource } from "../../events/resource/authz/canCreateResource";
 import { convertPromiseResultToResultAsync, parseZodObject } from "../../utils/neverthrow";
+import { normalizeRequesterGroupIds, normalizeVisibility } from "./normalizeResourceAccessSettings";
 
 export const createResource =
   (providers: {
@@ -49,11 +50,13 @@ export const createResource =
           );
         })
         .andThen((resource) => {
-          if (!parsedInput.approverGroupId && !parsedInput.ownerGroupId) {
-            // If approverGroupId and ownerGroupId are undefined, do not register to DB. (e.g. Unicorn)
-            return okAsync({ id: resource.resourceId, ...parsedInput, ...resource });
+          const requesterGroupIds = normalizeRequesterGroupIds(parsedInput.requesterGroupIds);
+          const visibility = normalizeVisibility(parsedInput.visibility);
+          if (!parsedInput.approverGroupId && !parsedInput.ownerGroupId && requesterGroupIds === undefined && visibility === undefined) {
+            // If no hub-side setting is given, do not register to DB. (e.g. Unicorn)
+            return okAsync({ id: resource.resourceId, ...parsedInput, requesterGroupIds, visibility, ...resource });
           }
-          return resourceDBProvider.set({ ...parsedInput, id: resource.resourceId }).map((resourceOnDB) => {
+          return resourceDBProvider.set({ ...parsedInput, requesterGroupIds, visibility, id: resource.resourceId }).map((resourceOnDB) => {
             return { ...resourceOnDB, ...resource };
           });
         })

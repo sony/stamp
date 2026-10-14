@@ -18,6 +18,8 @@ import {
   DeleteAuditNotificationInput,
   UpdateResourceParamsInput,
   CancelUpdateResourceParamsWithApprovalInput,
+  UpdateResourceRequesterGroupsInput as WorkflowUpdateResourceRequesterGroupsInput,
+  UpdateResourceVisibilityInput as WorkflowUpdateResourceVisibilityInput,
 } from "./workflows/resource/input";
 import { UserId } from "@stamp-lib/stamp-types/pluginInterface/identity";
 import { ApprovalFlowInfo } from "@stamp-lib/stamp-types/models";
@@ -42,8 +44,9 @@ export const EditResourceInput = z.union([
   CreateAuditNotificationInput,
   DeleteAuditNotificationInput,
   UpdateResourceParamsInput,
-  UpdateResourceParamsInput,
   CancelUpdateResourceParamsWithApprovalInput,
+  WorkflowUpdateResourceRequesterGroupsInput,
+  WorkflowUpdateResourceVisibilityInput,
 ]);
 export type EditResourceInput = z.infer<typeof EditResourceInput>;
 
@@ -52,6 +55,12 @@ export type UpdateResourceApproverInput = z.infer<typeof UpdateResourceApproverI
 
 export const UpdateResourceOwnerInput = WorkflowUpdateResourceOwnerInput;
 export type UpdateResourceOwnerInput = z.infer<typeof UpdateResourceOwnerInput>;
+
+export const UpdateResourceRequesterGroupsInput = WorkflowUpdateResourceRequesterGroupsInput;
+export type UpdateResourceRequesterGroupsInput = z.infer<typeof UpdateResourceRequesterGroupsInput>;
+
+export const UpdateResourceVisibilityInput = WorkflowUpdateResourceVisibilityInput;
+export type UpdateResourceVisibilityInput = z.infer<typeof UpdateResourceVisibilityInput>;
 
 export const EditApprovalFlowInput = z.object({ catalogId: z.string(), approvalFlowId: z.string(), requestUserId: UserId });
 export type EditApprovalFlowInput = z.infer<typeof EditApprovalFlowInput>;
