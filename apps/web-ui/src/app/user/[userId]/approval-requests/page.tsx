@@ -26,7 +26,9 @@ export default async function Page({
   const logger = createServerLogger();
   logger.info("params", resolvedParams);
   const user = await getUser(resolvedParams.userId);
+  // eslint-disable-next-line react-hooks/purity -- server component: the default date range is computed per request
   const start = typeof resolvedSearchParams["start"] === "string" ? resolvedSearchParams["start"] : new Date(Date.now() - 1000 * 60 * 60 * 24 * 14).toISOString(); // default 14 days ago
+  // eslint-disable-next-line react-hooks/purity -- server component: the default date range is computed per request
   const end = typeof resolvedSearchParams["end"] === "string" ? resolvedSearchParams["end"] : new Date(Date.now()).toISOString();
 
   const status = getParamAsString(resolvedSearchParams, "status");

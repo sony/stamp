@@ -1,7 +1,14 @@
 "use client";
 
 import { StampHubRouterOutput } from "@stamp-lib/stamp-hub";
-import { ResourceOutline } from "@/type";
+import { Resource, ResourceOutline } from "@/type";
+
+export async function getResource({ catalogId, resourceTypeId, resourceId }: { catalogId: string; resourceTypeId: string; resourceId: string }): Promise<Resource> {
+  const params = new URLSearchParams({ catalogId, resourceTypeId, resourceId });
+  const result = await fetch(`/api/resource/get?${params.toString()}`);
+  if (!result.ok) throw new Error(`Failed to fetch resource: ${result.statusText}`);
+  return (await result.json()) as StampHubRouterOutput["userRequest"]["resource"]["get"];
+}
 
 export async function listResourceOutlines({
   catalogId,

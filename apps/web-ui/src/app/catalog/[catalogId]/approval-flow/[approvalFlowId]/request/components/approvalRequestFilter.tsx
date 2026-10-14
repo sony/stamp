@@ -77,8 +77,8 @@ export const ApprovalRequestFilter = ({
     params.set("start", start.toISOString());
     params.set("end", end.toISOString());
 
-    selectedStatus && params.set("status", selectedStatus);
-    selectedApproverId && params.set("approverId", selectedApproverId);
+    if (selectedStatus) params.set("status", selectedStatus);
+    if (selectedApproverId) params.set("approverId", selectedApproverId);
 
     inputValuesMap.forEach((value: string, key: string) => {
       const prefix = "inputParams_";

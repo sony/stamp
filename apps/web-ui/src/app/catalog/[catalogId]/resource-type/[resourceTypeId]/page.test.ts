@@ -3,7 +3,7 @@ import { runTestWithMockServers } from "../../../../../../tests/mocks/testEnviro
 import { createMockStampHubRouter } from "../../../../../../tests/mocks/router/stampHubRouter";
 
 import { router, publicProcedure } from "@stamp-lib/stamp-hub";
-import { userRouter, catalogRouter, resourceTypeRouter, resourceRouter, approvalFlowRouter } from "@stamp-lib/stamp-hub";
+import { userRouter, catalogRouter, resourceTypeRouter, resourceRouter, approvalFlowRouter, groupRouter } from "@stamp-lib/stamp-hub";
 import { createMockProcedure } from "../../../../../../tests/mocks/router/mockProcedures";
 
 test.describe.configure({ mode: "serial", timeout: 1000000 });
@@ -187,6 +187,61 @@ const mockResourceRouterWithPendingUpdate = router({
     })
   ),
   cancelUpdateParamsWithApproval: publicProcedure.mutation(createMockProcedure<typeof resourceRouter.cancelUpdateParamsWithApproval>(undefined)),
+});
+
+const dummyGroup = {
+  groupId: "8f1c2a3b-4d5e-4f6a-8b9c-0d1e2f3a4b5c",
+  groupName: "Dummy Group",
+  description: "This is a dummy group for testing",
+  createdAt: "2024-01-01T00:00:00.000Z",
+  updatedAt: "2024-01-01T00:00:00.000Z",
+};
+
+const anotherGroup = {
+  groupId: "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+  groupName: "Another Group",
+  description: "This is another dummy group for testing",
+  createdAt: "2024-01-01T00:00:00.000Z",
+  updatedAt: "2024-01-01T00:00:00.000Z",
+};
+
+const mockGroupRouter = router({
+  get: publicProcedure.query(createMockProcedure<typeof groupRouter.get>(dummyGroup)),
+  list: publicProcedure.query(createMockProcedure<typeof groupRouter.list>({ items: [dummyGroup, anotherGroup] })),
+});
+
+const dummyResourceWithRequestAccess = {
+  ...dummyResource,
+  requesterGroupIds: [dummyGroup.groupId],
+  visibility: "restricted" as const,
+};
+
+const dummyResourceOnDB = {
+  id: "dummy-resource-id",
+  catalogId: "dummy-catalog-id",
+  resourceTypeId: "dummy-resource-type+",
+};
+
+const mockResourceRouterWithRequestAccess = router({
+  listOutlines: publicProcedure.query(
+    createMockProcedure<typeof resourceRouter.listOutlines>({
+      items: [dummyResourceOutline],
+    })
+  ),
+  get: publicProcedure.query(createMockProcedure<typeof resourceRouter.get>(dummyResourceWithRequestAccess)),
+  updateRequesterGroups: publicProcedure.mutation(createMockProcedure<typeof resourceRouter.updateRequesterGroups>(dummyResourceOnDB)),
+  updateVisibility: publicProcedure.mutation(createMockProcedure<typeof resourceRouter.updateVisibility>(dummyResourceOnDB)),
+});
+
+const mockResourceRouterWithoutRequestAccess = router({
+  listOutlines: publicProcedure.query(
+    createMockProcedure<typeof resourceRouter.listOutlines>({
+      items: [dummyResourceOutline],
+    })
+  ),
+  get: publicProcedure.query(createMockProcedure<typeof resourceRouter.get>(dummyResource)),
+  updateRequesterGroups: publicProcedure.mutation(createMockProcedure<typeof resourceRouter.updateRequesterGroups>(dummyResourceOnDB)),
+  updateVisibility: publicProcedure.mutation(createMockProcedure<typeof resourceRouter.updateVisibility>(dummyResourceOnDB)),
 });
 
 test.describe("Resource Type Page", () => {
@@ -579,6 +634,117 @@ test.describe("Resource Type Page", () => {
 
       // Modal should be closed regardless of redirect success
       await expect(page.getByRole("dialog")).not.toBeVisible();
+    });
+  });
+  test("should open Request Access Setting modal prefilled with current settings and submit", async ({ page, context }) => {
+    const mockRouter = createMockStampHubRouter({
+      systemRequest: router({
+        user: mockUserRouter,
+      }),
+      userRequest: router({
+        catalog: mockCatalogRouter,
+        resourceType: mockResourceTypeRouter,
+        resource: mockResourceRouterWithRequestAccess,
+        group: mockGroupRouter,
+      }),
+    });
+
+    await runTestWithMockServers(context, mockRouter, async () => {
+      await page.goto("http://localhost:3000/catalog/dummy-catalog-id/resource-type/dummy-resource-type%2B");
+      await page.waitForLoadState("load");
+      await expect(page.getByRole("link", { name: "Dummy Resource" })).toBeVisible();
+
+      const resourceRow = page.locator("tr").filter({ hasText: "Dummy Resource" });
+      await resourceRow.locator("svg").last().click();
+      await expect(page.getByText("Request Access Setting")).toBeVisible();
+      await page.getByText("Request Access Setting").click();
+
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Request access setting" })).toBeVisible();
+
+      // Prefilled: one requester group chip + hidden input, visibility restricted
+      await expect(page.locator('input[name="requesterGroupIds"]')).toHaveCount(1);
+      await expect(page.locator('input[name="requesterGroupIds"]')).toHaveValue(dummyGroup.groupId);
+      await expect(page.getByRole("dialog").getByText("Dummy Group")).toBeVisible();
+      await expect(page.getByRole("radio", { name: /Restricted/ })).toBeChecked();
+
+      // Add another group through the combobox
+      await page.getByRole("button", { name: /Select groups/ }).click();
+      await page.getByRole("option", { name: "Another Group" }).click();
+      await page.keyboard.press("Escape");
+      await expect(page.locator('input[name="requesterGroupIds"]')).toHaveCount(2);
+
+      // Remove the first chip
+      await page.getByRole("button", { name: "Remove Dummy Group" }).click();
+      await expect(page.locator('input[name="requesterGroupIds"]')).toHaveCount(1);
+      await expect(page.locator('input[name="requesterGroupIds"]')).toHaveValue(anotherGroup.groupId);
+
+      await page.getByRole("button", { name: "Update" }).click();
+      await page.waitForTimeout(2000);
+      await expect(page.getByRole("dialog")).not.toBeVisible();
+    });
+  });
+
+  test("should show anyone-can-request state and warn when restricting without any group", async ({ page, context }) => {
+    const mockRouter = createMockStampHubRouter({
+      systemRequest: router({
+        user: mockUserRouter,
+      }),
+      userRequest: router({
+        catalog: mockCatalogRouter,
+        resourceType: mockResourceTypeRouter,
+        resource: mockResourceRouterWithoutRequestAccess,
+        group: mockGroupRouter,
+      }),
+    });
+
+    await runTestWithMockServers(context, mockRouter, async () => {
+      await page.goto("http://localhost:3000/catalog/dummy-catalog-id/resource-type/dummy-resource-type%2B");
+      await page.waitForLoadState("load");
+      await expect(page.getByRole("link", { name: "Dummy Resource" })).toBeVisible();
+
+      const resourceRow = page.locator("tr").filter({ hasText: "Dummy Resource" });
+      await resourceRow.locator("svg").last().click();
+      await page.getByText("Request Access Setting").click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+
+      await expect(page.getByText("No groups selected. Anyone can request this resource.")).toBeVisible();
+      await expect(page.locator('input[name="requesterGroupIds"]')).toHaveCount(0);
+      await expect(page.getByRole("radio", { name: /^All/ })).toBeChecked();
+
+      // dummyResource has owner/approver groups, so no warning even when restricted
+      await page.getByRole("radio", { name: /Restricted/ }).click();
+      await expect(page.getByText("No requester, approver or owner group is set.")).not.toBeVisible();
+
+      await page.getByRole("button", { name: "Update" }).click();
+      await page.waitForTimeout(2000);
+      await expect(page.getByRole("dialog")).not.toBeVisible();
+    });
+  });
+
+  test("should display Requester Groups and Visibility in the resource info dialog", async ({ page, context }) => {
+    const mockRouter = createMockStampHubRouter({
+      systemRequest: router({
+        user: mockUserRouter,
+      }),
+      userRequest: router({
+        catalog: mockCatalogRouter,
+        resourceType: mockResourceTypeRouter,
+        resource: mockResourceRouterWithRequestAccess,
+        group: mockGroupRouter,
+      }),
+    });
+
+    await runTestWithMockServers(context, mockRouter, async () => {
+      await page.goto("http://localhost:3000/catalog/dummy-catalog-id/resource-type/dummy-resource-type%2B");
+      await page.waitForLoadState("load");
+
+      await page.getByRole("link", { name: "Dummy Resource" }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Requester Groups" })).toBeVisible();
+      await expect(page.getByRole("dialog").getByRole("link", { name: /Dummy Group/ })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Visibility" })).toBeVisible();
+      await expect(page.getByText("Restricted (requester, approver and owner groups only)")).toBeVisible();
     });
   });
 });

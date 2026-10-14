@@ -113,10 +113,10 @@ export const ApprovalRequestFilter = ({
     params.set("start", start.toISOString());
     params.set("end", end.toISOString());
 
-    selectedStatus && params.set("status", selectedStatus);
-    selectedApproverId && params.set("approverId", selectedApproverId);
-    selectedCatalogId && params.set("catalogId", selectedCatalogId);
-    selectedApprovalFlowId && params.set("approvalFlowId", selectedApprovalFlowId);
+    if (selectedStatus) params.set("status", selectedStatus);
+    if (selectedApproverId) params.set("approverId", selectedApproverId);
+    if (selectedCatalogId) params.set("catalogId", selectedCatalogId);
+    if (selectedApprovalFlowId) params.set("approvalFlowId", selectedApprovalFlowId);
 
     inputValuesMap.forEach((value: string, key: string) => {
       const prefix = "inputParams_";
