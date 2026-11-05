@@ -148,6 +148,7 @@ export const createGitHubIamRoleDBItem =
       gitHubOrgId: input.gitHubOrgId,
       roleSuffix: input.roleSuffix,
       subjectType: input.subjectType,
+      subjectValue: input.subjectValue,
       subject: input.subject,
       iamRoleName: input.iamRoleName,
       iamRoleArn: input.iamRoleArn,

@@ -23,6 +23,8 @@ const repositoryId = "9876543";
 const expectedSubject = `repo:${githubOrgName}@${gitHubOrgId}/${repositoryName}@${repositoryId}:*`;
 const roleSuffix = "it-suffix";
 const suffixedResourceId = `${githubOrgName}/${repositoryName}/${roleSuffix}`;
+const envRoleSuffix = "it-env";
+const envScopedResourceId = `${githubOrgName}/${repositoryName}/${envRoleSuffix}`;
 
 const config: IamRoleCatalogConfig = {
   region: "us-west-2",
@@ -41,13 +43,13 @@ const gitHubIamRoleResource = createGitHubIamRoleResourceHandler(config);
 
 describe("Testing gitHubIamRoleResource", () => {
   beforeAll(async () => {
-    for (const resourceId of [repositoryResourceId, suffixedResourceId]) {
+    for (const resourceId of [repositoryResourceId, suffixedResourceId, envScopedResourceId]) {
       await gitHubIamRoleResource.deleteResource({ resourceTypeId, resourceId });
     }
   });
 
   afterAll(async () => {
-    for (const resourceId of [repositoryResourceId, suffixedResourceId]) {
+    for (const resourceId of [repositoryResourceId, suffixedResourceId, envScopedResourceId]) {
       await gitHubIamRoleResource.deleteResource({ resourceTypeId, resourceId });
     }
   });
@@ -137,6 +139,42 @@ describe("Testing gitHubIamRoleResource", () => {
         throw stillThere.error;
       }
       expect(stillThere.value.isSome()).toBe(true);
+    });
+
+    it("creates an environment-scoped role", async () => {
+      const input: CreateResourceInput = {
+        resourceTypeId: resourceTypeId,
+        inputParams: {
+          repositoryName: repositoryName,
+          gitHubOrgName: githubOrgName,
+          repositoryId: repositoryId,
+          roleSuffix: envRoleSuffix,
+          subjectType: "environment",
+          subjectValue: "production",
+        },
+      };
+      const expected: ResourceOutput = {
+        params: {
+          repositoryName: repositoryName,
+          gitHubOrgName: githubOrgName,
+          repositoryId: repositoryId,
+          roleSuffix: envRoleSuffix,
+          subjectType: "environment",
+          subjectValue: "production",
+          subject: `repo:${githubOrgName}@${gitHubOrgId}/${repositoryName}@${repositoryId}:environment:production`,
+          iamRoleArn: expect.any(String),
+        },
+        name: envScopedResourceId,
+        resourceId: envScopedResourceId,
+      };
+      const result = await gitHubIamRoleResource.createResource(input);
+      if (result.isErr()) {
+        throw result.error;
+      }
+      expect(result.value).toEqual(expected);
+
+      const deleted = await gitHubIamRoleResource.deleteResource({ resourceTypeId, resourceId: envScopedResourceId });
+      expect(deleted.isOk()).toBe(true);
     });
 
     it("returns failed result if repository name is empty", async () => {

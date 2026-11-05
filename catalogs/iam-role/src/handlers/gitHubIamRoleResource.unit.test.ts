@@ -219,18 +219,85 @@ describe("createResource input validation (short-circuits before any AWS call)",
     }
   });
 
-  it.each(["branch", "environment", "tag", "pull_request", "bogus"])(
-    "rejects the not-yet-supported subjectType %j",
-    async (subjectType) => {
-      const result = await createResource({
-        ...baseInput,
-        inputParams: { ...baseInput.inputParams, subjectType },
-      });
-      expect(result.isErr()).toBe(true);
-      if (result.isErr()) {
-        expect(result.error.code).toBe("BAD_REQUEST");
-        expect(result.error.userMessage).toContain("subjectType");
-      }
+  it.each(["bogus", "Branch", "repo"])("rejects an unknown subjectType (%j)", async (subjectType) => {
+    const result = await createResource({
+      ...baseInput,
+      inputParams: { ...baseInput.inputParams, subjectType },
+    });
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.code).toBe("BAD_REQUEST");
+      expect(result.error.userMessage).toContain("subjectType");
     }
-  );
+  });
+
+  it.each(["branch", "environment", "tag"])("rejects subjectType %j without a subjectValue", async (subjectType) => {
+    const result = await createResource({
+      ...baseInput,
+      inputParams: { ...baseInput.inputParams, subjectType },
+    });
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.code).toBe("BAD_REQUEST");
+      expect(result.error.userMessage).toContain("subjectValue");
+      expect(result.error.userMessage).toContain("required");
+    }
+  });
+
+  it.each([
+    ["repository", "main"],
+    ["pull_request", "main"],
+  ])("rejects subjectType %j with a subjectValue (%j)", async (subjectType, subjectValue) => {
+    const result = await createResource({
+      ...baseInput,
+      inputParams: { ...baseInput.inputParams, subjectType, subjectValue },
+    });
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.code).toBe("BAD_REQUEST");
+      expect(result.error.userMessage).toContain("must be empty");
+    }
+  });
+
+  it("rejects a subjectValue omitted-with-value pairing even when subjectType is omitted (defaults to repository)", async () => {
+    const result = await createResource({
+      ...baseInput,
+      inputParams: { ...baseInput.inputParams, subjectValue: "main" },
+    });
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.userMessage).toContain("must be empty");
+    }
+  });
+
+  it.each(["release*", "ma?in", "a".repeat(257)])("rejects a subjectValue with wildcard or over-length content (%j)", async (subjectValue) => {
+    const result = await createResource({
+      ...baseInput,
+      inputParams: { ...baseInput.inputParams, subjectType: "branch", subjectValue },
+    });
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.code).toBe("BAD_REQUEST");
+      expect(result.error.userMessage).toContain("subjectValue");
+    }
+  });
+
+  it("buildResourceOutput exposes subjectValue when present", () => {
+    const output = buildResourceOutput({
+      repositoryName: "org-a/my-repo/deploy",
+      gitHubRepositoryName: "my-repo",
+      gitHubOrgName: "org-a",
+      gitHubRepositoryId: "12345",
+      gitHubOrgId: "111",
+      roleSuffix: "deploy",
+      subjectType: "branch",
+      subjectValue: "main",
+      subject: "repo:org-a@111/my-repo@12345:ref:refs/heads/main",
+      iamRoleName: "r",
+      iamRoleArn: "arn",
+      createdAt: "2024-01-01",
+    });
+    expect(output.params.subjectValue).toBe("main");
+    expect(output.params.subjectType).toBe("branch");
+  });
 });

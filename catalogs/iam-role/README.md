@@ -123,7 +123,22 @@ When a user creates a `github-iam-role` resource they provide:
 | `repositoryName` | ✓ | Bare repository name (without org prefix). |
 | `repositoryId` | ✓ | Immutable numeric repository ID: `curl -s https://api.github.com/repos/{owner}/{repo} \| jq .id` |
 | `roleSuffix` | – | 1-32 chars (`[a-zA-Z0-9-]`, must start/end alphanumeric). Distinguishes multiple IAM roles for the same repository. |
-| `subjectType` | – | Defaults to `repository` (whole-repo scope). Other scopes (branch / environment / tag / pull_request) are planned but not yet supported. |
+| `subjectType` | – | Scope of the OIDC sub condition: `repository` (default), `branch`, `environment`, `tag`, or `pull_request`. |
+| `subjectValue` | – | Branch / environment / tag name. Required for `branch` / `environment` / `tag`, must be empty otherwise. Max 256 chars; wildcard characters (`*`, `?`) are rejected because the condition uses `StringLike`. |
+
+#### Subject scoping rules
+
+| `subjectType` | trust policy sub condition | typical use |
+| --- | --- | --- |
+| `repository` (default) | `repo:ORG@ORG_ID/REPO@REPO_ID:*` | any workflow in the repository |
+| `branch` | `repo:ORG@ORG_ID/REPO@REPO_ID:ref:refs/heads/<subjectValue>` | push/deploy from a specific branch |
+| `tag` | `repo:ORG@ORG_ID/REPO@REPO_ID:ref:refs/tags/<subjectValue>` | release workflows triggered by a tag |
+| `environment` | `repo:ORG@ORG_ID/REPO@REPO_ID:environment:<subjectValue>` | jobs bound to a GitHub environment (recommended for production deploys) |
+| `pull_request` | `repo:ORG@ORG_ID/REPO@REPO_ID:pull_request` | pull-request-triggered workflows |
+
+Combine `subjectType` with `roleSuffix` to give one repository multiple roles
+with different scopes (e.g. a repo-wide read role and an
+environment-restricted deploy role).
 
 #### Immutable OIDC subject claims
 
@@ -184,7 +199,7 @@ role names/ARNs across delete-and-recreate migrations.
   resolved correctly by `getResource` / `deleteResource` / promote requests.
 - DynamoDB schema (`cf-db-template.yaml`) is unchanged. New attributes
   (`gitHubRepositoryName`, `gitHubOrgName`, `gitHubRepositoryId`, `gitHubOrgId`,
-  `roleSuffix`, `subjectType`, `subject`) are written to newly created records;
+  `roleSuffix`, `subjectType`, `subjectValue`, `subject`) are written to newly created records;
   legacy records without those attributes are still readable. The persisted
   `subject` records the exact sub condition written to the trust policy for
   auditability. Record creation now uses a conditional put
