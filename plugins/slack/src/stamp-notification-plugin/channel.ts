@@ -13,7 +13,7 @@ export const setChannel =
     const channelConfig = ChannelConfigProperties.safeParse(input.properties);
     if (!channelConfig.success) {
       logger.info("Invalid channel config property", { input });
-      const message = `Invalid channel config property: ${channelConfig.error.errors}`;
+      const message = `Invalid channel config property: ${channelConfig.error.issues}`;
       return errAsync(new NotificationError(message, message));
     }
 

@@ -4,10 +4,10 @@ import { HandlerError } from "./error";
 import { ApprovalRequestInputResource, ApprovalRequestInputParam } from "../../models";
 
 const ApprovedInput = z.object({
-  requestId: z.string().uuid(),
+  requestId: z.guid(),
   approvalFlowId: z.string(),
-  requestUserId: z.string().uuid(),
-  approverId: z.string().uuid(),
+  requestUserId: z.guid(),
+  approverId: z.guid(),
   inputResources: z.record(z.string(), ApprovalRequestInputResource),
   inputParams: z.record(z.string(), ApprovalRequestInputParam),
   requestDate: z.string().datetime(),

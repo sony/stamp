@@ -32,12 +32,12 @@ export type CreateAuditNotification = (input: CreateAuditNotificationInput) => C
 
 export const UpdateAuditNotificationInput = AuditNotification.omit({ id: true })
   .merge(ResourceInput)
-  .merge(z.object({ auditNotificationId: z.string().uuid() }));
+  .merge(z.object({ auditNotificationId: z.guid() }));
 export type UpdateAuditNotificationInput = z.infer<typeof UpdateAuditNotificationInput>;
 export type UpdateAuditNotificationOutput = ResultAsync<ResourceOnDB, DBError>;
 export type UpdateAuditNotification = (input: UpdateAuditNotificationInput) => UpdateAuditNotificationOutput;
 
-export const DeleteAuditNotificationInput = ResourceInput.merge(z.object({ auditNotificationId: z.string().uuid() }));
+export const DeleteAuditNotificationInput = ResourceInput.merge(z.object({ auditNotificationId: z.guid() }));
 export type DeleteAuditNotificationInput = z.infer<typeof DeleteAuditNotificationInput>;
 export type DeleteAuditNotificationOutput = ResultAsync<ResourceOnDB, DBError>;
 export type DeleteAuditNotification = (input: DeleteAuditNotificationInput) => DeleteAuditNotificationOutput;

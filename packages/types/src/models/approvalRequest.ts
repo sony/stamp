@@ -41,7 +41,7 @@ export const InputResourceWithName = z.object({
 export type InputResourceWithName = z.infer<typeof InputResourceWithName>;
 
 export const SubmittedRequest = z.object({
-  requestId: z.string().uuid(),
+  requestId: z.guid(),
   status: z.enum(["submitted"]),
   catalogId: CatalogId,
   approvalFlowId: ApprovalFlowId,
@@ -49,7 +49,7 @@ export const SubmittedRequest = z.object({
   inputResources: z.array(ApprovalRequestInputResource).max(5),
   requestUserId: UserId,
   approverType: ApproverType,
-  approverId: z.string().uuid(),
+  approverId: z.guid(),
   requestDate: z.string().datetime(),
   requestComment: z.string().max(1024),
   autoRevokeDuration: AutoRevokeDuration.optional(),

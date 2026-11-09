@@ -16,7 +16,7 @@ import { createImpl, getImpl, listByGroupImpl, listByUserImpl, countImpl, update
 const logger = createLogger("DEBUG", { moduleName: "plugins" });
 const groupId = "56a02254-eeb5-4cd1-95a9-6352a9269a2c"; // The uuid is meaningless and was generated for testing.
 const userId = "27e29081-eeb5-4cd1-95a9-6352a9269e1b"; // The uuid is meaningless and was generated for testing.
-const role = GroupMemberShipRole.Enum.member;
+const role = GroupMemberShipRole.enum.member;
 const tableName = `${process.env.DYNAMO_TABLE_PREFIX}-dynamodb-identity-GroupMemberShip`;
 const config = { region: "us-west-2" };
 

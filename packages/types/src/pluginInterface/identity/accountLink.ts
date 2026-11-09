@@ -6,7 +6,7 @@ import { Option } from "@stamp-lib/stamp-option";
 export const AccountLink = z.object({
   accountProviderName: z.string().max(256),
   accountId: z.string().max(256),
-  userId: z.string().uuid(),
+  userId: z.guid(),
   createdAt: z.string().datetime(),
 });
 export type AccountLink = z.infer<typeof AccountLink>;
@@ -20,7 +20,7 @@ export type GetAccountLinkOutput = ResultAsync<Option<AccountLink>, IdentityPlug
 export type GetAccountLink = (input: GetAccountLinkInput) => GetAccountLinkOutput;
 
 export const ListAccountLinkByUserIdInput = z.object({
-  userId: z.string().uuid(),
+  userId: z.guid(),
 });
 export type ListAccountLinkByUserIdInput = z.infer<typeof ListAccountLinkByUserIdInput>;
 export type ListAccountLinkByUserIdOutput = ResultAsync<Array<AccountLink>, IdentityPluginError>;
@@ -29,7 +29,7 @@ export type ListAccountLinkByUserId = (input: ListAccountLinkByUserIdInput) => L
 export const CreateAccountLinkInput = z.object({
   accountProviderName: z.string().max(256),
   accountId: z.string().max(256),
-  userId: z.string().uuid(),
+  userId: z.guid(),
 });
 export type SetAccountLinkInput = z.infer<typeof CreateAccountLinkInput>;
 export type SetAccountLinkOutput = ResultAsync<AccountLink, IdentityPluginError>;
@@ -44,7 +44,7 @@ export type DeleteAccountLinkOutput = ResultAsync<void, IdentityPluginError>;
 export type DeleteAccountLink = (input: DeleteAccountLinkInput) => DeleteAccountLinkOutput;
 
 export const DeleteAllAccountLinkByUserIdInput = z.object({
-  userId: z.string().uuid(),
+  userId: z.guid(),
 });
 export type DeleteAllAccountLinkByUserIdInput = z.infer<typeof DeleteAllAccountLinkByUserIdInput>;
 export type DeleteAllAccountLinkByUserIdOutput = ResultAsync<void, IdentityPluginError>;

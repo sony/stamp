@@ -22,7 +22,7 @@
     "@trpc/server": "^10.45.3",
     "neverthrow": "^6.1.0",
     "uuidv7": "^0.6.3",
-    "zod": "^3.22.4"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@stamp-lib/stamp-ephemeral-db-plugin": "^0.11.0",

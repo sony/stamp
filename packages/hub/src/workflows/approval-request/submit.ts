@@ -21,7 +21,7 @@ import type { CatalogConfig, ApprovalFlowConfig } from "@stamp-lib/stamp-types/m
 
 export const SubmitWorkflowInput = SubmittedRequest.omit({ requestId: true, status: true, requestDate: true }).extend({
   approverType: ApproverType.optional(),
-  approverId: z.string().uuid().optional(),
+  approverId: z.guid().optional(),
 });
 export type SubmitWorkflowInput = z.infer<typeof SubmitWorkflowInput>;
 export type SubmitWorkflow = (input: SubmitWorkflowInput) => ResultAsync<PendingRequest | ValidationFailedRequest, StampHubError>;

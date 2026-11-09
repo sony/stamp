@@ -295,7 +295,7 @@ describe("approve", () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error).toMatchObject({
-          message: expect.stringContaining("Invalid enum value"),
+          message: expect.stringContaining("Invalid input"),
         });
       }
       expect(getGroupMemberShipProvider).not.toHaveBeenCalled();
