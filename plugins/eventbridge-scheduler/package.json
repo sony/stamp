@@ -29,7 +29,7 @@
     "@stamp-lib/stamp-types": "^0.11.0",
     "neverthrow": "^6.1.0",
     "sns-validator": "0.3.5",
-    "zod": "^3.22.4"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/sns-validator": "0.3.3"

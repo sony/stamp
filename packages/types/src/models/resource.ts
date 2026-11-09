@@ -14,7 +14,7 @@ export const ResourceName = z.string().max(256);
 export type ResourceName = z.infer<typeof ResourceName>;
 
 export const AuditNotification = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   notificationChannel: NotificationChannel,
   schedulerEventId: z.string(),
   cronExpression: z.string(),

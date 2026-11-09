@@ -4,7 +4,7 @@ import { z } from "zod";
 import { NotificationChannel } from "./../../models/notificationChannel";
 import { IdentityPluginError } from "./error";
 
-export const GroupId = z.string().uuid();
+export const GroupId = z.guid();
 export type GroupId = z.infer<typeof GroupId>;
 
 export const GroupName = z.string().max(256);
@@ -14,7 +14,7 @@ export const GroupDescription = z.string().max(1024);
 export type GroupDescription = z.infer<typeof GroupDescription>;
 
 export const GroupMemberNotification = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   notificationChannel: NotificationChannel,
 });
 
@@ -22,7 +22,7 @@ export const GroupMemberNotifications = z.array(GroupMemberNotification).max(1).
 export type GroupMemberNotifications = z.infer<typeof GroupMemberNotifications>;
 
 export const approvalRequestNotification = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   notificationChannel: NotificationChannel,
 });
 
@@ -94,7 +94,7 @@ export type UpdateGroupMemberNotification = (input: UpdateGroupMemberNotificatio
 
 export const DeleteGroupMemberNotificationInput = z.object({
   groupId: GroupId,
-  notificationId: z.string().uuid(),
+  notificationId: z.guid(),
 });
 export type DeleteGroupMemberNotificationInput = z.infer<typeof DeleteGroupMemberNotificationInput>;
 export type DeleteGroupMemberNotificationOutput = ResultAsync<Group, IdentityPluginError>;
@@ -114,7 +114,7 @@ export type UpdateApprovalRequestNotification = (input: UpdateApprovalRequestNot
 
 export const DeleteApprovalRequestNotificationInput = z.object({
   groupId: GroupId,
-  notificationId: z.string().uuid(),
+  notificationId: z.guid(),
 });
 export type DeleteApprovalRequestNotificationInput = z.infer<typeof DeleteApprovalRequestNotificationInput>;
 export type DeleteApprovalRequestNotificationOutput = ResultAsync<Group, IdentityPluginError>;

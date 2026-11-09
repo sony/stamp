@@ -35,7 +35,7 @@ export const sendNotification =
     const channelConfigProperties = ChannelConfigProperties.safeParse(input.channel.properties);
     if (!channelConfigProperties.success) {
       logger.info("Invalid channel config property", { input });
-      const message = `Invalid channel config property: ${channelConfigProperties.error.errors}`;
+      const message = `Invalid channel config property: ${channelConfigProperties.error.issues}`;
       return errAsync(new NotificationError(message, message));
     }
 

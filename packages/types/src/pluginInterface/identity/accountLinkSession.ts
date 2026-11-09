@@ -5,14 +5,14 @@ import { Option } from "@stamp-lib/stamp-option";
 
 export const AccountLinkSession = z.object({
   sessionKey: z.string().max(256),
-  userId: z.string().uuid(),
+  userId: z.guid(),
   accountProviderName: z.string().max(256),
   createdAt: z.string().datetime(),
 });
 export type AccountLinkSession = z.infer<typeof AccountLinkSession>;
 
 export const StartAccountLinkSessionInput = z.object({
-  userId: z.string().uuid(),
+  userId: z.guid(),
   accountProviderName: z.string().max(256),
 });
 

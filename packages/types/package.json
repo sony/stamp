@@ -26,7 +26,7 @@
   "dependencies": {
     "@stamp-lib/stamp-option": "^0.11.0",
     "neverthrow": "^6.1.0",
-    "zod": "^3.22.4"
+    "zod": "^4.6.7"
   },
   "repository": {
     "type": "git",

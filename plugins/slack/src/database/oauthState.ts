@@ -8,7 +8,7 @@ import { DynamoDBDocumentClient, PutCommand, GetCommand, DeleteCommand } from "@
 import { Logger } from "@stamp-lib/stamp-logger";
 
 export const OauthState = z.object({
-  state: z.string().uuid(),
+  state: z.guid(),
   sessionKey: z.string(),
   stampUserId: UserId,
   expirationTime: z.number(),
@@ -51,7 +51,7 @@ export const setOauthState =
   };
 
 export const GetOauthStateInput = z.object({
-  state: z.string().uuid(),
+  state: z.guid(),
 });
 export type GetOauthStateInput = z.infer<typeof GetOauthStateInput>;
 export type GetOauthState = (input: GetOauthStateInput) => ResultAsync<Option<OauthState>, NotificationError>;
@@ -92,7 +92,7 @@ export const getOauthState =
   };
 
 export const DeleteOauthStateInput = z.object({
-  state: z.string().uuid(),
+  state: z.guid(),
 });
 export type DeleteOauthStateInput = z.infer<typeof DeleteOauthStateInput>;
 export type DeleteOauthState = (input: DeleteOauthStateInput) => ResultAsync<void, NotificationError>;
