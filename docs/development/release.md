@@ -59,22 +59,31 @@ The release branches are not protected, so anyone with write access could push e
 
 ## One-time setup
 
-These steps need an npm maintainer of the `@stamp-lib` packages and someone who can edit the repository's Actions variables.
+These steps need an npm maintainer of the `@stamp-lib` packages and someone who can edit the repository's Actions variables. The first release is part of the setup, because a new trusted publisher configuration has to be used soon after it is created.
 
 1. Merge the release workflows into `main`.
-2. Set the repository variable **`NPM_RELEASE_ACTORS`** (Settings → Secrets and variables → Actions → Variables) to the comma-separated GitHub logins allowed to run the release workflows. Every job checks it (re-running a single failed job skips the jobs that already passed), and the workflows refuse to run when it is empty. Repository variables cannot be changed with plain write access.
-3. Configure trusted publishing (stage-only) for all packages (npm 12, as required by the repository's `devEngines`):
+2. Set the repository variable **`NPM_RELEASE_ACTORS`** (Settings → Secrets and variables → Actions → Variables, see [GitHub: variables](https://docs.github.com/en/actions/learn-github-actions/variables)) to the comma-separated GitHub logins allowed to run the release workflows. Every job checks it (re-running a single failed job skips the jobs that already passed), and the workflows refuse to run when it is empty. Repository variables cannot be changed with plain write access.
+3. Run [step 1 of the release flow](#1-bump-versions) (`bump-version`) and merge the PR. Do this first so that the next steps can follow each other on the same day.
+4. Configure trusted publishing for every package: GitHub Actions, `sony/stamp`, `npm-stage-publish.yml`, `npm stage publish` only ([npm: trusted publishing](https://docs.npmjs.com/trusted-publishers), [`npm trust`](https://docs.npmjs.com/cli/v12/commands/npm-trust)). Use npm 12, as the repository's `devEngines` require, and a regular `npm login` session: `npm trust` does not work with tokens that bypass 2FA or with legacy basic auth.
 
    ```sh
-   npm ci --prefix scripts/release
-   node scripts/release/setup-npm-trust.mjs --dry-run
-   node scripts/release/setup-npm-trust.mjs
+   npm login && npm whoami
+   npm ci   # for `lerna list`, which prints the 15 publishable packages
+   for pkg in $(npx lerna list --loglevel silent); do
+     npm trust github "$pkg" --repo sony/stamp --file npm-stage-publish.yml --allow-stage-publish --yes
+     sleep 2   # as recommended in "Bulk Usage" of the npm trust docs
+   done
    ```
 
-   A new trusted publisher configuration expires if it is not used for a successful publish within 2 days, so do this right before a release (steps 1–3 above). Check the result with `npm trust list <package>`: exactly one trusted publisher per package, for `sony/stamp` and `npm-stage-publish.yml`, stage only.
+   The first call asks for 2FA. With browser-based authentication, the npm website offers to skip 2FA for the next 5 minutes, which covers the remaining packages; with an authenticator app, npm asks for a one-time password for each package. If a package already has a trusted publisher, the call fails: the npm trust docs say a package can currently have only one, so remove the old one with `npm trust list <package>` and `npm trust revoke <package> --id <id>` and run the loop again.
 
-4. Right away (trusted publishing does not depend on it), on each package's **Settings → Publishing access** on npmjs.com, select **Require two-factor authentication and disallow tokens**. Revoke npm tokens that could publish these packages (npmjs.com → Access Tokens), and check that every maintainer of the packages has 2FA and still needs access.
-5. Recommended, needs a repository admin: a ruleset for `main` and `release/*` that blocks direct pushes and force pushes and requires PRs. Without it, writers can push to `main` and to the bot's branches directly; the checks above and the merge rule for bot PRs cover that, but a ruleset closes it.
+   Check the result: for every package, `npm trust list <package>` should show one configuration with `file: npm-stage-publish.yml`, `repository: sony/stamp` and `permissions: stage publish`.
+
+   The npm docs say a new configuration "must complete its first successful publish within 2 days" and do not say whether a staged publish counts, so continue with step 6 and approve the packages on the same day.
+
+5. On each package's page on npmjs.com, open **Settings → Publishing access**, select **Require two-factor authentication and disallow tokens** and click **Update Package Settings** ([npm: requiring 2FA for publishing](https://docs.npmjs.com/requiring-2fa-for-package-publishing-and-settings-modification)). Trusted publishing keeps working with this setting. Revoke npm tokens that could publish these packages (`npm token list` / `npm token revoke <id>`, or Access Tokens on npmjs.com), and check that every maintainer of the packages has 2FA and still needs access.
+6. Continue the release with [steps 2–6 of the release flow](#2-stage-the-packages).
+7. Recommended, needs a repository admin: a ruleset for `main` and `release/*` that blocks direct pushes and force pushes and requires PRs. Without it, writers can push to `main` and to the bot's branches directly; the checks above and the merge rule for bot PRs cover that, but a ruleset closes it.
 
 ## Security model
 
