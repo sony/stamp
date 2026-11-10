@@ -12,24 +12,20 @@ Stamp packages (`@stamp-lib/*`) are published to npm from GitHub Actions with
 
 ## Release flow
 
-| Step                                     | Who / where                           | Result                                                      |
-| ---------------------------------------- | ------------------------------------- | ----------------------------------------------------------- |
-| 1. Version bump PR                       | Maintainer, locally                   | `lerna.json` and package versions bumped on `main` (no tag) |
-| 2. **npm stage publish** workflow        | Actions → Run workflow (on `main`)    | All packages staged on npm                                  |
-| 3. Approve                               | Maintainer, npmjs.com or CLI with 2FA | Packages live on npm                                        |
-| 4. **release** workflow, `bump-web-ui`   | Actions → Run workflow (on `main`)    | PR bumping `apps/web-ui`; merge it                          |
-| 5. **release** workflow, `draft-release` | Actions → Run workflow (on `main`)    | Draft GitHub Release `vX.Y.Z`                               |
-| 6. Publish the draft release             | Maintainer, GitHub                    | Tag `vX.Y.Z` created on the web-ui bump commit              |
+| Step                                     | Who / where                           | Result                                             |
+| ---------------------------------------- | ------------------------------------- | -------------------------------------------------- |
+| 1. **release** workflow, `bump-version`  | Actions → Run workflow (on `main`)    | PR bumping all package versions (no tag); merge it |
+| 2. **npm stage publish** workflow        | Actions → Run workflow (on `main`)    | All packages staged on npm                         |
+| 3. Approve                               | Maintainer, npmjs.com or CLI with 2FA | Packages live on npm                               |
+| 4. **release** workflow, `bump-web-ui`   | Actions → Run workflow (on `main`)    | PR bumping `apps/web-ui`; merge it                 |
+| 5. **release** workflow, `draft-release` | Actions → Run workflow (on `main`)    | Draft GitHub Release `vX.Y.Z`                      |
+| 6. Publish the draft release             | Maintainer, GitHub                    | Tag `vX.Y.Z` created on the web-ui bump commit     |
 
 ### 1. Bump versions
 
-```sh
-git switch -c release/vX.Y.Z origin/main
-npm run versionup:minor   # or :patch, :major, :rc, :patch-rc, :minor-rc, :major-rc
-git commit -am "vX.Y.Z"
-```
+Run **release** with step `bump-version` and choose the bump (`patch`, `minor`, `major`, `rc`, `patch-rc`, `minor-rc`, `major-rc`, the same names as the `versionup:*` scripts). It runs `lerna version` in a read-only job. A second job checks that the change only touches `lerna.json`, the root `package-lock.json` and package manifests, and that all packages and their internal `^` ranges agree on the new version. Then it opens a PR `vX.Y.Z`. Merge it.
 
-`lerna.json` configures `lerna version` to always bump every package (`forcePublish`), skip lifecycle scripts, and not commit, tag or push. The tag is created later from the GitHub Release. Open a PR and merge it.
+`lerna.json` configures `lerna version` to always bump every package (`forcePublish`), skip lifecycle scripts, and not commit, tag or push. The tag is created later from the GitHub Release. Running `npm run versionup:<bump>` locally and opening the PR by hand gives the same result.
 
 ### 2. Stage the packages
 
@@ -78,7 +74,7 @@ These steps need an npm maintainer of the `@stamp-lib` packages and someone who 
 
 - Dependency code never runs in a job that holds write or OIDC credentials:
   - `npm-stage-publish.yml`: the `build` job (`contents: read`) installs, builds and packs. The `stage` job (`id-token: write`) installs nothing; it checks each tarball against the integrity recorded by `build` and runs `npm stage publish <tarball>`.
-  - `release.yml` `bump-web-ui`: the install/build job is read-only. The job that pushes and opens the PR only checks the two web-ui manifests.
+  - `release.yml` `bump-version` and `bump-web-ui`: the job that installs dependencies and runs lerna/npm is read-only. The job that pushes and opens the PR runs no dependency code; it only checks which files changed and verifies the versions.
 - No dependency cache is used, and lifecycle scripts are disabled (`ignore-scripts=true` in `.npmrc`; `ignoreScripts` for `lerna version`).
 - lerna runs with `useNx: false` (its plain task runner, no nx daemon, cache or Nx Cloud). The build job also sets `NX_DAEMON=false`, `NX_NO_CLOUD=true` and `NX_SKIP_NX_CACHE=true`.
 - The npm CLI used by the release jobs is pinned by version and tarball integrity (`scripts/release/install-npm.sh`). Actions are pinned by commit SHA.
