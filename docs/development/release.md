@@ -62,8 +62,9 @@ These steps need an npm maintainer of the `@stamp-lib` packages and someone who 
 3. Configure trusted publishing (stage-only) for all packages (npm 12, as required by the repository's `devEngines`):
 
    ```sh
-   scripts/release/setup-npm-trust.sh --dry-run
-   scripts/release/setup-npm-trust.sh
+   npm ci --prefix scripts/release
+   node scripts/release/setup-npm-trust.mjs --dry-run
+   node scripts/release/setup-npm-trust.mjs
    ```
 
    A new trusted publisher configuration expires if it is not used for a successful publish within 2 days, so do this right before a release (steps 1–3 above).
@@ -73,9 +74,10 @@ These steps need an npm maintainer of the `@stamp-lib` packages and someone who 
 ## Security model
 
 - Dependency code never runs in a job that holds write or OIDC credentials:
-  - `npm-stage-publish.yml`: the `build` job (`contents: read`) installs, builds and packs. The `stage` job (`id-token: write`) installs no dependencies; it downloads the tarballs (the artifact download verifies their digest) and runs `npm stage publish <tarball>`.
-  - `release.yml` `bump-version` and `bump-web-ui`: the job that installs dependencies and runs lerna/npm is read-only. The job that pushes and opens the PR runs no dependency code. It checks the file list before applying anything, then accepts only the expected JSON field changes (`scripts/release/apply-changes.mjs`).
+  - `npm-stage-publish.yml`: the `build` job (`contents: read`) installs, builds and packs. The `stage` job (`id-token: write`) installs only the release scripts (zx); it downloads the tarballs (the artifact download verifies their digest) and runs `npm stage publish <tarball>`.
+  - `release.yml` `bump-version` and `bump-web-ui`: the job that installs dependencies and runs lerna/npm is read-only. The job that pushes and opens the PR installs only the release scripts. It checks the file list before applying anything, then accepts only the expected JSON field changes (`scripts/release/apply-changes.mjs`).
 - No dependency cache is used, and lifecycle scripts are disabled (`ignore-scripts=true` in `.npmrc`; `ignoreScripts` for `lerna version`).
 - lerna runs with `useNx: false` (its plain task runner: no nx daemon, cache or Nx Cloud).
-- Release jobs run on Node 26 (LTS) with the newest npm 12 that is at least 7 days old (`npm install --global npm@12 --min-release-age=7`, matching the repository's `min-release-age`). npm 12 also blocks dependency install scripts unless they are allowed. Actions are pinned by commit SHA.
+- Every job starts with the local composite action `.github/actions/release-setup` (referenced with the self-repository syntax `$/`, so it always comes from the running commit). It sets up Node 26 (LTS), installs the release scripts (`scripts/release`, a separate npm project whose only dependency is [zx](https://github.com/google/zx), pinned by its own lockfile), and runs the actor check.
+- Release jobs run on Node 26 with the newest npm 12 that is at least 7 days old (`npm install --global npm@12 --min-release-age=7`, matching the repository's `min-release-age`). npm 12 also blocks dependency install scripts unless they are allowed. Actions are pinned by commit SHA.
 - npm trusted publishing does not restrict the git ref, so someone with write access could run a modified copy of the workflow from another branch. That run can still only stage packages, which nobody can install until a maintainer approves them. Only approve versions staged by a workflow run you started yourself.

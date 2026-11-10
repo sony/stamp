@@ -1,71 +1,54 @@
 // Stage-job half of npm-stage-publish.yml (runs WITH id-token permission).
-// Stages the tarballs built by pack.mjs. No dependencies are installed and no
-// package code runs in this job. The artifact download already verifies the
-// tarballs against the digest recorded at upload; the version, dist-tag and the
-// expected set of tarballs are recomputed here from the checkout instead of being
-// taken from the build job.
+// Stages the tarballs built by pack.mjs. No package code runs in this job. The artifact
+// download already verifies the tarballs' digest; the version, dist-tag and expected set of
+// tarballs are recomputed here from the checkout instead of trusting the build job.
 //
 // Usage: node scripts/release/stage.mjs <tarball-dir>
-import { execFileSync } from "node:child_process";
-import { appendFileSync, readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
-import process from "node:process";
-import { fail, publishablePackages, tarballName, verifyRelease } from "./packages.mjs";
+import { $, argv, fs, path } from "zx";
+import { fail, publishablePackages, summary, tarballName, verifyRelease } from "./lib.mjs";
 
-const dir = resolve(process.argv[2] ?? fail("Usage: stage.mjs <tarball-dir>"));
-const { version, distTag } = verifyRelease();
-const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8"));
+const dir = path.resolve(argv._[0] ?? fail("Usage: stage.mjs <tarball-dir>"));
+const { version, distTag } = await verifyRelease();
+const manifest = await fs.readJson(path.join(dir, "manifest.json"));
 
-// The build job only decides the order; everything else must match the checkout.
-const expected = publishablePackages()
-  .map((p) => p.name)
-  .sort();
+// The build job only decides the order; everything else must match this commit.
+const sorted = (list) => JSON.stringify([...list].sort());
+const expected = (await publishablePackages()).map((p) => p.name);
 const ordered = manifest.packages.map((p) => p.name);
-const expectedFiles = [...expected.map((name) => tarballName(name, version)), "manifest.json"].sort();
 if (
   manifest.version !== version ||
   manifest.distTag !== distTag ||
-  JSON.stringify([...ordered].sort()) !== JSON.stringify(expected) ||
-  manifest.packages.some((p) => p.file !== tarballName(p.name, version)) ||
-  JSON.stringify(readdirSync(dir).sort()) !== JSON.stringify(expectedFiles)
+  sorted(ordered) !== sorted(expected) ||
+  sorted(await fs.readdir(dir)) !== sorted([...expected.map((name) => tarballName(name, version)), "manifest.json"])
 ) {
   fail("The build job's tarballs do not match the packages and version in this commit.");
 }
 
-const summary = (line = "") => appendFileSync(process.env.GITHUB_STEP_SUMMARY ?? "/dev/null", `${line}\n`);
-const isPublished = (name) => {
-  try {
-    execFileSync("npm", ["view", `${name}@${version}`, "version"], { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-summary(`## Staged @stamp-lib packages ${version} (dist-tag: ${distTag})`);
-summary();
-summary("Approve them on npmjs.com (package page → Staged Packages) or with `npm stage approve`, in this order:");
-summary();
+await summary(
+  `## Staged @stamp-lib packages ${version} (dist-tag: ${distTag})`,
+  "",
+  "Approve them on npmjs.com (package page → Staged Packages) or with `npm stage approve`, in this order:",
+  "",
+);
 
 const staged = [];
 const failed = [];
 for (const name of ordered) {
-  if (isPublished(name)) {
-    summary(`1. \`${name}\` (already published)`);
+  if ((await $({ nothrow: true, quiet: true })`npm view ${`${name}@${version}`} version`).ok) {
+    await summary(`1. \`${name}\` (already published)`);
     continue;
   }
-  try {
-    execFileSync("npm", ["stage", "publish", join(dir, tarballName(name, version)), "--tag", distTag, "--provenance"], { stdio: "inherit" });
+  const tarball = path.join(dir, tarballName(name, version));
+  if ((await $({ nothrow: true, stdio: "inherit" })`npm stage publish ${tarball} --tag ${distTag} --provenance`).ok) {
     staged.push(name);
-    summary(`1. \`${name}\``);
-  } catch {
+    await summary(`1. \`${name}\``);
+  } else {
     failed.push(name);
-    summary(`1. \`${name}\` **not staged** (it may already be staged from an earlier run: \`npm stage list ${name}\`)`);
+    await summary(`1. \`${name}\` **not staged** (it may already be staged from an earlier run: \`npm stage list ${name}\`)`);
   }
 }
 
-summary();
-summary("After approving all of them, run the **release** workflow with `bump-web-ui`.");
+await summary("", "After approving all of them, run the **release** workflow with `bump-web-ui`.");
 
 if (failed.length) {
   fail(

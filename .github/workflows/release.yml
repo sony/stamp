@@ -4,9 +4,9 @@
 #   bump-web-ui:   opens a PR that moves apps/web-ui to the new @stamp-lib/* version
 #   draft-release: after that PR is merged, creates a draft GitHub Release (tag vX.Y.Z)
 #
-# Jobs that run dependency code (lerna, npm install, tsc) are read-only. The jobs that
-# push and open PRs run no dependency code and accept only the expected JSON field
-# changes from them (scripts/release/apply-changes.mjs). See docs/development/release.md.
+# Jobs that run dependency code (lerna, npm install, tsc) are read-only. The jobs that push and
+# open PRs install only the release scripts and accept only the expected JSON field changes from
+# them (scripts/release/apply-changes.mjs). See docs/development/release.md.
 name: release
 
 on:
@@ -51,39 +51,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          fetch-depth: 0 # lerna version reads the previous tags
-
-      - name: Check who and where
-        env:
-          ACTOR: ${{ github.triggering_actor }}
-          ALLOWED_ACTORS: ${{ vars.NPM_RELEASE_ACTORS }}
-        run: scripts/release/check-trigger.sh
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: $/.github/actions/release-setup
         with:
-          node-version: 26
-          package-manager-cache: false
-
-      - name: Install npm
-        # Newest npm 12 that is at least 7 days old. Global installs do not read the
-        # project .npmrc, so the repository's min-release-age is passed explicitly.
-        run: npm install --global npm@12 --min-release-age=7
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Bump versions
+          allowed-actors: ${{ vars.NPM_RELEASE_ACTORS }}
+      - run: npm ci
+      - run: node scripts/release/bump-version.mjs "$BUMP" "$RUNNER_TEMP/version-bump.patch"
         env:
           BUMP: ${{ inputs.bump }}
-        run: |
-          case "$BUMP" in
-            patch | minor | major | rc | patch-rc | minor-rc | major-rc) ;;
-            *) echo "::error::Unknown bump: $BUMP"; exit 1 ;;
-          esac
-          npm run "versionup:$BUMP" -- --yes
-          node scripts/release/verify-release.mjs
-          git diff --binary > "$RUNNER_TEMP/version-bump.patch"
-
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: version-bump
@@ -103,54 +77,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      - name: Check who and where
-        env:
-          ACTOR: ${{ github.triggering_actor }}
-          ALLOWED_ACTORS: ${{ vars.NPM_RELEASE_ACTORS }}
-        run: scripts/release/check-trigger.sh
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: $/.github/actions/release-setup
         with:
-          node-version: 26
-          package-manager-cache: false
-
+          allowed-actors: ${{ vars.NPM_RELEASE_ACTORS }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: version-bump
           path: ${{ runner.temp }}/version-bump
-
-      - name: Apply and verify the change
-        id: apply
-        run: |
-          node scripts/release/apply-changes.mjs version-bump "$RUNNER_TEMP/version-bump/version-bump.patch"
-          version=$(node scripts/release/verify-release.mjs)
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Open pull request
+      - run: node scripts/release/apply-changes.mjs version-bump "$RUNNER_TEMP/version-bump/version-bump.patch"
+      - run: node scripts/release/open-pr.mjs version-bump
         env:
-          VERSION: ${{ steps.apply.outputs.version }}
           GH_TOKEN: ${{ github.token }}
-        run: |
-          branch="release/v$VERSION"
-          if git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
-            echo "::error::Branch $branch already exists. Merge or close its PR and delete the branch, then re-run."
-            exit 1
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$branch"
-          git commit -m "v$VERSION"
-          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$branch"
-
-          body="Bump every \`@stamp-lib/*\` package to \`$VERSION\` (\`lerna version\`, run by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}).
-
-          After merging, run the **npm stage publish** workflow and approve the staged packages on npm."
-          if ! gh pr create --base main --head "$branch" --title "v$VERSION" --body "$body"; then
-            url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...${branch}?expand=1"
-            echo "::warning::Could not open the PR automatically (the repository may not allow GitHub Actions to create PRs). Open it here: $url"
-            echo "Open the PR: $url" >> "$GITHUB_STEP_SUMMARY"
-          fi
 
   bump-web-ui:
     name: Bump web-ui
@@ -163,46 +100,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          fetch-depth: 0 # verify-published.mjs compares with the commit the packages were built from
-
-      - name: Check who and where
-        env:
-          ACTOR: ${{ github.triggering_actor }}
-          ALLOWED_ACTORS: ${{ vars.NPM_RELEASE_ACTORS }}
-        run: scripts/release/check-trigger.sh
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+          fetch-depth: 0 # compared with the commit the packages were built from
+      - uses: $/.github/actions/release-setup
         with:
-          node-version: 26
-          package-manager-cache: false
-
-      - name: Install npm
-        # Newest npm 12 that is at least 7 days old. Global installs do not read the
-        # project .npmrc, so the repository's min-release-age is passed explicitly.
-        run: npm install --global npm@12 --min-release-age=7
-
-      - name: Verify packages are approved and built from this source
-        run: node scripts/release/verify-published.mjs
-
-      - name: Update @stamp-lib/* in apps/web-ui
-        working-directory: apps/web-ui
-        run: |
-          version=$(node -p 'require("../../lerna.json").version')
-          read -ra specs <<< "$(VERSION="$version" node -p '
-            Object.keys(require("./package.json").dependencies)
-              .filter((name) => name.startsWith("@stamp-lib/"))
-              .map((name) => `${name}@${process.env.VERSION}`)
-              .join(" ")')"
-          # @stamp-lib/* is exempt from min-release-age via .npmrc; everything else keeps the 7-day window.
-          npm install --save-exact "${specs[@]}"
-          # Verify registry signatures and provenance attestations of the installed tree.
-          npm audit signatures
-          node ../../scripts/release/verify-web-ui.mjs
-
-      - name: Type-check apps/web-ui against the new packages
-        working-directory: apps/web-ui
-        run: npx --no-install tsc --noEmit
-
+          allowed-actors: ${{ vars.NPM_RELEASE_ACTORS }}
+      - run: node scripts/release/bump-web-ui.mjs
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: web-ui-manifests
@@ -224,63 +126,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      - name: Check who and where
-        env:
-          ACTOR: ${{ github.triggering_actor }}
-          ALLOWED_ACTORS: ${{ vars.NPM_RELEASE_ACTORS }}
-        run: scripts/release/check-trigger.sh
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: $/.github/actions/release-setup
         with:
-          node-version: 26
-          package-manager-cache: false
-
+          allowed-actors: ${{ vars.NPM_RELEASE_ACTORS }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: web-ui-manifests
           path: ${{ runner.temp }}/web-ui-manifests
-
-      - name: Apply and verify the change
-        id: apply
-        run: |
-          node scripts/release/apply-changes.mjs web-ui "$RUNNER_TEMP/web-ui-manifests"
-          node scripts/release/verify-web-ui.mjs
-          version=$(node -p 'require("./lerna.json").version')
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Open pull request
+      - run: node scripts/release/apply-changes.mjs web-ui "$RUNNER_TEMP/web-ui-manifests"
+      - run: node scripts/release/open-pr.mjs web-ui
         env:
-          VERSION: ${{ steps.apply.outputs.version }}
           GH_TOKEN: ${{ github.token }}
-        run: |
-          if git diff --quiet; then
-            echo "apps/web-ui already uses $VERSION; nothing to do."
-            exit 0
-          fi
-          branch="release/web-ui-v$VERSION"
-          if git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
-            echo "::error::Branch $branch already exists. Merge or close its PR and delete the branch, then re-run."
-            exit 1
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$branch"
-          git add apps/web-ui/package.json apps/web-ui/package-lock.json
-          git commit -m "chore(web-ui): bump @stamp-lib dependencies to $VERSION"
-          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$branch"
-
-          body="Update \`apps/web-ui\` to the \`@stamp-lib/*\` $VERSION packages published from ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/npm-stage-publish.yml.
-
-          - All \`@stamp-lib/*\` dependencies pinned to \`$VERSION\`; provenance verified (built from \`main\` by \`npm-stage-publish.yml\`)
-          - \`npm audit signatures\` and \`tsc --noEmit\` passed; only \`@stamp-lib/*\` and newly added lockfile entries changed, each verified against the npm registry
-
-          After merging, run the **release** workflow with \`draft-release\`."
-          if ! gh pr create --base main --head "$branch" --title "chore(web-ui): bump @stamp-lib dependencies to $VERSION" --body "$body"; then
-            url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...${branch}?expand=1"
-            echo "::warning::Could not open the PR automatically (the repository may not allow GitHub Actions to create PRs). Open it here: $url"
-            echo "Open the PR: $url" >> "$GITHUB_STEP_SUMMARY"
-          fi
 
   draft-release:
     name: Create draft GitHub Release
@@ -293,46 +149,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          fetch-depth: 0 # verify-published.mjs compares with the commit the packages were built from
-
-      - name: Check who and where
-        env:
-          ACTOR: ${{ github.triggering_actor }}
-          ALLOWED_ACTORS: ${{ vars.NPM_RELEASE_ACTORS }}
-        run: scripts/release/check-trigger.sh
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+          fetch-depth: 0 # compared with the commit the packages were built from
+      - uses: $/.github/actions/release-setup
         with:
-          node-version: 26
-          package-manager-cache: false
-
-      - name: Verify release contents
-        id: verify
-        run: |
-          # npm packages are approved, built from one commit on main, and HEAD has the same library sources.
-          node scripts/release/verify-published.mjs
-          # apps/web-ui uses exactly that version.
-          node scripts/release/verify-web-ui.mjs
-          version=$(node -p 'require("./lerna.json").version')
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Create draft release
+          allowed-actors: ${{ vars.NPM_RELEASE_ACTORS }}
+      - run: node scripts/release/draft-release.mjs
         env:
-          VERSION: ${{ steps.verify.outputs.version }}
           GH_TOKEN: ${{ github.token }}
-        run: |
-          tag="v$VERSION"
-          if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
-            echo "::error::Tag $tag already exists."
-            exit 1
-          fi
-          if gh release view "$tag" > /dev/null 2>&1; then
-            echo "::error::A release for $tag already exists (maybe a draft). Publish or delete it first."
-            exit 1
-          fi
-          prerelease=()
-          case "$VERSION" in *-*) prerelease=(--prerelease) ;; esac
-          # The tag is created at this commit when the draft is published.
-          url=$(gh release create "$tag" --draft --target "$GITHUB_SHA" --title "$tag" --generate-notes "${prerelease[@]}")
-          echo "Draft release: $url" >> "$GITHUB_STEP_SUMMARY"
-          echo "Review and publish the draft: $url"

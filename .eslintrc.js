@@ -15,6 +15,12 @@ module.exports = {
         sourceType: "script",
       },
     },
+    {
+      env: {
+        node: true,
+      },
+      files: ["scripts/**/*.mjs"],
+    },
   ],
   parser: "@typescript-eslint/parser",
   parserOptions: {

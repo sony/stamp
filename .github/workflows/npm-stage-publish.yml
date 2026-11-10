@@ -1,12 +1,11 @@
-# Builds every publishable @stamp-lib package from main and stages it on npm
-# with `npm stage publish` (trusted publishing over OIDC, provenance included).
-# Nothing becomes public until a maintainer approves each staged version on
-# npmjs.com (or `npm stage approve`) with 2FA. See docs/development/release.md.
+# Builds every publishable @stamp-lib package from main and stages it on npm with
+# `npm stage publish` (trusted publishing over OIDC, provenance included). Nothing becomes
+# public until a maintainer approves each staged version on npmjs.com (or `npm stage approve`)
+# with 2FA. See docs/development/release.md.
 #
-# The work is split so that dependency code (lerna, tsc, ...) never runs in a job
-# that can mint an npm OIDC token:
+# Dependency code (lerna, tsc, ...) never runs in the job that can mint an npm OIDC token:
 #   build: npm ci + build + npm pack       (contents: read)
-#   stage: npm stage publish <tarball>     (id-token: write, no dependencies installed)
+#   stage: npm stage publish <tarball>     (id-token: write, only the release scripts installed)
 name: npm stage publish
 
 on:
@@ -29,33 +28,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      - name: Check who and where
-        env:
-          ACTOR: ${{ github.triggering_actor }}
-          ALLOWED_ACTORS: ${{ vars.NPM_RELEASE_ACTORS }}
-        run: scripts/release/check-trigger.sh
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: $/.github/actions/release-setup
         with:
-          node-version: 26
-          # No dependency cache in a release job (cache poisoning).
-          package-manager-cache: false
-
-      - name: Install npm
-        # Newest npm 12 that is at least 7 days old. Global installs do not read the
-        # project .npmrc, so the repository's min-release-age is passed explicitly.
-        run: npm install --global npm@12 --min-release-age=7
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Verify and pack
-        run: node scripts/release/pack.mjs "$RUNNER_TEMP/tarballs"
-
+          allowed-actors: ${{ vars.NPM_RELEASE_ACTORS }}
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/release/pack.mjs "$RUNNER_TEMP/tarballs"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: npm-tarballs
@@ -75,28 +53,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      # Repeated in every job: "Re-run failed jobs" skips jobs that already succeeded.
-      - name: Check who and where
-        env:
-          ACTOR: ${{ github.triggering_actor }}
-          ALLOWED_ACTORS: ${{ vars.NPM_RELEASE_ACTORS }}
-        run: scripts/release/check-trigger.sh
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: $/.github/actions/release-setup
         with:
-          node-version: 26
-          package-manager-cache: false
-
-      - name: Install npm
-        # Newest npm 12 that is at least 7 days old. Global installs do not read the
-        # project .npmrc, so the repository's min-release-age is passed explicitly.
-        run: npm install --global npm@12 --min-release-age=7
-
+          allowed-actors: ${{ vars.NPM_RELEASE_ACTORS }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: npm-tarballs
           path: ${{ runner.temp }}/tarballs
-
-      - name: Stage packages
-        run: node scripts/release/stage.mjs "$RUNNER_TEMP/tarballs"
+      - run: node scripts/release/stage.mjs "$RUNNER_TEMP/tarballs"

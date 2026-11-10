@@ -1,0 +1,36 @@
+name: Release setup
+description: >-
+  Common first steps of every release job (after actions/checkout): Node 26, the newest npm 12
+  allowed by the repository's 7-day cooldown, the release scripts (zx only, from
+  scripts/release/package-lock.json), and the release actor check.
+
+inputs:
+  allowed-actors:
+    description: Comma-separated GitHub logins allowed to release (pass vars.NPM_RELEASE_ACTORS).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 26
+        # No dependency cache in release jobs (cache poisoning).
+        package-manager-cache: false
+
+    - name: Install npm
+      shell: bash
+      # Global installs do not read the project .npmrc, so min-release-age is passed explicitly.
+      run: npm install --global npm@12 --min-release-age=7
+
+    - name: Install release scripts
+      shell: bash
+      run: npm ci --prefix scripts/release
+
+    # In every job: "Re-run failed jobs" skips the jobs that already passed.
+    - name: Check who and where
+      shell: bash
+      env:
+        ACTOR: ${{ github.triggering_actor }}
+        ALLOWED_ACTORS: ${{ inputs.allowed-actors }}
+      run: node scripts/release/check-trigger.mjs
