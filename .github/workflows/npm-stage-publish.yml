@@ -76,6 +76,13 @@ jobs:
         with:
           persist-credentials: false
 
+      # Repeated in every job: "Re-run failed jobs" skips jobs that already succeeded.
+      - name: Check who and where
+        env:
+          ACTOR: ${{ github.triggering_actor }}
+          ALLOWED_ACTORS: ${{ vars.NPM_RELEASE_ACTORS }}
+        run: scripts/release/check-trigger.sh
+
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26

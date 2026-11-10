@@ -14,18 +14,22 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
+# Read the names first: npm only prompts for 2FA when stdin is a terminal, so the
+# npm commands must not run inside a loop that reads from a pipe.
+names=$(node --input-type=module -e '
+  import { publishablePackages } from "./scripts/release/packages.mjs";
+  for (const p of publishablePackages()) console.log(p.name);
+')
+
 failed=()
-while IFS= read -r name; do
+for name in ${names}; do # npm package names contain no whitespace
   echo "==> ${name}"
   if ! npm trust github "${name}" --repo sony/stamp --file npm-stage-publish.yml --allow-stage-publish --yes "$@"; then
     failed+=("${name}")
     npm trust list "${name}" >&2 || true
   fi
   sleep 2 # avoid registry rate limiting, as recommended by `npm help trust`
-done < <(node --input-type=module -e '
-  import { publishablePackages } from "./scripts/release/packages.mjs";
-  for (const p of publishablePackages()) console.log(p.name);
-')
+done
 
 if ((${#failed[@]} > 0)); then
   echo "Failed for: ${failed[*]}" >&2

@@ -68,6 +68,13 @@ export function verifyRelease() {
   return { version, distTag };
 }
 
+export const DEP_FIELDS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
+
+// File name `npm pack` gives a package tarball, e.g. @stamp-lib/stamp-hub -> stamp-lib-stamp-hub-1.0.0.tgz
+export function tarballName(name, version) {
+  return `${name.replace(/^@/, "").replace("/", "-")}-${version}.tgz`;
+}
+
 export function fail(messages) {
   for (const message of [].concat(messages)) console.error(`::error::${message}`);
   process.exit(1);

@@ -12,14 +12,16 @@ const lock = JSON.parse(readFileSync(join(webUi, "package-lock.json"), "utf8"));
 const published = new Set(publishablePackages().map((p) => p.name));
 const errors = [];
 
+const packages = lock.packages ?? {};
 const deps = { ...manifest.dependencies, ...manifest.devDependencies };
 for (const [name, range] of Object.entries(deps)) {
   if (!name.startsWith("@stamp-lib/")) continue;
   if (!published.has(name)) errors.push(`apps/web-ui depends on ${name}, which is not a publishable package in this repository`);
   if (range !== version) errors.push(`apps/web-ui/package.json: ${name} is "${range}", expected "${version}"`);
+  if (!packages[`node_modules/${name}`]) errors.push(`apps/web-ui/package-lock.json has no entry for ${name}`);
 }
 
-for (const [path, entry] of Object.entries(lock.packages ?? {})) {
+for (const [path, entry] of Object.entries(packages)) {
   const name = path.match(/(?:^|\/)node_modules\/(@stamp-lib\/[^/]+)$/)?.[1];
   if (name && entry.version !== version) {
     errors.push(`apps/web-ui/package-lock.json: ${path} is ${entry.version}, expected ${version}`);
