@@ -1,5 +1,6 @@
 # Release steps that run after the staged npm packages were approved.
 #   bump-web-ui:   opens a PR that moves apps/web-ui to the new @stamp-lib/* version
+#                  (install/build in a read-only job, push/PR in a separate job)
 #   draft-release: after that PR is merged, creates a draft GitHub Release (tag vX.Y.Z)
 # See docs/development/release.md.
 name: release
@@ -23,13 +24,15 @@ concurrency:
 
 jobs:
   bump-web-ui:
-    name: Open web-ui bump PR
+    name: Bump web-ui
     if: inputs.step == 'bump-web-ui'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    # Installs and builds dependencies, so it gets no write access; the PR is opened by the next job.
     permissions:
-      contents: write # push the bump branch
-      pull-requests: write # open the PR
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -75,9 +78,51 @@ jobs:
         working-directory: apps/web-ui
         run: npm run build
 
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: web-ui-manifests
+          path: |
+            apps/web-ui/package.json
+            apps/web-ui/package-lock.json
+          if-no-files-found: error
+          retention-days: 1
+
+  open-web-ui-pr:
+    name: Open web-ui bump PR
+    needs: bump-web-ui
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # Runs no dependency code: it only checks the two manifests and pushes them.
+    permissions:
+      contents: write # push the bump branch
+      pull-requests: write # open the PR
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: web-ui-manifests
+          path: apps/web-ui
+
+      - name: Verify the change
+        run: |
+          node scripts/release/verify-web-ui.mjs
+          unexpected=$(git status --porcelain | grep -v -E '^ M apps/web-ui/package(-lock)?\.json$' || true)
+          if [ -n "$unexpected" ]; then
+            echo "::error::Unexpected changes: $unexpected"
+            exit 1
+          fi
+
       - name: Open pull request
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.bump-web-ui.outputs.version }}
           GH_TOKEN: ${{ github.token }}
         run: |
           if git diff --quiet; then

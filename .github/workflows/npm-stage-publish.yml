@@ -2,6 +2,11 @@
 # with `npm stage publish` (trusted publishing over OIDC, provenance included).
 # Nothing becomes public until a maintainer approves each staged version on
 # npmjs.com (or `npm stage approve`) with 2FA. See docs/development/release.md.
+#
+# The work is split so that dependency code (lerna, tsc, ...) never runs in a job
+# that can mint an npm OIDC token:
+#   build: npm ci + build + npm pack       (contents: read)
+#   stage: npm stage publish <tarball>     (id-token: write, no dependencies installed)
 name: npm stage publish
 
 on:
@@ -14,13 +19,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  stage-publish:
-    name: Stage packages on npm
+  build:
+    name: Build and pack
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
-      id-token: write # npm trusted publishing (OIDC) and provenance
+    env:
+      # lerna uses its legacy task runner (useNx: false); make sure nx never starts
+      # a daemon or talks to a remote cache in CI.
+      NX_DAEMON: "false"
+      NX_NO_CLOUD: "true"
+      NX_SKIP_NX_CACHE: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -35,17 +45,11 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          # No dependency cache in a publishing job (cache poisoning).
+          # No dependency cache in a release job (cache poisoning).
           package-manager-cache: false
 
       - name: Install npm
         run: scripts/release/install-npm.sh
-
-      - name: Verify package versions
-        id: versions
-        run: |
-          echo "version=$(node -p 'require("./lerna.json").version')" >> "$GITHUB_OUTPUT"
-          echo "dist-tag=$(node scripts/release/verify-versions.mjs)" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: npm ci
@@ -53,43 +57,42 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Verify and pack
+        run: node scripts/release/pack.mjs "$RUNNER_TEMP/tarballs"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: npm-tarballs
+          path: ${{ runner.temp }}/tarballs/
+          if-no-files-found: error
+          retention-days: 1
+
+  stage:
+    name: Stage packages on npm
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing (OIDC) and provenance
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install npm
+        # npm stage publish needs npm >= 11.15.0.
+        run: scripts/release/install-npm.sh
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: npm-tarballs
+          path: ${{ runner.temp }}/tarballs
+
       - name: Stage packages
-        env:
-          VERSION: ${{ steps.versions.outputs.version }}
-          DIST_TAG: ${{ steps.versions.outputs.dist-tag }}
-        run: |
-          npx lerna list --toposort --json > "$RUNNER_TEMP/packages.json"
-          failed=()
-          {
-            echo "## Staged @stamp-lib packages $VERSION (dist-tag: $DIST_TAG)"
-            echo
-            echo "Approve them on npmjs.com (Staged Packages tab) or with \`npm stage list <package>\` / \`npm stage approve <stage-id>\`, in this order (dependencies first):"
-            echo
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          while IFS=$'\t' read -r name dir; do
-            echo "::group::$name"
-            if npm view "$name@$VERSION" version > /dev/null 2>&1; then
-              echo "$name@$VERSION is already published, skipping."
-              echo "1. \`$name\` (already published)" >> "$GITHUB_STEP_SUMMARY"
-            elif (cd "$dir" && npm stage publish --tag "$DIST_TAG" --provenance); then
-              echo "1. \`$name\`" >> "$GITHUB_STEP_SUMMARY"
-            else
-              failed+=("$name")
-              echo "1. \`$name\` **failed to stage**" >> "$GITHUB_STEP_SUMMARY"
-            fi
-            echo "::endgroup::"
-          done < <(node -e '
-            for (const p of JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))) {
-              console.log(`${p.name}\t${p.location}`);
-            }' "$RUNNER_TEMP/packages.json")
-
-          {
-            echo
-            echo "After approving all of them, run the **release** workflow with \`bump-web-ui\`."
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          if [ ${#failed[@]} -gt 0 ]; then
-            echo "::error::Failed to stage: ${failed[*]}. A version that is already staged cannot be staged again; reject it with 'npm stage reject <stage-id>' if it must be rebuilt."
-            exit 1
-          fi
+        run: node scripts/release/stage.mjs "$RUNNER_TEMP/tarballs"

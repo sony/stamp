@@ -29,11 +29,11 @@ npm run versionup:minor   # or :patch, :major, :rc, :patch-rc, :minor-rc, :major
 git commit -am "vX.Y.Z"
 ```
 
-`lerna version` is configured not to commit, tag or push (`lerna.json`). Open a PR and merge it.
+`lerna.json` configures `lerna version` to always bump every package (`forcePublish`), skip lifecycle scripts, and not commit, tag or push. The tag is created later from the GitHub Release. Open a PR and merge it.
 
 ### 2. Stage the packages
 
-Run **npm stage publish** from the Actions tab on `main`. It builds everything and runs `npm stage publish` for each package (`latest` for `x.y.z`, `rc` for `x.y.z-rc.N`). The job summary lists the packages in dependency order.
+Run **npm stage publish** from the Actions tab on `main`. It builds and packs everything in one job, then stages the tarballs from a second job (`latest` for `x.y.z`, `rc` for `x.y.z-rc.N`). The job summary lists the packages in dependency order.
 
 Already published versions are skipped, so the workflow can be re-run after a partial failure. A version that is already staged cannot be staged again: reject it first with `npm stage reject <stage-id>` if it needs to be rebuilt.
 
@@ -76,6 +76,10 @@ These steps need an npm maintainer of the `@stamp-lib` packages and someone who 
 
 ## Security model
 
-- `npm-stage-publish.yml` has `id-token: write` and `contents: read` only. It does not use a dependency cache, and dependency lifecycle scripts are disabled (`ignore-scripts=true` in `.npmrc`).
+- Dependency code never runs in a job that holds write or OIDC credentials:
+  - `npm-stage-publish.yml`: the `build` job (`contents: read`) installs, builds and packs. The `stage` job (`id-token: write`) installs nothing; it checks each tarball against the integrity recorded by `build` and runs `npm stage publish <tarball>`.
+  - `release.yml` `bump-web-ui`: the install/build job is read-only. The job that pushes and opens the PR only checks the two web-ui manifests.
+- No dependency cache is used, and lifecycle scripts are disabled (`ignore-scripts=true` in `.npmrc`; `ignoreScripts` for `lerna version`).
+- lerna runs with `useNx: false` (its plain task runner, no nx daemon, cache or Nx Cloud). The build job also sets `NX_DAEMON=false`, `NX_NO_CLOUD=true` and `NX_SKIP_NX_CACHE=true`.
 - The npm CLI used by the release jobs is pinned by version and tarball integrity (`scripts/release/install-npm.sh`). Actions are pinned by commit SHA.
 - npm trusted publishing does not restrict the git ref, so someone with write access could run a modified copy of the workflow from another branch. That run can still only stage packages, which nobody can install until a maintainer approves them. Only approve versions staged by a workflow run you started yourself.
