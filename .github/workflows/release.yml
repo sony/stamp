@@ -1,0 +1,157 @@
+# Release steps that run after the staged npm packages were approved.
+#   bump-web-ui:   opens a PR that moves apps/web-ui to the new @stamp-lib/* version
+#   draft-release: after that PR is merged, creates a draft GitHub Release (tag vX.Y.Z)
+# See docs/development/release.md.
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: Release step to run
+        type: choice
+        required: true
+        options:
+          - bump-web-ui
+          - draft-release
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  bump-web-ui:
+    name: Open web-ui bump PR
+    if: inputs.step == 'bump-web-ui'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write # push the bump branch
+      pull-requests: write # open the PR
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check who and where
+        env:
+          ACTOR: ${{ github.triggering_actor }}
+          ALLOWED_ACTORS: ${{ vars.NPM_RELEASE_ACTORS }}
+        run: scripts/release/check-trigger.sh
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install npm
+        run: scripts/release/install-npm.sh
+
+      - name: Verify packages are approved and built by this repository
+        id: version
+        run: |
+          echo "version=$(node -p 'require("./lerna.json").version')" >> "$GITHUB_OUTPUT"
+          node scripts/release/verify-published.mjs
+
+      - name: Update @stamp-lib/* in apps/web-ui
+        working-directory: apps/web-ui
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          read -ra specs <<< "$(node -p '
+            Object.keys(require("./package.json").dependencies)
+              .filter((name) => name.startsWith("@stamp-lib/"))
+              .map((name) => `${name}@${process.env.VERSION}`)
+              .join(" ")')"
+          # @stamp-lib/* is exempt from min-release-age via .npmrc; everything else keeps the 7-day window.
+          npm install --save-exact "${specs[@]}"
+          # Verify registry signatures and provenance attestations of the installed tree.
+          npm audit signatures
+          node ../../scripts/release/verify-web-ui.mjs
+
+      - name: Build apps/web-ui
+        working-directory: apps/web-ui
+        run: npm run build
+
+      - name: Open pull request
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet; then
+            echo "apps/web-ui already uses $VERSION; nothing to do."
+            exit 0
+          fi
+          branch="release/web-ui-v$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add apps/web-ui/package.json apps/web-ui/package-lock.json
+          git commit -m "chore(web-ui): bump @stamp-lib dependencies to $VERSION"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$branch"
+
+          body="Update \`apps/web-ui\` to the \`@stamp-lib/*\` $VERSION packages published from ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/npm-stage-publish.yml.
+
+          - All \`@stamp-lib/*\` dependencies pinned to \`$VERSION\`; provenance verified (built from \`main\` by \`npm-stage-publish.yml\`)
+          - \`npm audit signatures\` passed
+
+          After merging, run the **release** workflow with \`draft-release\`."
+          if ! gh pr create --base main --head "$branch" --title "chore(web-ui): bump @stamp-lib dependencies to $VERSION" --body "$body"; then
+            url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...${branch}?expand=1"
+            echo "::warning::Could not open the PR automatically (the repository may not allow GitHub Actions to create PRs). Open it here: $url"
+            echo "Open the PR: $url" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  draft-release:
+    name: Create draft GitHub Release
+    if: inputs.step == 'draft-release'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # create the draft release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check who and where
+        env:
+          ACTOR: ${{ github.triggering_actor }}
+          ALLOWED_ACTORS: ${{ vars.NPM_RELEASE_ACTORS }}
+        run: scripts/release/check-trigger.sh
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Verify release contents
+        id: version
+        run: |
+          version=$(node -p 'require("./lerna.json").version')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          node scripts/release/verify-published.mjs
+          node scripts/release/verify-web-ui.mjs
+
+      - name: Create draft release
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$VERSION"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+            echo "::error::Tag $tag already exists."
+            exit 1
+          fi
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "::error::A release for $tag already exists (maybe a draft). Publish or delete it first."
+            exit 1
+          fi
+          prerelease=()
+          case "$VERSION" in *-*) prerelease=(--prerelease) ;; esac
+          # The tag is created at this commit when the draft is published.
+          url=$(gh release create "$tag" --draft --target "$GITHUB_SHA" --title "$tag" --generate-notes "${prerelease[@]}")
+          echo "Draft release: $url" >> "$GITHUB_STEP_SUMMARY"
+          echo "Review and publish the draft: $url"

@@ -5,5 +5,11 @@
     "packages/*",
     "catalogs/*",
     "plugins/*"
-  ]
+  ],
+  "command": {
+    "version": {
+      "gitTagVersion": false,
+      "push": false
+    }
+  }
 }

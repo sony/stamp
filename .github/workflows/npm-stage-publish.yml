@@ -1,0 +1,95 @@
+# Builds every publishable @stamp-lib package from main and stages it on npm
+# with `npm stage publish` (trusted publishing over OIDC, provenance included).
+# Nothing becomes public until a maintainer approves each staged version on
+# npmjs.com (or `npm stage approve`) with 2FA. See docs/development/release.md.
+name: npm stage publish
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  stage-publish:
+    name: Stage packages on npm
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing (OIDC) and provenance
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check who and where
+        env:
+          ACTOR: ${{ github.triggering_actor }}
+          ALLOWED_ACTORS: ${{ vars.NPM_RELEASE_ACTORS }}
+        run: scripts/release/check-trigger.sh
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          # No dependency cache in a publishing job (cache poisoning).
+          package-manager-cache: false
+
+      - name: Install npm
+        run: scripts/release/install-npm.sh
+
+      - name: Verify package versions
+        id: versions
+        run: |
+          echo "version=$(node -p 'require("./lerna.json").version')" >> "$GITHUB_OUTPUT"
+          echo "dist-tag=$(node scripts/release/verify-versions.mjs)" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Stage packages
+        env:
+          VERSION: ${{ steps.versions.outputs.version }}
+          DIST_TAG: ${{ steps.versions.outputs.dist-tag }}
+        run: |
+          npx lerna list --toposort --json > "$RUNNER_TEMP/packages.json"
+          failed=()
+          {
+            echo "## Staged @stamp-lib packages $VERSION (dist-tag: $DIST_TAG)"
+            echo
+            echo "Approve them on npmjs.com (Staged Packages tab) or with \`npm stage list <package>\` / \`npm stage approve <stage-id>\`, in this order (dependencies first):"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          while IFS=$'\t' read -r name dir; do
+            echo "::group::$name"
+            if npm view "$name@$VERSION" version > /dev/null 2>&1; then
+              echo "$name@$VERSION is already published, skipping."
+              echo "1. \`$name\` (already published)" >> "$GITHUB_STEP_SUMMARY"
+            elif (cd "$dir" && npm stage publish --tag "$DIST_TAG" --provenance); then
+              echo "1. \`$name\`" >> "$GITHUB_STEP_SUMMARY"
+            else
+              failed+=("$name")
+              echo "1. \`$name\` **failed to stage**" >> "$GITHUB_STEP_SUMMARY"
+            fi
+            echo "::endgroup::"
+          done < <(node -e '
+            for (const p of JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))) {
+              console.log(`${p.name}\t${p.location}`);
+            }' "$RUNNER_TEMP/packages.json")
+
+          {
+            echo
+            echo "After approving all of them, run the **release** workflow with \`bump-web-ui\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ ${#failed[@]} -gt 0 ]; then
+            echo "::error::Failed to stage: ${failed[*]}. A version that is already staged cannot be staged again; reject it with 'npm stage reject <stage-id>' if it must be rebuilt."
+            exit 1
+          fi
