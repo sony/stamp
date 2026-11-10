@@ -5,7 +5,7 @@ WORKDIR /app
 COPY package.json package-lock.json .npmrc ./
 COPY tsconfig.json next.config.js postcss.config.js tailwind.config.ts ./
 
-RUN npm install -g npm@11.21.1 && npm ci
+RUN npm install -g npm@12 --min-release-age=7 && npm ci
 
 COPY custom-server custom-server
 COPY src src
