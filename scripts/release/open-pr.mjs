@@ -1,5 +1,5 @@
-// Commits the change applied by apply-changes.mjs to a new branch and opens a PR.
-// Runs in the write-enabled job after apply-changes.mjs; needs GH_TOKEN.
+// Commits the prepared change (apply-version-bump.mjs or bump-web-ui.mjs update) to a new branch and opens a PR.
+// Runs in the write-enabled job; needs GH_TOKEN.
 //
 // Usage: node scripts/release/open-pr.mjs <version-bump|web-ui>
 import { $, argv } from "zx";

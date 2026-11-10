@@ -5,8 +5,9 @@
 #   draft-release: after that PR is merged, creates a draft GitHub Release (tag vX.Y.Z)
 #
 # Jobs that run dependency code (lerna, npm install, tsc) are read-only. The jobs that push and
-# open PRs install only the release scripts and accept only the expected JSON field changes from
-# them (scripts/release/apply-changes.mjs). See docs/development/release.md.
+# open PRs install only the release scripts and never take files from them as-is: the version bump
+# patch is checked field by field (apply-version-bump.mjs), and the web-ui manifests are regenerated
+# and must match the tested ones (bump-web-ui.mjs update). See docs/development/release.md.
 name: release
 
 on:
@@ -84,7 +85,7 @@ jobs:
         with:
           name: version-bump
           path: ${{ runner.temp }}/version-bump
-      - run: node scripts/release/apply-changes.mjs version-bump "$RUNNER_TEMP/version-bump/version-bump.patch"
+      - run: node scripts/release/apply-version-bump.mjs "$RUNNER_TEMP/version-bump/version-bump.patch"
       - run: node scripts/release/open-pr.mjs version-bump
         env:
           GH_TOKEN: ${{ github.token }}
@@ -104,7 +105,7 @@ jobs:
       - uses: $/.github/actions/release-setup
         with:
           allowed-actors: ${{ vars.NPM_RELEASE_ACTORS }}
-      - run: node scripts/release/bump-web-ui.mjs
+      - run: node scripts/release/bump-web-ui.mjs verify
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: web-ui-manifests
@@ -126,6 +127,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0 # compared with the commit the packages were built from
       - uses: $/.github/actions/release-setup
         with:
           allowed-actors: ${{ vars.NPM_RELEASE_ACTORS }}
@@ -133,7 +135,7 @@ jobs:
         with:
           name: web-ui-manifests
           path: ${{ runner.temp }}/web-ui-manifests
-      - run: node scripts/release/apply-changes.mjs web-ui "$RUNNER_TEMP/web-ui-manifests"
+      - run: node scripts/release/bump-web-ui.mjs update "$RUNNER_TEMP/web-ui-manifests"
       - run: node scripts/release/open-pr.mjs web-ui
         env:
           GH_TOKEN: ${{ github.token }}

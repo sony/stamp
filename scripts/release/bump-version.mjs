@@ -1,5 +1,5 @@
 // Read-only half of the bump-version step: runs `lerna version` and writes the result as a
-// patch for apply-changes.mjs in the job that opens the PR.
+// patch for apply-version-bump.mjs in the job that opens the PR.
 //
 // Usage: node scripts/release/bump-version.mjs <patch|minor|major|rc|patch-rc|minor-rc|major-rc> <patch-file>
 import { $, argv, fs } from "zx";
