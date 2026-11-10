@@ -28,8 +28,8 @@ const kinds = {
     body: [
       `Update \`apps/web-ui\` to the \`@stamp-lib/*\` ${version} packages (run by ${runUrl}).`,
       "",
-      "- All `@stamp-lib/*` dependencies pinned; provenance verified (built from `main` by `npm-stage-publish.yml`)",
-      "- `npm audit signatures` and `tsc --noEmit` passed; only `@stamp-lib/*` and newly added lockfile entries changed, each verified against the npm registry",
+      "- Every `@stamp-lib/*` dependency pinned to this version; provenance verified (built from `main` by `npm-stage-publish.yml`)",
+      "- A read-only job installed them and ran `npm audit signatures` and `tsc --noEmit`; this job regenerated both files with `npm install --package-lock-only` and they are byte-identical",
       "",
       "After merging, run the **release** workflow with `draft-release`.",
     ],
@@ -50,8 +50,11 @@ if ((await $({ nothrow: true, quiet: true })`git ls-remote --exit-code --heads o
 
 await $`git switch -c ${branch}`;
 await $`git -c user.name=github-actions[bot] -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -m ${title}`;
+const sha = (await $`git rev-parse HEAD`).stdout.trim();
 await $`git push ${`https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git`} ${branch}`;
 
+// The branch is not protected, so others could add commits after this; the reviewer checks the head.
+body.push("", `> [!IMPORTANT]`, `> This PR must contain exactly one commit, \`${sha}\`, by github-actions[bot]. Do not merge it if anything else was pushed.`);
 const pr = await $({ nothrow: true })`gh pr create --base main --head ${branch} --title ${title} --body ${body.join("\n")}`;
 if (pr.ok) {
   console.log(pr.stdout.trim());

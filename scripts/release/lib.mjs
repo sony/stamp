@@ -6,8 +6,9 @@ export const REPOSITORY = "sony/stamp";
 export const STAGE_WORKFLOW_PATH = ".github/workflows/npm-stage-publish.yml";
 export const DEP_FIELDS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
 const REGISTRY = "https://registry.npmjs.org";
-// Everything that goes into the published packages.
-const LIBRARY_PATHS = ["packages", "catalogs", "plugins", "lerna.json", "package.json", "package-lock.json", "tsconfig.base.json"];
+// Everything that can affect the published packages: the sources and also the build and release
+// tooling (workflows, release scripts, npm config). Only the web UI and docs may differ.
+const RELEASE_INPUTS = [".", ":(exclude)apps/web-ui", ":(exclude)docs"];
 
 $.cwd = REPO_ROOT;
 
@@ -20,12 +21,9 @@ export async function summary(...lines) {
   if (process.env.GITHUB_STEP_SUMMARY) await fs.appendFile(process.env.GITHUB_STEP_SUMMARY, lines.map((l) => `${l}\n`).join(""));
 }
 
-export async function setOutput(name, value) {
-  if (process.env.GITHUB_OUTPUT) await fs.appendFile(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
-}
-
-export const readJson = (file) => fs.readJson(path.join(REPO_ROOT, file));
-export const lernaVersion = async () => (await readJson("lerna.json")).version;
+// Reads a JSON file from the working tree, or from a commit when `ref` is given.
+export const readJson = async (file, ref) => (ref ? JSON.parse((await $`git show ${`${ref}:${file}`}`).stdout) : fs.readJson(path.join(REPO_ROOT, file)));
+export const lernaVersion = async (ref) => (await readJson("lerna.json", ref)).version;
 export const isStamp = (name) => typeof name === "string" && name.startsWith("@stamp-lib/");
 
 // File name `npm pack` gives a package tarball, e.g. @stamp-lib/stamp-hub -> stamp-lib-stamp-hub-1.0.0.tgz
@@ -79,12 +77,12 @@ async function getJson(url) {
 export const registryManifest = (name, version) => getJson(`${REGISTRY}/${encodeURIComponent(name)}/${version}`);
 
 // Every publishable package is live on npm at the lerna.json version, with SLSA provenance from
-// this repository's stage-publish workflow on main, all built from one commit, and the library
-// sources at HEAD are still those of that commit (so a tag on HEAD matches npm).
+// this repository's stage-publish workflow on main, all built from one commit, and `ref` has
+// exactly that commit's sources and release tooling (so a tag on `ref` matches npm).
 // Needs the full git history. Returns the source commit.
 // (Provenance signatures are verified by `npm audit signatures` after installing.)
-export async function verifyPublished() {
-  const version = await lernaVersion();
+export async function verifyPublished(ref = "HEAD") {
+  const version = await lernaVersion(ref);
   const expected = { repository: `https://github.com/${REPOSITORY}`, path: STAGE_WORKFLOW_PATH, ref: "refs/heads/main" };
 
   const check = async (name) => {
@@ -124,24 +122,24 @@ export async function verifyPublished() {
   if (commits.length !== 1) fail(`Packages were built from different commits (${commits.join(", ")}). Re-stage all packages from one commit.`);
   const [commit] = commits;
 
-  if (!(await $({ nothrow: true, quiet: true })`git merge-base --is-ancestor ${commit} HEAD`).ok) {
-    fail(`Commit ${commit} is not an ancestor of HEAD (needs fetch-depth: 0, and the commit must be on main).`);
+  if (!(await $({ nothrow: true, quiet: true })`git merge-base --is-ancestor ${commit} ${ref}`).ok) {
+    fail(`Commit ${commit} is not an ancestor of ${ref} (needs fetch-depth: 0, and the commit must be on main).`);
   }
-  const changed = (await $`git diff --name-only ${commit} HEAD -- ${LIBRARY_PATHS}`).stdout.trim();
+  const changed = (await $`git diff --name-only ${commit} ${ref} -- ${RELEASE_INPUTS}`).stdout.trim();
   if (changed) {
     fail(
-      `Library sources changed after the packages were built from ${commit}, so a tag here would not match npm:\n${changed}\nRelease them as a new version.`,
+      `Files outside apps/web-ui and docs changed after the packages were built from ${commit}, so a tag here would not match npm:\n${changed}\nRelease them as a new version.`,
     );
   }
   return commit;
 }
 
-// apps/web-ui depends on exactly the lerna.json version of every @stamp-lib/* package it uses,
-// in package.json and package-lock.json.
-export async function verifyWebUi() {
-  const version = await lernaVersion();
-  const manifest = await readJson("apps/web-ui/package.json");
-  const { packages: locked = {} } = await readJson("apps/web-ui/package-lock.json");
+// apps/web-ui (in the working tree, or at `ref`) depends on exactly the lerna.json version of every
+// @stamp-lib/* package it uses, in package.json and package-lock.json.
+export async function verifyWebUi(ref) {
+  const version = await lernaVersion(ref);
+  const manifest = await readJson("apps/web-ui/package.json", ref);
+  const { packages: locked = {} } = await readJson("apps/web-ui/package-lock.json", ref);
   const published = new Set((await publishablePackages()).map((p) => p.name));
   const errors = [];
 

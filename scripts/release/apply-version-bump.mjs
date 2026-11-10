@@ -26,7 +26,6 @@ if (unexpectedFiles.length) fail(`The patch touches unexpected files: ${unexpect
 //    existing internal @stamp-lib/* ranges.
 await $`git apply --index ${patchFile}`;
 
-const readHead = async (file) => JSON.parse((await $`git show ${`HEAD:${file}`}`).stdout);
 const get = (obj, keys) => keys.reduce((o, k) => (o !== null && typeof o === "object" ? o[k] : undefined), obj);
 
 // Key paths at which two JSON values differ; a key present on one side only is one path.
@@ -47,7 +46,7 @@ const allowedPaths = {
 
 const fieldErrors = [];
 for (const file of files) {
-  const [before, after] = [await readHead(file), await readJson(file)];
+  const [before, after] = [await readJson(file, "HEAD"), await readJson(file)];
   const allowed = allowedPaths[file] ?? isVersionOrStampRange;
   for (const keys of diffPaths(before, after)) {
     const changedValue = get(before, keys) !== undefined && get(after, keys) !== undefined;
