@@ -5,5 +5,15 @@
     "packages/*",
     "catalogs/*",
     "plugins/*"
-  ]
+  ],
+  "useNx": false,
+  "rejectCycles": true,
+  "command": {
+    "version": {
+      "forcePublish": true,
+      "gitTagVersion": false,
+      "push": false,
+      "ignoreScripts": true
+    }
+  }
 }

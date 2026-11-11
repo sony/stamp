@@ -2,34 +2,32 @@
   "name": "root",
   "version": "0.0.1",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24.15.0"
   },
   "devEngines": {
     "runtime": {
       "name": "node",
-      "version": ">=22.12.0",
+      "version": ">=24.15.0",
       "onFail": "error"
     },
     "packageManager": {
       "name": "npm",
-      "version": ">=11.10.0",
+      "version": ">=12.0.0",
       "onFail": "error"
     }
   },
   "description": "",
   "scripts": {
     "lint": "eslint . --ext .ts,.js --ignore-path .gitignore --ignore-pattern apps/web-ui/",
-    "versionup": "lerna version --force-publish --no-push",
-    "versionup:patch": "lerna version patch --force-publish --no-push",
-    "versionup:minor": "lerna version minor --force-publish --no-push",
-    "versionup:major": "lerna version major --force-publish --no-push",
-    "versionup:rc": "lerna version prerelease --preid rc --force-publish --no-push",
-    "versionup:patch-rc": "lerna version prepatch --preid rc --force-publish --no-push",
-    "versionup:minor-rc": "lerna version preminor --preid rc --force-publish --no-push",
-    "versionup:major-rc": "lerna version premajor --preid rc --force-publish --no-push",
-    "build": "lerna run build",
-    "publish-package": "lerna publish from-package --no-private",
-    "publish-package-rc": "lerna publish from-package --dist-tag rc --no-private"
+    "versionup": "lerna version",
+    "versionup:patch": "lerna version patch",
+    "versionup:minor": "lerna version minor",
+    "versionup:major": "lerna version major",
+    "versionup:rc": "lerna version prerelease --preid rc",
+    "versionup:patch-rc": "lerna version prepatch --preid rc",
+    "versionup:minor-rc": "lerna version preminor --preid rc",
+    "versionup:major-rc": "lerna version premajor --preid rc",
+    "build": "lerna run build"
   },
   "publishConfig": {
     "access": "public",
@@ -53,26 +51,12 @@
     "eslint": "^8.55.0",
     "eslint-plugin-neverthrow": "^1.1.4",
     "eslint-plugin-vitest": "^0.3.20",
-    "lerna": "9.0.7",
+    "lerna": "10.1.1",
     "vitest": "^4.1.12"
   },
   "overrides": {
-    "brace-expansion@^1.0.0": "1.1.21",
-    "brace-expansion@^2.0.0": "2.1.7",
-    "brace-expansion@^5.0.0": "5.0.12",
-    "axios": "1.21.0",
-    "nx": "22.7.12",
-    "@nx/devkit": "22.7.12",
-    "follow-redirects": "1.16.2",
-    "yaml": "2.8.4",
-    "js-yaml@^3.0.0": "3.15.1",
-    "js-yaml@^4.0.0": "4.3.2",
-    "ip-address@^10.0.0": "10.7.2",
-    "undici@^6.0.0": "6.29.1",
-    "postcss@^8.0.0": "8.5.25",
-    "smol-toml": "1.9.0",
-    "lerna": {
-      "tar": "7.5.22"
+    "nx": {
+      "undici": "7.30.1"
     }
   }
 }

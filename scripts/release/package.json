@@ -1,0 +1,19 @@
+{
+  "name": "stamp-release-scripts",
+  "private": true,
+  "type": "module",
+  "description": "Release tooling for the @stamp-lib packages. Kept separate from the root workspace so release jobs can install only this.",
+  "engines": {
+    "node": ">=24.15.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "version": ">=12.0.0",
+      "onFail": "error"
+    }
+  },
+  "dependencies": {
+    "zx": "8.8.5"
+  }
+}

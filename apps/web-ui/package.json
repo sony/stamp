@@ -5,12 +5,12 @@
   "devEngines": {
     "runtime": {
       "name": "node",
-      "version": ">=22.12.0",
+      "version": ">=24.15.0",
       "onFail": "error"
     },
     "packageManager": {
       "name": "npm",
-      "version": ">=11.10.0",
+      "version": ">=12.0.0",
       "onFail": "error"
     }
   },

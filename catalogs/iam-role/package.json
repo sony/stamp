@@ -2,6 +2,11 @@
   "name": "@stamp-lib/stamp-iam-role-catalog",
   "version": "0.11.0",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sony/stamp.git",
+    "directory": "catalogs/iam-role"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
